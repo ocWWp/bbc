@@ -36,6 +36,14 @@ bbc/
 
 See `CLAUDE.md` for the precedence rule and full lock matrix.
 
+## I want to actually run this
+
+Three audiences, three docs:
+
+- **Operators** (running BBC for your team / self-hosting) → [`docs/operating-bbc.md`](docs/operating-bbc.md). Covers Supabase setup, bootstrapping your first tenant + admin, daily-use loop (invite, queue, audit, API keys), and mode switching.
+- **Agents** (LLMs opening a session inside `bbc/`) → [`AGENTS.md`](AGENTS.md). Layer detection, hard rules.
+- **Developers** working on the dashboard or MCP server → [`apps/dashboard/README.md`](apps/dashboard/README.md), [`apps/mcp-server/README.md`](apps/mcp-server/README.md).
+
 ## Quickstart
 
 The day-to-day path uses slash commands (Phase 08). When a Claude session is opened anywhere in the BBC tree, these are auto-discovered:
