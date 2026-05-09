@@ -73,7 +73,7 @@ human_verification:
 | 5   | `memory/architecture/deployment-modes.md` exists (or schema-permitted equivalent)              | ✓ VERIFIED | Lives at `memory/tech/deployment-modes.md` instead of `memory/architecture/`. The plan specified `architecture/`, but `memory/_schema.md` only permits categories `product/design/tech/ops/people/glossary/decisions`. Placing it under `tech/` is the schema-correct call. The body delivers a concrete file↔table mapping, storage interfaces, invariant translation, mode selection, migration paths. |
 | 6   | File↔DB mapping is complete in both directions                                                 | ⚠️ PARTIAL | Content artifacts (memory/, queue/, _log/, bindings.yaml) mapped well. Meta artifacts (_schema.md, _index.md, scripts/, actor-string convention) and lossy-by-design projections in both directions are uncovered. See gap above. |
 | 7   | Repo decision (monorepo + 8azi-dashboard generalization) is recorded concretely               | ✓ VERIFIED | `memory/tech/repo-structure.md` lays out a complete tree (apps/, packages/, examples/, templates/), names pnpm workspaces specifically, gives a 6-step migration plan from 8azi-dashboard → apps/dashboard/, calls out what stays separate (8azi-web, 8azi-api). Concrete enough for a Phase 1 first-task starter to execute without further design work. |
-| 8   | Index + governance compliance maintained                                                       | ⚠️ PARTIAL | `memory/_index.md` references all 4 new entries (ADR-0004 under decisions, tech-deployment-modes and tech-repo-structure under tech, ops-deployment-targets under ops). **However:** the ops table has a stray empty row (line 31: \`\| `` \| \| \| \| \|\`) — index regeneration introduced a junk row, probably from a blank line in `memory/ops/`. Cosmetic but the index is auto-generated, so this implies `scripts/index-memory.sh` has a bug or an unexpected sibling file. |
+| 8   | Index + governance compliance maintained                                                       | ⚠️ PARTIAL | `memory/_index.md` references all 4 new entries (ADR-0004 under decisions, tech-deployment-modes and tech-repo-structure under tech, ops-deployment-targets under ops). **However:** the ops table has a stray empty row (line 31: `\| `` \| \| \| \| \|`) — index regeneration introduced a junk row, probably from a blank line in `memory/ops/`. Cosmetic but the index is auto-generated, so this implies `scripts/index-memory.sh` has a bug or an unexpected sibling file. |
 
 **Score:** 5/8 truths fully verified, 2 partial, 1 failed.
 
@@ -137,4 +137,108 @@ Recommendation: do not commit the CLAUDE.md edit until the lock matrix update la
 ---
 
 _Verified: 2026-05-08_
+_Verifier: Claude (gsd-verifier)_
+
+---
+
+# Re-verification (post-commit 7430eef)
+
+**Verified:** 2026-05-08T00:00:00Z (round 2)
+**Mode:** Re-verification — checking only the three blockers from round 1 plus a coherence pass.
+**Status:** **passed**
+**Score:** 3/3 gap-fixes verified; coherence clean.
+
+## Round-1 gaps revisited
+
+### Gap 1 — Lock matrix row for DB-mode: ✓ VERIFIED (sufficient, not cosmetic)
+
+`bbc/CLAUDE.md` line 21 (working tree, uncommitted as required) now contains a new row:
+
+> `memory_files` rows where `owning_layer: main` (DB-mode) | Mutable only via `accept_proposal()` / `reject_proposal()` SQL functions invoked by an authenticated Main-role identity. RLS policy enforces this at the DB layer; no direct UPDATE/DELETE permitted, even from the service role except inside the named functions. | Manager and Distribution via `propose_change()` SQL function (DB-mode equivalent of `scripts/propose.sh`); see ADR-0004 §Consequences/Governance bullet 2.
+
+This row is **substantive**, not cosmetic, on three grounds:
+
+1. It names the **mechanism of enforcement** (RLS policy at the DB layer), not just the policy. That pins the implementation in Phase 2 — the storage layer cannot ship without RLS that satisfies this row.
+2. It explicitly closes the service-role escape hatch ("no direct UPDATE/DELETE permitted, even from the service role except inside the named functions"). This is the loophole that round-1 flagged would otherwise be silent — service-role keys are how Supabase server code typically writes, and absent this clause the lock-matrix row would be defeated by any `service_role`-keyed Next.js route handler.
+3. It cites ADR-0004 §Consequences/Governance bullet 2 by reference, which closes the round-1 anti-pattern of "principle 1 evolves but the matrix doesn't."
+
+The existing file-mode row above it (line 20) was correctly narrowed to "(file-mode)" so the two coexist without ambiguity.
+
+**Remaining narrower gap (non-blocking):** the original VERIFICATION.md round-1 listed seven additional DB-mode tables that ought to appear in the matrix (`memory_files` for owning_layer=manager, owning_layer=distribution, `queue_items`, `proposals_accepted`, `proposals_rejected`, `operations_log`, `bindings`). Only the `owning_layer:main` row landed. That is defensible: the ADR commits specifically to that row and the others can land as Phase-2 the schema lands. But it does mean the matrix is **incomplete by design** for the next phase — flag it for Phase 2 to extend rather than re-block Phase 0.
+
+### Gap 2 — Principle 6 under-evolved: ✓ VERIFIED (substantive ruling table)
+
+ADR-0004 lines 60–74 add a new §Consequences/Governance bullet that runs a per-construct ruling table covering 9 DB-side constructs. Spot-check against the round-1 missing list:
+
+| Round-1 worry | Addressed in table? | Where |
+|---|---|---|
+| pg_cron auto-accepting | Yes | Row 2 ("pg_cron mutating memory_files / queue_items / owning_layer:main → **Forbidden**") |
+| pg_cron housekeeping (refresh views, GC) | Yes | Row 3 ("**Allowed.** Read-derived or housekeeping work") |
+| Outbound webhooks | Yes | Row 4 ("**Allowed**, attribution chain intact") |
+| Inbound webhooks mutating state | Yes | Row 5 ("**Allowed only if** named identity AND constrained scope") |
+| Realtime subscriptions firing UI side-effects | Yes | Row 6 ("**Allowed.** Read-only push") |
+| MCP tools acting as a delegated tool | Yes | Row 7 ("**Allowed if** logged with `actor: agent:<api_key_id>`") |
+| MCP tool chaining (the "loop accept→propose→accept" worry) | Yes | Row 8 ("**Allowed if** chain is explicitly user-requested") |
+| Auto-accept by any rule or model | Yes | Row 9 ("**Forbidden, full stop.**") |
+| Triggers as deterministic in-transaction effects | Yes | Row 1 ("**Allowed.** Same logical action as the user's") |
+
+Plus the closing sentence: **"New constructs not listed here default to forbidden until an ADR adds them."** This is the meta-rule round-1 was asking for; it's the contract that prevents drift on constructs we haven't thought of yet.
+
+The ruling on the agent-identity question that round-1 flagged ("is an MCP tool call human-in-the-loop or silent autonomy?") is decided in row 7: the agent acts as a delegated tool, not an autonomous decision-maker, **provided** each call is independently logged with `actor: agent:<api_key_id>` AND the agent does not invoke a tool the human did not directly authorize within that session. That's a defensible and falsifiable line — "the human authorized this within this session" is observable from the conversation/request ID required by the same row.
+
+The MCP tool-chaining row (8) explicitly invokes the substitution test: "the user could have invoked each tool themselves and the agent is just batching." This is the right framing for that hard case.
+
+**Possible gaps not in the table** (non-blocking, but flag for future ADRs):
+- **Postgres `LISTEN`/`NOTIFY` driving server-side handlers** — not addressed. Realistically falls under "Realtime push" (row 6) but only if the listener is read-only; a `LISTEN` that triggers a server-side `INSERT` is closer to pg_cron and should be forbidden.
+- **Supabase Edge Functions invoked on a schedule** — not addressed by name. The ADR addresses pg_cron but Supabase has *two* scheduled-execution surfaces (pg_cron in DB, scheduled Edge Functions in the platform layer). The "default to forbidden" meta-rule covers this, but it's worth naming the second one explicitly when a future ADR adds it.
+- **Database functions invoked by a `BEFORE INSERT` trigger that themselves call out to an HTTP endpoint** — chains rows 1 and 5 in a way the table doesn't directly cover. Currently row 1 ("triggers are deterministic in-transaction effects") is too permissive if the trigger does I/O. Phase 2 schema review should flag any such trigger.
+
+These are forward-looking gaps, not round-1 regressions. The fix is sufficient for Phase 0 closure.
+
+`memory/tech/deployment-modes.md` §Invariant translation §6 (lines 113–115) was rewritten and now correctly:
+- Cites the ADR's per-construct ruling table as the authoritative reference.
+- Distinguishes authentication from autonomy ("an agent acting on behalf of a user is OK; an agent acting on its own deliberation is not"), which directly answers round-1's confusion about authenticated≠human-in-the-loop.
+- Re-states the four headline bans (pg_cron for state mutations, inbound webhook scope rules, named identity required, auto-accept forbidden).
+
+### Gap 3 — Path consistency: ✓ VERIFIED (zero residual references)
+
+`grep -rn "8azi-dashboard/supabase" memory/ CLAUDE.md` returns zero hits. The previously offending line in `memory/tech/deployment-modes.md` §Out of scope now reads:
+
+> Schema DDL — lives in `apps/dashboard/supabase/migrations/0003+...sql` (Phase 1–2 of productization). The path reflects the monorepo layout decided in `tech/repo-structure.md`; the actual move from `8azi-dashboard/` happens as Phase 1's first task.
+
+This is the right framing: it cites the canonical path (`apps/dashboard/...`), explicitly references `tech/repo-structure.md` as the source of truth for the layout, and acknowledges the move-from-`8azi-dashboard/` as a Phase-1 task (not a Phase-0 commitment). The single remaining mention of `8azi-dashboard` is in the migration-source phrasing, which is correct — that path *is* where the code lives today.
+
+## Coherence pass (new check)
+
+Re-read all four Phase 0 docs end-to-end (`CLAUDE.md`, ADR-0004, `tech/deployment-modes.md`, `tech/repo-structure.md`, `ops/deployment-targets.md`) looking for new contradictions introduced by the fixes.
+
+**ADR §Consequences/Governance principle-6 table vs. tech/deployment-modes.md §6 — coherent.** Spot-check on the high-risk items:
+
+| Construct | ADR ruling | tech/deployment-modes.md §6 wording | Coherent? |
+|---|---|---|---|
+| pg_cron mutating protocol state | Forbidden | "pg_cron is forbidden for protocol-state mutations and allowed for housekeeping" | ✓ Yes |
+| Inbound webhook mutations | Allowed only with named identity + constrained scope | "Inbound webhooks must carry a named-identity actor string ... and a constrained scope" | ✓ Yes |
+| Auto-accept by rule/model | Forbidden full stop | "Auto-accept by any rule or trained model is forbidden" | ✓ Yes |
+| MCP delegated tool calls | Allowed with `actor: agent:<api_key_id>` logging | "either a human (Supabase Auth user) **or** a named agent (MCP API key with an `agent_id`)" | ✓ Yes |
+| Authentication ≠ autonomy | Implied by row 7 framing ("delegated tool, not autonomous decision-maker") | Explicit: "an agent acting on behalf of a user is OK; an agent acting on its own deliberation is not" | ✓ Yes |
+
+The tech doc's §6 acts as the reader-friendly summary; the ADR is the authoritative table. They cite each other in both directions and don't drift on any of the rulings I checked.
+
+**Lock matrix row vs. ADR §Consequences bullet 2 — coherent.** The row in `CLAUDE.md` line 21 quotes the ADR's mechanism almost verbatim and cites it explicitly. The "even from the service role except inside the named functions" clause is **stronger** than the ADR text strictly required — that's a good direction; the lock matrix narrows the surface, doesn't widen it.
+
+**Lock matrix row vs. tech/deployment-modes.md §Invariant translation §2 — coherent.** Both say RLS policy enforces owning-layer scoping; the matrix row adds the `accept_proposal()`/`reject_proposal()` requirement on top, which is consistent with §3 of the same doc (proposals append-only via the named transactions).
+
+**Path-fix vs. tech/repo-structure.md — coherent.** `apps/dashboard/supabase/migrations/` matches the monorepo layout in repo-structure.md lines 84-85. The "first task of Phase 1" framing in deployment-modes.md §Out of scope matches the §Migration plan in repo-structure.md (which also calls the move "the first task of Phase 1").
+
+**No new contradictions introduced.**
+
+## Re-verification status
+
+All three round-1 gaps closed sufficiently. The lock-matrix row meaningfully constrains DB-mode writes (not cosmetic). The principle-6 table is substantive — it rules on the hard cases (pg_cron, MCP chaining, inbound webhooks, auto-accept) and installs a "default-forbidden for new constructs" meta-rule. The path inconsistency is fully eliminated. ADR §Consequences and tech/deployment-modes.md §6 say the same thing; coherence is intact.
+
+**Round-1 partial gap on file↔DB meta-artifact mapping (truth #6) was not in scope for this re-verification round** and remains as round-1 listed it. Suggest folding into Phase 2's storage-interface design rather than re-blocking Phase 0.
+
+**Recommendation:** Phase 0 may close. The two human-verification items still apply (registrar pull-trigger; commit the CLAUDE.md edit only after a human reads principle 1 + the new lock-matrix row alongside ADR-0004). The "1 week soak" item is unchanged — still cognitive, still human-only.
+
+_Re-verified: 2026-05-08_
 _Verifier: Claude (gsd-verifier)_

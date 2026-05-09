@@ -17,7 +17,8 @@ A lower-layer document can **specialize** an upper rule (add detail, scope to a 
 | What | Who can edit directly | Who can propose edits |
 |---|---|---|
 | `bbc/CLAUDE.md` (this file) | Human at Main, in BBC repo | Anyone may file an ADR proposal under `memory/decisions/` requesting Main to edit. |
-| `memory/**` files where `owning_layer: main` | Main session, after `accept.sh` of a proposal | Manager and Distribution via `scripts/propose.sh` |
+| `memory/**` files where `owning_layer: main` (file-mode) | Main session, after `accept.sh` of a proposal | Manager and Distribution via `scripts/propose.sh` |
+| `memory_files` rows where `owning_layer: main` (DB-mode) | Mutable only via `accept_proposal()` / `reject_proposal()` SQL functions invoked by an authenticated Main-role identity. RLS policy enforces this at the DB layer; no direct UPDATE/DELETE permitted, even from the service role except inside the named functions. | Manager and Distribution via `propose_change()` SQL function (DB-mode equivalent of `scripts/propose.sh`); see ADR-0004 §Consequences/Governance bullet 2. |
 | `memory/**` files where `owning_layer: manager` | Manager session | Distribution via `scripts/propose.sh` |
 | `manager/CLAUDE.md` | Manager session + humans | Distribution via `scripts/propose.sh` |
 | `manager/rules/**` | Manager session | Distribution via `scripts/propose.sh` |
@@ -28,7 +29,7 @@ A lower-layer document can **specialize** an upper rule (add detail, scope to a 
 
 ## Non-negotiable principles
 
-1. **Memory is the contract.** All durable knowledge lives in `memory/` as Markdown + YAML frontmatter (schema in `memory/_schema.md`). If a fact isn't in memory, it isn't real.
+1. **Memory is the contract.** All durable knowledge is captured by the schema in `memory/_schema.md` — that schema is the contract; storage is a binding. In **file-mode** (single-tenant self-host), memory is materialized as Markdown + YAML frontmatter under `memory/`. In **DB-mode** (multi-tenant SaaS), it is materialized as RLS-gated rows in `memory_files` and related tables. Both modes coexist. See ADR-0004 and `memory/tech/deployment-modes.md`. If a fact isn't in memory (whichever mode), it isn't real.
 2. **Direct writes are scoped to your `owning_layer`.** Anything else goes through the queue.
 3. **Proposals are append-only; resolutions move (not delete).** Accepted proposals land in `queue/_accepted/`, rejected in `queue/_rejected/`. Both stay forever — they are the audit trail.
 4. **Vendor names are not architecture.** Roles (`llm-provider`, `db-provider`, `email-delivery`) live in `memory/ops/vendors.md`. Any other file that needs to mention a vendor cites that file. This protects us from vendor churn.
