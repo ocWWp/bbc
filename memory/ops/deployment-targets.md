@@ -8,7 +8,7 @@ created: 2026-05-08T00:00:00Z
 updated: 2026-05-08T00:00:00Z
 owning_layer: main
 tags: [deployment, hosting, domain, dns, subdomains]
-status: proposed
+status: accepted
 ---
 
 # Deployment Targets — DNS, hosting, subdomains for BBC SaaS

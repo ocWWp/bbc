@@ -8,7 +8,7 @@ created: 2026-05-08T00:00:00Z
 updated: 2026-05-08T00:00:00Z
 owning_layer: main
 tags: [repo, monorepo, structure, layout, bbc-dashboard, mcp-server]
-status: proposed
+status: accepted
 ---
 
 # Repo Structure: BBC product code lives in one monorepo

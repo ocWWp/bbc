@@ -8,7 +8,7 @@ created: 2026-05-08T00:00:00Z
 updated: 2026-05-08T00:00:00Z
 owning_layer: main
 tags: [adr, bbc, principles, deployment, multi-tenant, saas, self-host]
-status: proposed
+status: accepted
 ---
 
 # ADR-0004: BBC supports two deployment modes — file-based self-host and DB-backed multi-tenant SaaS
