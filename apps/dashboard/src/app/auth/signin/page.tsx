@@ -11,7 +11,7 @@ type PageProps = {
 
 const ERROR_COPY: Record<string, string> = {
   not_invited:
-    "You're not on the allowlist for this dashboard. Ask the admin to add you.",
+    "You haven't been invited to this dashboard. Ask the admin to send you an invitation.",
   invalid_credentials: "Wrong email or password.",
   oauth_failed: "Sign-in with that provider failed. Try again.",
   callback_error: "Auth callback failed. Try again.",
@@ -60,7 +60,7 @@ export default async function SignInPage({ searchParams }: PageProps) {
     <div style={{ maxWidth: 480, margin: "120px auto", padding: 24 }}>
       <h1>Sign in</h1>
       <p className="muted" style={{ marginBottom: 24 }}>
-        BBC dashboard is invite-only. Sign in with an account that's on the allowlist.
+        BBC dashboard is invite-only. Sign in with an account that's been invited.
       </p>
 
       {error && ERROR_COPY[error] && (

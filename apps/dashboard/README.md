@@ -1,6 +1,6 @@
 # @bbc/dashboard
 
-Visual front-end (PM tab) for BBC. Workspace member of the BBC monorepo (`bbc/apps/dashboard/`). Read-only views over `_log/`, `queue/`, `bindings.yaml` (file-mode) or the equivalent tables (DB-mode), plus Accept/Reject server actions. **Auth-gated by an invite-only allowlist in Supabase.**
+Visual front-end (PM tab) for BBC. Workspace member of the BBC monorepo (`bbc/apps/dashboard/`). Read-only views over `_log/`, `queue/`, `bindings.yaml` (file-mode) or the equivalent tables (DB-mode), plus Accept/Reject server actions. **Multi-tenant + invite-only: every signup is gated by a `tenant_invitations` row in Supabase.**
 
 ## Run (local dev)
 
@@ -33,38 +33,46 @@ Or from `apps/dashboard/` directly: `pnpm dev`.
 
 Supabase Auth with three providers: **GitHub OAuth, Google OAuth, email + password**. Sessions are cookie-based, refreshed in `src/middleware.ts`.
 
-Sign-up is **invite-only**, gated by the `public.allowlist` table in the Supabase project. A `BEFORE INSERT` trigger on `auth.users` rejects any signup whose `(provider, identifier)` isn't in the allowlist (raises `not_invited` — surfaced in the UI as a clear error). On allowed signup, a row is inserted into `public.profiles` with the provider + identifier; that row is the source of truth for the BBC actor string `human:<provider>:<identifier>`.
+Sign-up is **invite-only**, gated by the `public.tenant_invitations` table. A `BEFORE INSERT` trigger on `auth.users` rejects any signup whose `(provider, identifier)` does not match an invitation (raises `not_invited` — surfaced in the UI as a clear error). On allowed signup, an `AFTER INSERT` trigger creates two rows: a `public.profiles` row carrying the provider + identifier + tenant_id, and a `public.tenant_members` row carrying the role from the invitation (`admin`, `member`, or `viewer`).
 
-Every server action (Accept / Reject) calls `requireActor()` (see `src/lib/auth/require-user.ts`), which loads the profile via the server-side Supabase client and refuses unauthorized requests.
+Every server action (Accept / Reject) calls `requireActor()` (see `src/lib/auth/require-user.ts`), which resolves the user's profile + tenant + role via the server-side Supabase client. `requireRole(actor, 'member')` then gates write actions: viewers can read but not Accept or Reject. Phase 5 (RBAC) may further tighten Accept to admin-only.
 
 ## Hosting prerequisites
 
 Before exposing this on a network:
 
-1. **Provision a Supabase project** and apply the migration in `supabase/migrations/0001_dashboard_auth_init.sql`.
+1. **Provision a Supabase project** and apply all migrations in `supabase/migrations/` in order (0001 → 0004 as of Phase 1).
 
 2. **Configure providers in the Supabase dashboard** (Authentication → Providers):
    - **GitHub**: register an OAuth app at <https://github.com/settings/developers> with callback `https://<project-ref>.supabase.co/auth/v1/callback`. Paste Client ID + Secret into Supabase.
    - **Google**: create an OAuth client in Google Cloud Console with the same callback URI. Paste Client ID + Secret into Supabase.
-   - **Email**: enable; turn on "Confirm email" in production. Keep "Enable signups" ON so the allowlist trigger can return a clean error (vs. an opaque "couldn't authenticate").
+   - **Email**: enable; turn on "Confirm email" in production. Keep "Enable signups" ON so the invitation trigger can return a clean `not_invited` error (vs. an opaque "couldn't authenticate").
 
 3. **Site URL + redirect URLs** (Authentication → URL Configuration): `http://localhost:3000` (dev), production URL when deployed. Add `http://localhost:3000/auth/callback` to additional redirect URLs.
 
 4. **Populate `.env.local`** (gitignored): see `.env.example`.
 
-5. **Seed the allowlist**:
+5. **Seed a tenant + invitations**:
 
    ```sql
-   insert into public.allowlist(provider, identifier) values
-     ('github', 'your-gh-login'),
-     ('email',  'you@yourdomain.com');
+   -- Create a tenant
+   insert into public.tenants (slug, name, plan)
+   values ('my-team', 'My Team', 'free')
+   returning id;
+   -- Use the returned tenant_id below.
+
+   -- Invite people. Role is one of: admin | member | viewer.
+   insert into public.tenant_invitations (tenant_id, provider, identifier, role) values
+     ('<tenant_id>', 'github', 'your-gh-login',     'admin'),
+     ('<tenant_id>', 'email',  'you@yourdomain.com', 'admin'),
+     ('<tenant_id>', 'email',  'teammate@your.co',   'member');
    ```
 
-   Only listed identities can sign up. Every signed-in user has full Accept/Reject power; per-user RBAC is deferred.
+   Only invited identities can sign up. Roles: **admin** (full Accept/Reject + member management), **member** (Accept/Reject + read), **viewer** (read only).
 
 ## Security
 
-Auth-gated, but the Accept/Reject server actions still shell out to `bash bbc/scripts/{accept,reject}.sh` server-side. That's a **trust-the-allowlisted-user** model: a logged-in user can submit any proposal_id matching the regex, and the action will fire the script.
+Auth-gated, but the Accept/Reject server actions still shell out to `bash bbc/scripts/{accept,reject}.sh` server-side. That's a **trust-the-invited-user** model: a logged-in member can submit any proposal_id matching the regex, and the action will fire the script. Viewers are blocked at the application layer (`requireRole(actor, 'member')`).
 
 **This is acceptable for invite-only deployments where every user is trusted to operate the BBC.** It is NOT acceptable for uncurated/public hosting. To make it public-safe, replace `child_process.exec` with a typed RPC layer (deferred to a future plan) and add per-user role-based permissions.
 

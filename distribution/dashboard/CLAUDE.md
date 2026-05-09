@@ -63,9 +63,16 @@ The dashboard is **purely a UI over the existing protocol**. Every Accept/Reject
 
 ## Hard constraint: invite-only hosting
 
-The dashboard has auth via the bound `db-provider` (which bundles auth in V1; see `../../memory/ops/bindings.yaml` and `../../memory/ops/provider-roles/db-provider.yaml`). Three sign-in methods are exposed: GitHub OAuth, Google OAuth, and email + password. Sign-up is gated by a `public.allowlist` table — a `BEFORE INSERT` trigger on `auth.users` rejects any signup whose `(provider, identifier)` is not present, raising `not_invited`. An `AFTER INSERT` trigger then creates a `public.profiles` row that is the canonical source of the actor string (`human:<provider>:<identifier>`) used in Accept/Reject audit lines.
+The dashboard has auth via the bound `db-provider` (which bundles auth in V1; see `../../memory/ops/bindings.yaml` and `../../memory/ops/provider-roles/db-provider.yaml`). Three sign-in methods are exposed: GitHub OAuth, Google OAuth, and email + password.
 
-**It MAY be hosted on a single-org allowlist deployment** where every signed-in user is trusted to operate BBC (full Accept/Reject power). It MUST NOT be exposed to a public/uncurated audience without:
+Sign-up is gated by `public.tenant_invitations` — a `BEFORE INSERT` trigger on `auth.users` rejects any signup whose `(provider, identifier)` does not match an invitation, raising `not_invited`. An `AFTER INSERT` trigger then creates a `public.profiles` row carrying the actor string (`human:<provider>:<identifier>`) plus a `public.tenant_members` row carrying the role from the invitation.
+
+Three roles, gated at the application layer via `requireRole(actor, min)` in `src/lib/auth/require-user.ts`:
+- **admin** — full Accept/Reject + (future) member management.
+- **member** — propose + Accept/Reject + read.
+- **viewer** — read only; cannot Accept or Reject.
+
+**It MAY be hosted as a multi-tenant SaaS or a single-org invite-only deployment.** It MUST NOT be exposed to a public/uncurated audience (open self-service signup with full Accept/Reject for everyone) without:
 1. Replacing `child_process.exec` (in `src/app/queue/actions.ts`) with a typed RPC over a UNIX socket. The shell-exec path remains the soft underbelly: an allowlisted user could submit any well-formed proposal_id; per-user role-based permissions are not yet implemented.
 2. Adding per-user role-based permissions (e.g., reviewer-only vs. accepter).
 3. Validating proposal-id existence server-side before exec.
@@ -78,9 +85,10 @@ Future: a `dashboard.pr-review` could extend `general.pr-review` to add UI-speci
 
 ## What's NOT in V1
 
-- No per-user RBAC. Every allowlisted user has full Accept/Reject power; roles like reviewer-only vs. accepter are not modeled. (The `Hard constraint` section above lists this as a prerequisite for any non-invite-only hosting.)
+- Coarse RBAC only (admin/member/viewer). Finer permissions like "Accept admin-only, propose member-and-up, can-edit-bindings admin-only" are deferred to Phase 5 of productization. Today, member and admin are interchangeable for Accept/Reject; only viewer is restricted.
+- No team-management UI (invite by email, change role, remove member). Invitations are inserted via SQL today.
 - No mobile-responsive design.
-- No brain interface (configure profiles/skills/bindings via UI). All config writes still go through `bbc/scripts/propose.sh` directly.
+- No brain interface (configure profiles/skills/bindings via UI). All BBC-side config writes still go through `bbc/scripts/propose.sh` directly (file-mode) or the DB-mode `propose_change()` function (Phase 2+).
 - No pipeline builder. n8n integration is out of scope until n8n itself is wired.
 
 ## Tagged callsites (per F4-build-2 convention)

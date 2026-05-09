@@ -116,7 +116,7 @@ export function SignInForm({ callbackUrl }: { callbackUrl: string }) {
 function humanizeError(msg: string): string {
   const m = msg.toLowerCase();
   if (m.includes("not_invited")) {
-    return "You're not on the allowlist for this dashboard. Ask the admin to add you.";
+    return "You haven't been invited to this dashboard. Ask the admin to send you an invitation.";
   }
   if (m.includes("invalid login credentials")) return "Wrong email or password.";
   if (m.includes("user already registered")) {
