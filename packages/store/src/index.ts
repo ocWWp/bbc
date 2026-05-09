@@ -7,6 +7,7 @@ export type {
   QueueStore,
   LogStore,
   BindingsStore,
+  WriteResult,
 } from "./interfaces";
 
 export { LocalStore } from "./local/index";

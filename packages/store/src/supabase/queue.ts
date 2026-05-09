@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Proposal, ProposalStatus, QueueStore } from "../interfaces";
+import type { Proposal, ProposalStatus, QueueStore, WriteResult } from "../interfaces";
 
 type QueueRow = {
   proposal_id: string;
@@ -33,9 +33,9 @@ function rowToProposal(row: QueueRow): Proposal {
   };
 }
 
+const PROPOSAL_ID_RE = /^prop_[\w:.-]+$/;
+
 export class SupabaseQueueStore implements QueueStore {
-  // RLS scopes the read to the caller's tenant; no explicit tenant_id filter needed.
-  // The dashboard uses an authenticated server client, so auth_tenant() resolves correctly.
   constructor(private readonly client: SupabaseClient) {}
 
   async list(status: ProposalStatus): Promise<Proposal[]> {
@@ -70,5 +70,35 @@ export class SupabaseQueueStore implements QueueStore {
     if (error) throw new Error(`SupabaseQueueStore.getById: ${error.message}`);
     if (!data) return null;
     return rowToProposal(data as QueueRow);
+  }
+
+  /**
+   * DB-mode acceptProposal: invokes the SQL function via PostgREST RPC.
+   * Atomicity, role gating, and audit-trail are enforced inside the function.
+   * The `actor` parameter is ignored — the SQL function derives it from
+   * auth.uid() to prevent client-side spoofing.
+   */
+  async acceptProposal(proposalId: string, _actor: string): Promise<WriteResult> {
+    if (!PROPOSAL_ID_RE.test(proposalId)) {
+      return { ok: false, output: `Invalid proposal_id: ${proposalId}` };
+    }
+    const { error } = await this.client.rpc("accept_proposal", { p_proposal_id: proposalId });
+    if (error) return { ok: false, output: error.message };
+    return { ok: true, output: `accepted ${proposalId}` };
+  }
+
+  async rejectProposal(proposalId: string, _actor: string, reason: string): Promise<WriteResult> {
+    if (!PROPOSAL_ID_RE.test(proposalId)) {
+      return { ok: false, output: `Invalid proposal_id: ${proposalId}` };
+    }
+    if (!reason || reason.length > 500) {
+      return { ok: false, output: "Reason is required (≤ 500 chars)." };
+    }
+    const { error } = await this.client.rpc("reject_proposal", {
+      p_proposal_id: proposalId,
+      p_reason: reason,
+    });
+    if (error) return { ok: false, output: error.message };
+    return { ok: true, output: `rejected ${proposalId}` };
   }
 }

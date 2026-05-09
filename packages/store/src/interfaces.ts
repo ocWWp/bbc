@@ -48,11 +48,30 @@ export type Binding = {
   kind: "active" | "unbound" | "provisional";
 };
 
+export type WriteResult = { ok: true; output: string } | { ok: false; output: string };
+
 export interface QueueStore {
   list(status: ProposalStatus): Promise<Proposal[]>;
   /** Convenience: list all three statuses in parallel. */
   listAll(): Promise<{ pending: Proposal[]; accepted: Proposal[]; rejected: Proposal[] }>;
   getById(proposalId: string): Promise<Proposal | null>;
+
+  /**
+   * Flip a proposal pending -> accepted, atomically. The actor string is
+   * resolved by the implementation:
+   *   - LocalStore: passed via `--actor` to scripts/accept.sh.
+   *   - SupabaseStore: derived inside the SQL function from auth.uid().
+   * Caller may pass an explicit actor for audit-trail clarity (file-mode
+   * uses it; DB-mode ignores and uses session identity).
+   */
+  acceptProposal(proposalId: string, actor: string): Promise<WriteResult>;
+
+  /**
+   * Flip a proposal pending -> rejected with a required reason.
+   * Reason is bounded at 500 chars (SQL function checks; LocalStore checks
+   * before passing to bash).
+   */
+  rejectProposal(proposalId: string, actor: string, reason: string): Promise<WriteResult>;
 }
 
 export interface LogStore {

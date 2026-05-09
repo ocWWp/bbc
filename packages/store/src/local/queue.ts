@@ -1,7 +1,17 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { Proposal, ProposalStatus, QueueStore } from "../interfaces";
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
+import type { Proposal, ProposalStatus, QueueStore, WriteResult } from "../interfaces";
 import { parseFrontmatter, fmString, fmObject } from "./frontmatter";
+
+const execp = promisify(exec);
+const PROPOSAL_ID_RE = /^prop_[\w:.-]+$/;
+
+/** POSIX-safe single-quote escape for shelling out arguments. */
+function shq(s: string): string {
+  return `'${s.replace(/'/g, `'\\''`)}'`;
+}
 
 export class LocalQueueStore implements QueueStore {
   constructor(private readonly bbcRoot: string) {}
@@ -73,5 +83,52 @@ export class LocalQueueStore implements QueueStore {
       if (hit) return hit;
     }
     return null;
+  }
+
+  /**
+   * File-mode acceptProposal: shells out to scripts/accept.sh. Single-tenant
+   * by construction; the host's bbc/ directory is the only state.
+   */
+  async acceptProposal(proposalId: string, actor: string): Promise<WriteResult> {
+    if (!PROPOSAL_ID_RE.test(proposalId)) {
+      return { ok: false, output: `Invalid proposal_id: ${proposalId}` };
+    }
+    const script = path.join(this.bbcRoot, "scripts", "accept.sh");
+    try {
+      const { stdout, stderr } = await execp(
+        `bash ${shq(script)} ${shq(proposalId)} --actor ${shq(actor)}`,
+        { cwd: this.bbcRoot, timeout: 30000 },
+      );
+      return { ok: true, output: [stdout, stderr].filter(Boolean).join("\n") };
+    } catch (e: unknown) {
+      const err = e as { stdout?: string; stderr?: string; message?: string };
+      return {
+        ok: false,
+        output: [err.stdout, err.stderr, err.message].filter(Boolean).join("\n"),
+      };
+    }
+  }
+
+  async rejectProposal(proposalId: string, actor: string, reason: string): Promise<WriteResult> {
+    if (!PROPOSAL_ID_RE.test(proposalId)) {
+      return { ok: false, output: `Invalid proposal_id: ${proposalId}` };
+    }
+    if (!reason || reason.length > 500) {
+      return { ok: false, output: "Reason is required (≤ 500 chars)." };
+    }
+    const script = path.join(this.bbcRoot, "scripts", "reject.sh");
+    try {
+      const { stdout, stderr } = await execp(
+        `bash ${shq(script)} ${shq(proposalId)} --reason ${shq(reason)} --actor ${shq(actor)}`,
+        { cwd: this.bbcRoot, timeout: 30000 },
+      );
+      return { ok: true, output: [stdout, stderr].filter(Boolean).join("\n") };
+    } catch (e: unknown) {
+      const err = e as { stdout?: string; stderr?: string; message?: string };
+      return {
+        ok: false,
+        output: [err.stdout, err.stderr, err.message].filter(Boolean).join("\n"),
+      };
+    }
   }
 }
