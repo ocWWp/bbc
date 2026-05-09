@@ -1,0 +1,50 @@
+---
+id: profile_engineering-default
+profile_id: engineering-default
+type: ranker-profile
+scope: product:8azi
+applies_to:
+  leaves: [8azi-api, 8azi-web]
+  task_classes: [llm-call, db-query, infra-decision]
+contract_version: 1
+status: accepted
+layer: main
+owning_layer: main
+created: 2026-05-08T00:00:00Z
+updated: 2026-05-08T00:00:00Z
+tags: [profile, engineering]
+inherits: _org-policy
+---
+
+# Profile: engineering-default
+
+Used by `8azi-api` and `8azi-web` leaves for engineering task classes (LLM calls in chart readings, DB queries, infra picks).
+
+## Hard constraints
+
+- max_cost_per_call_usd: 0.50         # readings are heavier than marketing prompts
+- max_latency_p95_ms: 30000           # 30s — interactive but allows complex generations
+- min_uptime_sla_pct: 99.5            # production reliability requirement
+
+## Soft preferences
+
+preferred_providers: []
+region_preference: us-east-1
+vibe_descriptors: []                   # voice constraints live in skills, not profiles
+
+## Ranker weights
+
+weights:
+  cost: 0.20
+  latency: 0.20
+  trust: 0.40                          # higher trust weight for production code paths
+  outcome_history: 0.15
+  preference_match: 0.05
+
+## Outcome attribution window
+
+outcome_window_days: 14                # tighter window — engineering tasks have faster signal
+
+## Notes
+
+Engineering profile prioritizes trust over cost. Production reliability is the dominant constraint; we'd rather pay more for proven providers.

@@ -1,0 +1,35 @@
+---
+id: failover_config
+type: failover-config
+scope: org
+layer: main
+owning_layer: main
+status: accepted
+created: 2026-05-08T00:00:00Z
+updated: 2026-05-08T00:00:00Z
+tags: [failover, ops, f3]
+---
+
+# Failover configuration
+
+heartbeat_seconds: 30
+poll_seconds: 10
+failover_threshold_misses: 3
+log_remote: ""                                   # set to git@github.com:<org>/bbc-log.git or s3:// URI when Shadow exists
+log_local_path: "_log/"
+era_promotion_requires_lkg_advance: true
+de_confliction_requires_remote_pull: true
+
+primary_host: "Zeths-MacBook-Air"                # current — local dev
+shadow_host: ""                                  # not yet provisioned; F3 is single-host until a real Shadow exists
+
+## Notes
+
+V1: only Primary exists (`Zeths-MacBook-Air`). No Shadow VM. The log infrastructure (F3-build-1) is in place but no failover daemon runs yet. To activate failover:
+
+1. Provision a Shadow host with read access to `log_remote`.
+2. Set `log_remote` and `shadow_host` here via a Main proposal.
+3. Start `heartbeat-emit.sh` on Primary (cron or systemd timer).
+4. Start `shadow-watch.sh` on Shadow (long-running daemon).
+
+Until those four steps happen, the heartbeat / promotion / deconflict scripts are scaffolding only. They are designed and testable in unit-form but not integrated end-to-end.

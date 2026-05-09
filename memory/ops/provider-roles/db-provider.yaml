@@ -1,0 +1,46 @@
+---
+id: role_db-provider
+role_id: db-provider
+type: provider-role
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-08T00:00:00Z
+updated: 2026-05-08T00:00:00Z
+contract_version: 1
+status: accepted
+tags: [provider-role, db]
+---
+
+# Role: db-provider
+
+## Purpose
+
+Primary persistent store for user data, charts, readings, sessions, subscriptions. Must support transactional integrity and row-level access control.
+
+## Required operations
+
+- name: query (SQL or query-language equivalent)
+- name: transaction (atomic multi-statement)
+- name: realtime-subscribe (optional but expected)
+- name: auth (user identity + session management; can be a separate role if vendor splits)
+
+## Required metadata
+
+- engine (postgres | mysql | sqlite | other)
+- engine_version
+- supports_row_level_security: bool
+- supports_realtime: bool
+- backup_strategy_url
+- max_connections
+- region(s) hosted
+
+## Hard rules
+
+- engine MUST support row-level security (RLS) or equivalent enforcement.
+- Backups MUST be automatic and have a documented restore procedure.
+- Data MUST stay within declared regions (`data_residency_in:` profile constraint).
+
+## Notes
+
+For 8azi V1, db-provider includes auth (Supabase bundles them). When/if auth is split off into its own role, this role's contract removes the auth operation and a new `auth-provider` role is introduced.

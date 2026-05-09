@@ -1,0 +1,41 @@
+---
+id: role_design-source
+role_id: design-source
+type: provider-role
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-08T00:00:00Z
+updated: 2026-05-08T00:00:00Z
+contract_version: 1
+status: accepted
+tags: [provider-role, design]
+---
+
+# Role: design-source
+
+## Purpose
+
+Authoritative source of UI design specs. Frontends translate these specs into code; design changes propagate from this source, not the other way around.
+
+## Required operations
+
+- name: get-frame (fetch a specific frame / artboard)
+- name: list-components (enumerate design tokens / components)
+- name: subscribe-changes (notification on update — optional)
+- name: export-tokens (machine-readable design tokens, e.g., colors, spacing, typography)
+
+## Required metadata
+
+- access_method (mcp | api | manual)
+- supports_design_tokens: bool
+- supports_versioning: bool
+
+## Hard rules
+
+- Design source MUST be a single canonical location (no parallel "real" Figma + "WIP" Figma without version pinning).
+- Frontend code MUST cite the design source's specific frame/version it implements.
+
+## Notes
+
+In 8azi V1, design-source is accessed via Figma MCP rather than direct API. The MCP-based access is captured in adapter metadata.

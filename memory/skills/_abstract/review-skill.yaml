@@ -1,0 +1,39 @@
+---
+id: skill_review-skill
+skill_id: review-skill
+type: skill
+abstract: true
+extends: skill
+contract_version: 1
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-08T00:00:00Z
+updated: 2026-05-08T00:00:00Z
+status: accepted
+tags: [abstract, review]
+---
+
+# Abstract: review-skill
+
+Base for any skill that reviews something (PRs, code, docs, designs) and produces a verdict.
+
+## Inputs
+
+- target: { type: file_path | pr_url | text-block }
+- context: { type: object, optional: true }
+
+## Outputs
+
+- verdict: { type: enum, values: [approved, changes_requested, rejected] }
+- rationale: { type: string, max_length: 2000 }
+- findings: { type: list, item_type: finding }
+
+## Preconditions
+
+- target must exist or be reachable.
+- caller must have read access to target.
+
+## Behavior contract
+
+A review-skill produces a verdict + rationale + findings. It does NOT mutate the target. Concrete subclasses define the specific rules used to derive the verdict.

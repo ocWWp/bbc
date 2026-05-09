@@ -1,0 +1,55 @@
+---
+id: role_email-delivery
+role_id: email-delivery
+type: provider-role
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-08T00:00:00Z
+updated: 2026-05-08T00:00:00Z
+contract_version: 1
+status: accepted
+tags: [provider-role, email]
+---
+
+# Role: email-delivery
+
+## Purpose
+
+Sends transactional and broadcast email (weekly readings, account verification, password reset, marketing).
+
+## Required operations
+
+- name: send-transactional
+  inputs:
+    to: { type: email-address }
+    from: { type: email-address }
+    subject: { type: string }
+    body_html: { type: string }
+    body_text: { type: string, optional: true }
+    headers: { type: object, optional: true }
+  outputs:
+    message_id: { type: string }
+    accepted: { type: bool }
+
+- name: send-batch (broadcast; rate-limit-aware)
+
+## Required metadata
+
+- max_send_rate_per_second
+- supports_dkim: bool
+- supports_dmarc_alignment: bool
+- supports_unsubscribe_header: bool
+- bounce_webhook_url_required: bool
+- price_per_thousand_usd
+
+## Hard rules
+
+- DKIM signing MUST be configured.
+- Bounces MUST surface to a webhook or pull API.
+- Marketing email MUST include a one-click unsubscribe link (CAN-SPAM / GDPR compliance).
+- Free-tier rate limits MUST be documented in adapter metadata.
+
+## Notes
+
+Adapter MUST distinguish transactional from marketing; misclassification can trigger sender-reputation penalties.

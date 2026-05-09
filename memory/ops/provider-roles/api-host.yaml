@@ -1,0 +1,45 @@
+---
+id: role_api-host
+role_id: api-host
+type: provider-role
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-08T00:00:00Z
+updated: 2026-05-08T00:00:00Z
+contract_version: 1
+status: accepted
+tags: [provider-role, infra, hosting]
+---
+
+# Role: api-host
+
+## Purpose
+
+Hosts long-running container or process for the API tier (FastAPI / 8azi-api). Different from web-host because API workloads are not edge-friendly (long-lived connections, heavy CPU, large memory footprint).
+
+## Required operations
+
+- name: deploy (build container + run)
+- name: scale (horizontal: instances; vertical: cpu/memory)
+- name: log-tail (read recent logs)
+- name: env-var-set
+
+## Required metadata
+
+- container_runtime (docker | other)
+- supports_horizontal_scaling: bool
+- max_request_duration_seconds
+- regions
+- price_model
+
+## Hard rules
+
+- Container build MUST be reproducible (Dockerfile or equivalent in source control).
+- Logs MUST be retained at least 7 days.
+- Deploy MUST be rollback-capable within 10 minutes.
+- Connection limits MUST exceed peak concurrent users by at least 2×.
+
+## Notes
+
+If 8azi adds workers or background jobs that don't need request handling, those go through a separate (future) `worker-host` role, not this one.

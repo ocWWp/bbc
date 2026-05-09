@@ -1,0 +1,36 @@
+---
+id: skill_skill
+skill_id: skill
+type: skill
+abstract: true
+contract_version: 1
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-08T00:00:00Z
+updated: 2026-05-08T00:00:00Z
+status: accepted
+tags: [abstract, root]
+---
+
+# Abstract: skill (root)
+
+The root abstract base. All skills in the BBC tree extend this directly or transitively.
+
+## Required fields (every concrete skill must declare)
+
+- skill_id: dotted notation (e.g., `general.pr-review`, `marketing.pr-review`)
+- inputs: typed schema
+- outputs: typed schema
+- preconditions: list of predicates
+- allowed_tools: list of tool names
+
+## Required behavior
+
+- `invoke(input) -> output` — abstract; concrete skills must define.
+- `validate(input) -> bool` — derived from inputs schema.
+- `preconditions()` — must return true before invoke.
+
+## Notes
+
+This file is the entry point for the resolver. Any skill that doesn't trace to `skill` via `extends:` is invalid and rejected by `validate-skill-tree.sh`.

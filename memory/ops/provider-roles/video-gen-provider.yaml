@@ -1,0 +1,58 @@
+---
+id: role_video-gen-provider
+role_id: video-gen-provider
+type: provider-role
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-08T00:00:00Z
+updated: 2026-05-08T00:00:00Z
+contract_version: 1
+status: accepted
+tags: [provider-role, video, marketing]
+---
+
+# Role: video-gen-provider
+
+## Purpose
+
+Generates short video clips from a text prompt or text+image. Asynchronous (job submission + polling). Used by future marketing for social posts and reading explainers.
+
+## Required operations
+
+- name: generate
+  inputs:
+    prompt: { type: string, max_length: 2000 }
+    seed_image: { type: binary, optional: true }
+    duration_seconds: { type: int, max: 30 }
+    aspect_ratio: { type: enum, values: ["9:16", "1:1", "16:9"] }
+  outputs:
+    job_id: { type: string }
+    estimated_complete_at: { type: timestamp }
+
+- name: get-job-status
+  inputs:
+    job_id: { type: string }
+  outputs:
+    status: { type: enum, values: [queued, running, complete, failed] }
+    output_url: { type: string, optional: true }
+    error: { type: string, optional: true }
+
+## Required metadata
+
+- cost_per_second_of_video_usd
+- typical_generation_time_seconds
+- max_duration_seconds
+- supported_aspect_ratios
+- content_filter_policy_url
+- output_format
+
+## Hard rules
+
+- Output MUST include a content-provenance signature (C2PA or vendor equivalent) for marketing use.
+- content_filter_policy_url MUST be HTTPS and publicly accessible.
+- Failed jobs MUST surface an error message; silent failures are forbidden.
+
+## Notes
+
+This role is currently UNBOUND. Runway was mentioned as a candidate in the original pitch. No adapter declared yet.

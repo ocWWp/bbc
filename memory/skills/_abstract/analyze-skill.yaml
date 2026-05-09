@@ -1,0 +1,37 @@
+---
+id: skill_analyze-skill
+skill_id: analyze-skill
+type: skill
+abstract: true
+extends: skill
+contract_version: 1
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-08T00:00:00Z
+updated: 2026-05-08T00:00:00Z
+status: accepted
+tags: [abstract, analyze]
+---
+
+# Abstract: analyze-skill
+
+Base for any skill that produces a report from observation, without mutating or judging.
+
+## Inputs
+
+- target: { type: file_path | pr_url | repo_path | dataset_id }
+- depth: { type: enum, values: [quick, medium, thorough] }
+
+## Outputs
+
+- report: { type: string, format: markdown }
+- findings_count: { type: int }
+
+## Preconditions
+
+- target must exist or be reachable.
+
+## Behavior contract
+
+An analyze-skill produces a report. No verdict, no diff. Subclasses specialize by what they look at and how deep.

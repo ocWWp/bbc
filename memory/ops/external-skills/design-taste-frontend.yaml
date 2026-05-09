@@ -1,0 +1,22 @@
+---
+id: ext_skill_design-taste-frontend
+external_skill_id: design-taste-frontend
+type: external-skill
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-08T00:00:00Z
+updated: 2026-05-08T00:00:00Z
+status: accepted
+source: github:Leonxlnx/taste-skill
+source_type: github
+used_by_leaves: [8azi-web]
+description: "Senior UI/UX engineer persona — overrides default LLM design biases with metric-based rules, strict component architecture, hardware-accelerated CSS, and balanced design engineering."
+tags: [external, design, frontend]
+---
+
+# External skill: design-taste-frontend
+
+Pinned via `skills-lock.json` in 8azi-web. Used during Phase 1 (Brainstorm) and Phase 3 (Build to React) of the design workflow described in `8azi-web/CLAUDE.md`.
+
+This file is BBC's library record — it does NOT install or invoke the skill, only documents what the skill claims to do so a human reviewing the dashboard knows what's available.

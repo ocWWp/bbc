@@ -1,0 +1,44 @@
+---
+id: role_web-host
+role_id: web-host
+type: provider-role
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-08T00:00:00Z
+updated: 2026-05-08T00:00:00Z
+contract_version: 1
+status: accepted
+tags: [provider-role, infra, hosting]
+---
+
+# Role: web-host
+
+## Purpose
+
+Edge or origin hosting for the web frontend. Serves static assets and runs server-side code (SSR, route handlers, middleware).
+
+## Required operations
+
+- name: deploy (push artifact, get URL)
+- name: rollback (return to previous deployment)
+- name: env-var-set (configure runtime secrets)
+
+## Required metadata
+
+- runtime (node | workers | deno | other)
+- supports_ssr: bool
+- supports_streaming_responses: bool
+- cold_start_p95_ms
+- regions
+- price_model (per-request | flat | hybrid)
+
+## Hard rules
+
+- Deploy MUST be reversible (rollback within 5 minutes).
+- Cold start p95 MUST be ≤ 2000 ms for user-facing routes.
+- Secrets MUST NOT be logged.
+
+## Notes
+
+Edge runtimes (Cloudflare Workers, Deno Deploy) and origin runtimes (Node servers, Vercel) both satisfy this role. Differences in capabilities (e.g., long-running workers) are captured in adapter metadata, not the role contract.

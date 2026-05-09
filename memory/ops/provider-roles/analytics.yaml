@@ -1,0 +1,50 @@
+---
+id: role_analytics
+role_id: analytics
+type: provider-role
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-08T00:00:00Z
+updated: 2026-05-08T00:00:00Z
+contract_version: 1
+status: accepted
+tags: [provider-role, analytics]
+---
+
+# Role: analytics
+
+## Purpose
+
+Records product events (page views, feature use, funnel steps, custom events) and surfaces aggregations for product decisions.
+
+## Required operations
+
+- name: track
+  inputs:
+    event_name: { type: string }
+    user_id: { type: string, optional: true }
+    properties: { type: object }
+    timestamp: { type: timestamp, optional: true }
+  outputs: void (best-effort; non-blocking)
+
+- name: identify (associate user_id with traits)
+- name: funnel-query (read aggregations)
+
+## Required metadata
+
+- ingest_rate_per_second
+- query_rate_limit_per_minute
+- supports_session_replay: bool
+- supports_feature_flags: bool
+- price_model (mau | event-volume | tier)
+
+## Hard rules
+
+- PII MUST be masked or excluded per `manager/rules/pii-handling.md` (future).
+- Tracking MUST be non-blocking; client-side tracking MUST NOT delay user-visible interactions.
+- Adapter MUST honor user opt-out flags within one session.
+
+## Notes
+
+8azi V1 binding is provisional (PostHog vs Amplitude vs Mixpanel under evaluation). The role contract is vendor-neutral and applies to any of them.

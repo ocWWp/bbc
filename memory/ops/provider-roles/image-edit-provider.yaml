@@ -1,0 +1,52 @@
+---
+id: role_image-edit-provider
+role_id: image-edit-provider
+type: provider-role
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-08T00:00:00Z
+updated: 2026-05-08T00:00:00Z
+contract_version: 1
+status: accepted
+tags: [provider-role, image, marketing]
+---
+
+# Role: image-edit-provider
+
+## Purpose
+
+Edits an existing image given a text prompt. Synchronous request/response. Used by future marketing-copy generation, social-post visuals, illustration polish.
+
+## Required operations
+
+- name: edit
+  inputs:
+    image: { type: binary, formats: [jpg, png, webp] }
+    prompt: { type: string, max_length: 2000 }
+    style: { type: string, optional: true }
+    seed: { type: int, optional: true }
+  outputs:
+    edited_image: { type: binary, formats: [jpg, png, webp] }
+    metadata: { type: object, fields: [prompt_revision, content_warnings, seed_used] }
+
+## Required metadata
+
+- cost_per_call_usd
+- latency_p95_ms
+- rate_limit_per_minute
+- content_filter_policy_url
+- max_input_resolution
+- min_output_resolution
+- supported_formats
+
+## Hard rules
+
+- content_filter_policy_url MUST be HTTPS and publicly accessible.
+- max_input_resolution MUST be at least 1024x1024.
+- max_latency_p95_ms MUST be ≤ 30000 (30 seconds).
+- Adapter MUST surface content_warnings; silently filtered outputs are forbidden.
+
+## Notes
+
+This role is currently UNBOUND (status: candidate adapters only). Higgsfield was mentioned in the original BBC pitch as a candidate. No adapter declared yet pending further evaluation.

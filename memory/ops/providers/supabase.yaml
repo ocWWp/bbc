@@ -1,0 +1,58 @@
+---
+id: provider_supabase
+provider_id: supabase
+type: provider-adapter
+implements: [db-provider]
+contract_version: 1
+status: active
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-08T00:00:00Z
+updated: 2026-05-08T00:00:00Z
+tags: [adapter, db, supabase]
+---
+
+# Adapter: supabase
+
+## Metadata
+
+- engine: postgres
+- engine_version: "15"
+- supports_row_level_security: true
+- supports_realtime: true
+- backup_strategy_url: https://supabase.com/docs/guides/platform/backups
+- max_connections: 60                             # default Pro tier; verify per project
+- regions: [us-east-1]                            # ASSUMED — verify per 8azi project setup
+
+## Runtime
+
+- endpoint: project-specific (https://<project-ref>.supabase.co)
+- auth:
+  - service-role key (server-side, full access)
+  - anon key (client-side, RLS-gated)
+- consumer-side SDK:
+  - 8azi-api/app/  (supabase-py)
+  - 8azi-web/      (@supabase/supabase-js)
+- official sdk: @supabase/supabase-js / supabase (pypi)
+
+## bbc-provider-tag
+
+```
+bbc-provider:supabase
+```
+
+## Stability signals
+
+- vendor_status_page: https://status.supabase.com/
+- last_incident_seen: <unknown — start tracking 2026-05-08>
+- declared_uptime_sla: 99.9% (Pro tier)
+
+## External signals
+
+- github_stars: ~75000 (as of 2026-05-08, indicative)
+- ecosystem_maturity: high
+
+## Notes
+
+8azi V1 bundles auth with db (Supabase combines them). RLS policies are the primary access control mechanism. The cross-repo Nayin lookup (`nayin-cross-repo-sync.test.ts`) is enforced separately and does not depend on this adapter — it's a build-time check.

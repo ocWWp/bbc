@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "project": "bbc",
+  "owner": "zethtang@gmail.com",
+  "started": "2026-05-08",
+  "framework": "gsd",
+  "milestone": "v1",
+  "current_phase": "01-bbc-bootstrap"
+}

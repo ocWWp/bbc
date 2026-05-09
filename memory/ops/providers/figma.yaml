@@ -1,0 +1,48 @@
+---
+id: provider_figma
+provider_id: figma
+type: provider-adapter
+implements: [design-source]
+contract_version: 1
+status: active
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-08T00:00:00Z
+updated: 2026-05-08T00:00:00Z
+tags: [adapter, design, mcp]
+---
+
+# Adapter: figma
+
+## Metadata
+
+- access_method: mcp                              # Figma MCP server, not direct API
+- supports_design_tokens: true                    # via Figma Variables
+- supports_versioning: true                       # branch + history
+
+## Runtime
+
+- access: Figma MCP server (claude-code MCP integration)
+- auth: Figma personal access token in MCP config
+- file: 8azi design file (key referenced in 8azi-web/CLAUDE.md)
+
+## bbc-provider-tag
+
+```
+bbc-provider:figma
+```
+
+## Stability signals
+
+- vendor_status_page: https://status.figma.com/
+- last_incident_seen: <unknown — start tracking 2026-05-08>
+- declared_uptime_sla: 99.9%
+
+## External signals
+
+- ecosystem_maturity: highest (industry standard)
+
+## Notes
+
+Frontend code MUST cite the specific Figma frame/version it implements (per design-source role hard rule). The Figma MCP makes this practical from inside Claude sessions.

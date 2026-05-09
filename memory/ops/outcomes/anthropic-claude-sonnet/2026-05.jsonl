@@ -1,0 +1,3 @@
+{"ts": "2026-05-08T10:13:29Z", "adapter": "anthropic-claude-sonnet", "role": "llm-provider", "profile": "engineering-default", "success": true, "latency_ms": 850, "cost_usd": 0.012}
+{"ts": "2026-05-08T10:13:31Z", "adapter": "anthropic-claude-sonnet", "role": "llm-provider", "profile": "engineering-default", "success": true, "latency_ms": 920, "cost_usd": 0.014}
+{"ts": "2026-05-08T10:13:33Z", "adapter": "anthropic-claude-sonnet", "role": "llm-provider", "profile": "engineering-default", "success": false, "latency_ms": 7800}

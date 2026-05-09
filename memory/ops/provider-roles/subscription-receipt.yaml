@@ -1,0 +1,50 @@
+---
+id: role_subscription-receipt
+role_id: subscription-receipt
+type: provider-role
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-08T00:00:00Z
+updated: 2026-05-08T00:00:00Z
+contract_version: 1
+status: accepted
+tags: [provider-role, payments, mobile]
+---
+
+# Role: subscription-receipt
+
+## Purpose
+
+Validates iOS / Android in-app purchase receipts and exposes subscription status (active / expired / refunded / lapsed) to the API.
+
+## Required operations
+
+- name: validate-receipt
+  inputs:
+    platform: { type: enum, values: [ios, android] }
+    receipt_data: { type: string | binary }
+    user_id: { type: string }
+  outputs:
+    status: { type: enum, values: [active, expired, refunded, lapsed, unknown] }
+    expires_at: { type: timestamp, optional: true }
+    product_id: { type: string }
+
+- name: subscribe-events (webhook for status changes)
+
+## Required metadata
+
+- supported_platforms (subset of [ios, android, web])
+- supports_promo_codes: bool
+- supports_grace_period: bool
+- price_model (per-validation | flat | revenue-share)
+
+## Hard rules
+
+- Receipt validation MUST be server-side (never trust client claims).
+- Status webhooks MUST be signed (HMAC or equivalent).
+- User PII MUST NOT leave the adapter unencrypted.
+
+## Notes
+
+8azi mobile flows assume a single subscription tier in V1. Multi-tier support requires a future contract revision.

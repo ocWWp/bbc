@@ -1,0 +1,40 @@
+---
+id: role_pattern-reference
+role_id: pattern-reference
+type: provider-role
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-08T00:00:00Z
+updated: 2026-05-08T00:00:00Z
+contract_version: 1
+status: accepted
+tags: [provider-role, design, reference]
+---
+
+# Role: pattern-reference
+
+## Purpose
+
+Library of UI/UX patterns from real-world apps for design inspiration and consistency-checking. Not a source of truth for our own UI — just a reference.
+
+## Required operations
+
+- name: search (text or visual query)
+- name: get-pattern (fetch detail of a specific pattern)
+
+## Required metadata
+
+- access_method (mcp | api | scrape)
+- pattern_count_estimate
+- supports_text_search: bool
+- supports_visual_search: bool
+
+## Hard rules
+
+- Reference patterns MUST NOT be copied verbatim into our UI without explicit attribution and license check.
+- Adapter MUST surface license / usage terms when retrievable.
+
+## Notes
+
+Pattern-reference is used during design phases (`8azi-web` Phase 0.5 onward) for taste and convention checking. Optional at the runtime level — no production code path depends on it.

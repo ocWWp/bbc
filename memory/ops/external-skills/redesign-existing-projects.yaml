@@ -1,0 +1,20 @@
+---
+id: ext_skill_redesign-existing-projects
+external_skill_id: redesign-existing-projects
+type: external-skill
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-08T00:00:00Z
+updated: 2026-05-08T00:00:00Z
+status: accepted
+source: github:Leonxlnx/taste-skill
+source_type: github
+used_by_leaves: [8azi-web]
+description: "Upgrades existing websites and apps to premium quality — audits current design, identifies generic AI patterns, and applies high-end design standards without breaking functionality. Framework-agnostic."
+tags: [external, design, refactor]
+---
+
+# External skill: redesign-existing-projects
+
+Used during Phase 4 (Polish) of the design workflow. Pairs with `high-end-visual-design` for major surfaces. Framework-agnostic — works with Tailwind, vanilla CSS, and CSS-in-JS.
