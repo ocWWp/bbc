@@ -1,0 +1,26 @@
+---
+id: bindings_TEMPLATE_DATE
+type: fact
+scope: org
+layer: main
+source: human:TEMPLATE_OWNER
+created: TEMPLATE_DATE
+updated: TEMPLATE_DATE
+owning_layer: main
+tags: [bindings, ops, transitional]
+status: accepted
+---
+
+# Bindings — role → provider
+
+Each role gets bound to one or more provider adapters in `memory/ops/providers/`. Use `/bbc:bind <role> <provider>` (when available) to update; or file a proposal directly.
+
+| role | provider | provisional | bound_at | notes |
+|---|---|---|---|---|
+| db-provider | (unbound) | no | — | Bind when you wire your first persistent store. SaaS-mode tenants are pre-bound to `supabase`. |
+| llm-provider | (unbound) | no | — | Bind when you wire your first agent integration. |
+| email-delivery | (unbound) | no | — | Bind when you need transactional or marketing email. |
+
+## Why these are unbound at start
+
+A vendor binding is a commitment. New BBC instances start unbound so you can pick deliberately. The roles themselves are stable; the providers behind them are swappable.
