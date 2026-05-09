@@ -10,6 +10,9 @@ importers:
 
   apps/dashboard:
     dependencies:
+      '@bbc/store':
+        specifier: workspace:*
+        version: link:../../packages/store
       '@supabase/ssr':
         specifier: ^0.7.0
         version: 0.7.0(@supabase/supabase-js@2.105.4)
@@ -35,6 +38,19 @@ importers:
       '@types/react-dom':
         specifier: ^19.0.0
         version: 19.2.3(@types/react@19.2.14)
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
+  packages/store:
+    dependencies:
+      '@supabase/supabase-js':
+        specifier: ^2.45.0
+        version: 2.105.4
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.18
       typescript:
         specifier: ^5.6.0
         version: 5.9.3

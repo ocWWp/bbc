@@ -37,7 +37,8 @@ Note on Main's principle #6 ("no silent autonomy"): that principle governs BBC *
 
 5. If not running: start it in the background, then wait for it.
    - If `bbc/node_modules` (workspace root) is missing, run `pnpm install` first (foreground, at the bbc/ root).
-   - Start the dev server via the Bash tool with `run_in_background: true`. From the bbc/ root: `pnpm dev` (which runs `pnpm --filter @bbc/dashboard dev`). From `apps/dashboard/`: `pnpm dev`.
+   - Start the dev server via the Bash tool with `run_in_background: true`. The reliable command from any directory: `pnpm --filter @bbc/dashboard dev` (run from the bbc/ root). Or from `apps/dashboard/` directly: `pnpm dev`.
+     - Note: bare `pnpm dev` from the bbc/ root triggers pnpm's recursive mode and fails because not all workspace packages have a `dev` script. Always use `--filter`.
    - Poll `http://localhost:3000/` every 1s for up to 30s using the same `curl` probe from step 2. Treat any HTTP response (including 401) as "up".
    - When up: print the status block (now showing "starting → up") and `open` the URL.
    - If it does not come up within 30s: print the start command and the path to background-task output, and stop.
@@ -76,6 +77,6 @@ Status:  down
 
 To start:
   cd /Users/grid/Documents/GitHub/bbc
-  pnpm dev
+  pnpm --filter @bbc/dashboard dev
 ```
 </example_output>

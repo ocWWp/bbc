@@ -1,56 +1,27 @@
-import fs from "node:fs/promises";
-import { BBC } from "./bbc-paths";
-
-export type LogEntry = {
-  v: number;
-  ts: string;
-  host: string;
-  actor: string;
-  action: string;
-  target: string;
-  state_hash?: string;
-  lkg_at_emit?: number;
-  previous_primary?: string;
-};
+/**
+ * Thin shim — preserves the historical export shape (`LogEntry`, `readLog`,
+ * `readLkg`, `recentLog`, `countSince`) so existing pages keep importing
+ * from this path. Implementation now lives in @bbc/store.
+ */
+export type { LogEntry } from "@bbc/store";
+import type { LogEntry } from "@bbc/store";
+import { getStore } from "./store";
 
 export async function readLog(): Promise<LogEntry[]> {
-  let text: string;
-  try {
-    text = await fs.readFile(BBC.log(), "utf8");
-  } catch {
-    return [];
-  }
-  const out: LogEntry[] = [];
-  for (const line of text.split("\n")) {
-    if (!line.trim()) continue;
-    try {
-      out.push(JSON.parse(line));
-    } catch {
-      // skip malformed lines
-    }
-  }
-  return out;
+  const store = await getStore();
+  return store.log.list();
 }
 
 export async function readLkg(): Promise<number> {
-  try {
-    const t = await fs.readFile(BBC.lkg(), "utf8");
-    const n = parseInt(t.trim(), 10);
-    return Number.isFinite(n) ? n : 0;
-  } catch {
-    return 0;
-  }
+  const store = await getStore();
+  return store.log.lkg();
 }
 
 export function recentLog(entries: LogEntry[], n: number): LogEntry[] {
-  return entries.slice(-n).reverse(); // newest first
+  return entries.slice(-n).reverse();
 }
 
 export function countSince(entries: LogEntry[], action: string, days: number): number {
   const cutoff = Date.now() - days * 24 * 3600 * 1000;
-  return entries.filter((e) => {
-    if (e.action !== action) return false;
-    const t = Date.parse(e.ts);
-    return Number.isFinite(t) && t >= cutoff;
-  }).length;
+  return entries.filter((e) => e.action === action && new Date(e.ts).getTime() >= cutoff).length;
 }
