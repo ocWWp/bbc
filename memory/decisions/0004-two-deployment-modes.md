@@ -57,6 +57,22 @@ The MCP server is a **single binary that talks to whichever store the host is co
 
 - **The `memory/ops/vendors.md` rule still binds.** Vendor names appear only in `bindings.yaml` (file-mode) / `bindings` table (DB-mode) and in adapter YAMLs / adapter rows. Prose elsewhere refers to the role.
 
+- **Principle 6 ("no silent autonomy") is the most-stretched principle in DB-mode.** A multi-tenant Postgres + MCP architecture introduces several constructs that look like autonomy but are not, plus a few that genuinely would be. Explicit ruling per construct:
+
+  | DB-mode construct | Allowed under principle 6? | Why |
+  |---|---|---|
+  | **Postgres triggers** firing on user-initiated `INSERT`/`UPDATE` | **Allowed.** Triggers are deterministic, in-transaction effects of explicit user actions. Example: the `create_profile_after_insert` trigger from this session's auth migration. | Same logical action as the user's; no separate decision being made by a hidden actor. |
+  | **`pg_cron` / scheduled jobs** that mutate `memory_files`, `queue_items`, or any `owning_layer: main` row | **Forbidden.** These are autonomous state-changing actors with no human or named-agent identity. | Indistinguishable from a daemon — the exact thing principle 6 forbids. |
+  | **`pg_cron` / scheduled jobs** that refresh materialized views, garbage-collect expired sessions, or rotate API key hashes | **Allowed.** Read-derived or housekeeping work that does not change `memory`/`queue`/`bindings` state. | No protocol-level state change; observable effect bounded to performance/hygiene. |
+  | **Outbound webhooks** (Stripe events, Resend send, etc.) triggered by user-initiated transactions | **Allowed.** Same as triggers — effect of an explicit action. | Attribution chain is intact: user → action → webhook. |
+  | **Inbound webhooks** (e.g., Stripe paid-event hitting our endpoint) that mutate state | **Allowed only if** the inbound event maps to a named identity in the `operations_log` (e.g., `actor: webhook:stripe:<event_id>`) AND the mutation is constrained to a known-safe surface (`tenants.plan` flip, not arbitrary memory edits). | Without identity + scope constraints, an inbound webhook is autonomy by the back door. |
+  | **Supabase Realtime** push of state changes to subscribed clients | **Allowed.** Read-only push; the client decides what to do with the event. | No state change, just a notification surface. |
+  | **MCP server tool calls** invoked by an agent on behalf of a user | **Allowed if** each call is independently logged with `actor: agent:<api_key_id>`, the conversation/request ID is captured, and the agent does not invoke a tool the human did not directly authorize within that session. | Attribution is intact; the agent acts as a delegated tool, not an autonomous decision-maker. |
+  | **MCP tool chaining** where an agent calls multiple tools in sequence as part of one user request | **Allowed if** the chain is explicitly user-requested (e.g., "go through the queue and accept all the trivial ones") AND each individual tool call still passes the rules above. | Borderline; the safety property is "the user could have invoked each tool themselves and the agent is just batching." |
+  | **Auto-accept of proposals** by any rule, schedule, or trained model | **Forbidden, full stop.** This is the principle's namesake forbidden case. | A human or named agent must explicitly invoke `accept_proposal()` for every accept. |
+
+  This table is itself part of principle 6's contract in DB-mode. New constructs not listed here default to forbidden until an ADR adds them. The CLAUDE.md principle 6 wording stays as it is in file-mode; DB-mode's nuance lives here in the ADR and in `memory/tech/deployment-modes.md` §Invariant translation §6.
+
 ### Engineering
 
 - The dashboard codebase grows a `src/lib/store/` directory with typed interfaces and two impls. Every existing `fs.readFile` and `child_process.exec` call is replaced with a store-method call.

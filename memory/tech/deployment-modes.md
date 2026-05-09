@@ -112,7 +112,7 @@ How each Main principle materializes in each mode:
 ### 6. No silent autonomy
 
 - **File-mode**: enforced by the absence of daemons. No background processes auto-accept queue items.
-- **DB-mode**: enforced by RLS policies + the trigger that blocks state mutations except via `accept_proposal()` / `reject_proposal()` SQL functions, which themselves require an authenticated human or named-agent identity (no anon mutations). Per-tenant API keys for MCP carry an `agent_id` so MCP-driven changes are still attributable, not anonymous.
+- **DB-mode**: principle 6 expands to a per-construct ruling table — see ADR-0004 §Consequences/Governance principle 6. Summary: `accept_proposal()` and `reject_proposal()` are the only paths that mutate `memory_files` / `queue_items` / `bindings`, and they require an authenticated identity that is **either** a human (Supabase Auth user) **or** a named agent (MCP API key with an `agent_id`). The two are not equivalent — an agent acting on behalf of a user is OK; an agent acting on its own deliberation is not. `pg_cron` is forbidden for protocol-state mutations and allowed for housekeeping. Inbound webhooks must carry a named-identity actor string (e.g., `webhook:stripe:<event_id>`) and a constrained scope. Auto-accept by any rule or trained model is forbidden.
 
 ## Mode selection at runtime
 
@@ -132,6 +132,6 @@ Both directions must be lossless for `accepted` audit data; lossy is acceptable 
 
 ## Out of scope for this doc
 
-- Schema DDL — lives in `8azi-dashboard/supabase/migrations/0003+...sql` (Phase 1–2 of productization).
+- Schema DDL — lives in `apps/dashboard/supabase/migrations/0003+...sql` (Phase 1–2 of productization). The path reflects the monorepo layout decided in `tech/repo-structure.md`; the actual move from `8azi-dashboard/` happens as Phase 1's first task.
 - API surface for the MCP server — separate doc, Phase 6.
 - Pricing / billing model — `memory/product/` (Phase 8).
