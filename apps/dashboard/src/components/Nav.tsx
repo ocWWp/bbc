@@ -26,6 +26,7 @@ export default async function Nav() {
       <Link href="/graph">graph</Link>
       <Link href="/log">log</Link>
       <Link href="/bindings">bindings</Link>
+      <Link href="/team">team</Link>
 
       {label ? (
         <div className="nav-user">
