@@ -45,13 +45,15 @@ You are operating as the **dashboard** Distribution leaf. The auto-header above 
 
 ## What this leaf governs
 
-This leaf shadows the visual front-end (PM tab) at:
+This leaf governs the visual front-end (PM tab), now living **inside the BBC monorepo** at:
 
 ```
-/Users/grid/Documents/GitHub/8azi-dashboard/
+bbc/apps/dashboard/   (workspace name: @bbc/dashboard)
 ```
 
-It is a Next.js 16 / React 19 app that reads the BBC repo via `fs` and provides:
+(Previously at the standalone `8azi-dashboard` repo; moved into the monorepo per `memory/tech/repo-structure.md`, ADR-0004 / Phase 1 of productization.)
+
+It is a Next.js 16 / React 19 app that reads BBC state (file-mode via `fs`, DB-mode via `@supabase/ssr`) and provides:
 - Overview (`/`) — current phase, last-7d counts, latest log entries.
 - Queue (`/queue`) — pending proposals + Accept/Reject server actions.
 - Log (`/log`) — paginated operations log.
@@ -89,7 +91,7 @@ It still reads BBC repo state via Node `fs` and shells out to BBC's own bash scr
 
 ## Cross-repo coordination
 
-The dashboard reads from `bbc/` only. It does not touch `8azi-web/`, `8azi-api/`, or any other repo. Decoupling is intentional: the dashboard's correctness depends only on BBC's file format, not on other repos' state.
+The dashboard reads from `bbc/` only (its own monorepo). It does not touch `8azi-web/`, `8azi-api/`, or any other repo. Decoupling is intentional: the dashboard's correctness depends only on BBC's protocol contract (memory schema, queue format, log format), not on other repos' state.
 
 ## Local-only knowledge
 
@@ -97,7 +99,7 @@ The dashboard reads from `bbc/` only. It does not touch `8azi-web/`, `8azi-api/`
 
 ## Dev workflow (leaf-local; not BBC-governed)
 
-Day-to-day development conventions, framework upgrades, deploy plan: read `/Users/grid/Documents/GitHub/8azi-dashboard/README.md` directly. This BBC-side leaf file does NOT duplicate that content.
+Day-to-day development conventions, framework upgrades, deploy plan: read `bbc/apps/dashboard/README.md` directly. This BBC-side leaf file does NOT duplicate that content.
 
 ## Hard rules (cannot be specialized away)
 

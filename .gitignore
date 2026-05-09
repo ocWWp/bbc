@@ -22,3 +22,4 @@ distribution/*/local/
 *.swo
 .vscode/
 .idea/
+node_modules

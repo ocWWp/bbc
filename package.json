@@ -1,0 +1,19 @@
+{
+  "name": "bbc-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "BBC — markdown brain protocol with multi-tenant SaaS dashboard. Monorepo: apps/dashboard, apps/mcp-server, packages/store.",
+  "license": "AGPL-3.0",
+  "scripts": {
+    "dev": "pnpm --filter @bbc/dashboard dev",
+    "dev:dashboard": "pnpm --filter @bbc/dashboard dev",
+    "build": "pnpm -r build",
+    "type-check": "pnpm -r type-check",
+    "lint": "pnpm -r lint"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=10"
+  },
+  "packageManager": "pnpm@10.12.1"
+}
