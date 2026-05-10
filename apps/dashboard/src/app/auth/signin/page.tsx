@@ -30,6 +30,16 @@ export default async function SignInPage({ searchParams }: PageProps) {
   const origin = h.get("origin") ?? `http://${h.get("host") ?? "localhost:3000"}`;
   const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent(target)}`;
 
+  // Gate OAuth buttons behind BBC_OAUTH_PROVIDERS env var. Only show buttons
+  // for providers the operator has actually enabled in their Supabase project.
+  // Format: comma-separated, e.g. BBC_OAUTH_PROVIDERS=github,google
+  const enabledProviders = (process.env.BBC_OAUTH_PROVIDERS ?? "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  const showGitHub = enabledProviders.includes("github");
+  const showGoogle = enabledProviders.includes("google");
+
   async function signInWithGitHub() {
     "use server";
     const sb = await getSupabaseServerClient();
@@ -69,38 +79,37 @@ export default async function SignInPage({ searchParams }: PageProps) {
         </div>
       )}
 
-      <form action={signInWithGitHub}>
-        <button className="btn primary" type="submit" style={{ width: "100%", marginBottom: 8 }}>
-          Continue with GitHub
-        </button>
-      </form>
+      {showGitHub && (
+        <form action={signInWithGitHub}>
+          <button className="btn primary" type="submit" style={{ width: "100%", marginBottom: 8 }}>
+            Continue with GitHub
+          </button>
+        </form>
+      )}
 
-      <form action={signInWithGoogle}>
-        <button className="btn" type="submit" style={{ width: "100%", marginBottom: 24 }}>
-          Continue with Google
-        </button>
-      </form>
+      {showGoogle && (
+        <form action={signInWithGoogle}>
+          <button className="btn" type="submit" style={{ width: "100%", marginBottom: 24 }}>
+            Continue with Google
+          </button>
+        </form>
+      )}
 
-      <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "16px 0" }}>
-        <hr style={{ flex: 1 }} />
-        <span className="muted mono-sm">or</span>
-        <hr style={{ flex: 1 }} />
-      </div>
-
-      <SignInForm callbackUrl={target} />
-
-      {process.env.BBC_SIGNUP_MODE === "open" && (
-        <div style={{ marginTop: 24, padding: 16, border: "1px dashed #aaa", borderRadius: 4 }}>
-          <h3 style={{ marginTop: 0, fontSize: 14 }}>No invitation? Create your own tenant</h3>
-          <p className="mono-sm muted" style={{ marginBottom: 8 }}>
-            This BBC instance allows self-service signup. You'll get a fresh tenant where you're the admin.
-          </p>
-          <a href="/auth/self-serve" className="btn">Create my own tenant →</a>
+      {(showGitHub || showGoogle) && (
+        <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "16px 0" }}>
+          <hr style={{ flex: 1 }} />
+          <span className="muted mono-sm">or</span>
+          <hr style={{ flex: 1 }} />
         </div>
       )}
 
+      <SignInForm callbackUrl={target} />
+
       <p className="mono-sm" style={{ marginTop: 32 }}>
-        After signing in you'll be sent to <code>{target}</code>.
+        After signing in you'll be sent to <code>{target}</code>.{" "}
+        {process.env.BBC_SIGNUP_MODE === "open" && (
+          <>Need a new tenant for your team? You can create one after signing in.</>
+        )}
       </p>
     </div>
   );

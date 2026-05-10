@@ -36,6 +36,11 @@ export default async function Nav() {
             <img src={avatar} alt="" width={20} height={20} className="nav-avatar" />
           )}
           <span className="nav-username">{label}</span>
+          {process.env.BBC_SIGNUP_MODE === "open" && (
+            <Link href="/auth/self-serve" className="btn" title="Create a new tenant where you'll be the admin">
+              + new tenant
+            </Link>
+          )}
           <form action="/auth/signout" method="post">
             <button type="submit" className="btn nav-signout">sign out</button>
           </form>
