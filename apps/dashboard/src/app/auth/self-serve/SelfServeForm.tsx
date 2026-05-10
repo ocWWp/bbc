@@ -1,11 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 
-export function SelfServeForm({ loggedIn, email: initialEmail }: { loggedIn: boolean; email: string }) {
-  const router = useRouter();
-  const [email, setEmail] = useState(initialEmail);
+export function SelfServeForm() {
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [tenantName, setTenantName] = useState("");
   const [pending, startTransition] = useTransition();
@@ -15,25 +13,20 @@ export function SelfServeForm({ loggedIn, email: initialEmail }: { loggedIn: boo
     e.preventDefault();
     setMessage(null);
     startTransition(async () => {
-      const url = loggedIn ? "/api/auth/create-tenant" : "/api/auth/self-serve-signup";
-      const body = loggedIn
-        ? { tenant_name: tenantName }
-        : { email, password, tenant_name: tenantName };
-      const res = await fetch(url, {
+      const res = await fetch("/api/auth/self-serve-signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ email, password, tenant_name: tenantName }),
       });
       const json = (await res.json()) as { ok?: boolean; error?: string; message?: string };
       if (!res.ok || !json.ok) {
-        setMessage({ kind: "err", text: json.error ?? "Operation failed." });
+        setMessage({ kind: "err", text: json.error ?? "Signup failed." });
         return;
       }
-      setMessage({ kind: "ok", text: json.message ?? "Done." });
-      if (loggedIn) {
-        // After creating an additional tenant, refresh to surface the new state.
-        setTimeout(() => router.push("/team"), 800);
-      }
+      setMessage({
+        kind: "ok",
+        text: json.message ?? "Tenant created. Check your email to confirm, then sign in.",
+      });
     });
   }
 
@@ -47,35 +40,25 @@ export function SelfServeForm({ loggedIn, email: initialEmail }: { loggedIn: boo
         onChange={(e) => setTenantName(e.target.value)}
         minLength={2}
       />
-      {!loggedIn && (
-        <>
-          <input
-            type="email"
-            required
-            placeholder="you@yourdomain.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-          />
-          <input
-            type="password"
-            required
-            minLength={8}
-            placeholder="password (min 8)"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="new-password"
-          />
-        </>
-      )}
+      <input
+        type="email"
+        required
+        placeholder="you@yourdomain.com"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        autoComplete="email"
+      />
+      <input
+        type="password"
+        required
+        minLength={8}
+        placeholder="password (min 8)"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        autoComplete="new-password"
+      />
       <button className="btn primary" type="submit" disabled={pending}>
-        {pending
-          ? loggedIn
-            ? "Creating tenant…"
-            : "Creating tenant + signing up…"
-          : loggedIn
-            ? "Create tenant"
-            : "Create tenant + sign up"}
+        {pending ? "Creating tenant…" : "Create tenant + sign up"}
       </button>
       {message && (
         <div
