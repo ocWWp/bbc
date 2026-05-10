@@ -7,13 +7,15 @@ allowed-tools:
 ---
 
 <objective>
-Apply a proposal that Manager has approved. Wraps `bbc/scripts/accept.sh` with confirmation, layer-checking, and human-readable summary.
+Apply a proposal that Manager has approved. Wraps `<bbc>/scripts/accept.sh` with confirmation, layer-checking, and human-readable summary.
+
+Operates against the **active tenant repo** (`$BBC_REPO` or current dir). Run from inside the tenant repo, OR set `BBC_REPO` and pass it to the script via cwd.
 </objective>
 
 <process>
-1. Detect layer:
+1. Detect layer (run from tenant cwd):
    ```bash
-   layer=$(bash bbc/scripts/which-layer.sh)
+   layer=$(bash <bbc>/scripts/which-layer.sh)   # <bbc> = path to BBC product repo
    ```
    Refuse unless `layer == main`. /bbc:accept is the Main-only path. (For dev/test override, the underlying script accepts `--force`, but the slash command itself does not expose it.)
 

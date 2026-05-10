@@ -17,21 +17,21 @@ NOT used for normal automatic failover — that's `shadow-watch.sh --loop` trigg
 <process>
 1. Detect layer. Refuse unless `layer == main`.
 
-2. Read `_log/role`. If it says `primary`, refuse: "/bbc:promote is for Shadow → Primary transitions, not the reverse." Suggest writing a graceful-shutdown era-promotion if needed.
+2. Read `<tenant>/_log/role` (where `<tenant>` is `$BBC_REPO` or current dir). If it says `primary`, refuse: "/bbc:promote is for Shadow → Primary transitions, not the reverse." Suggest writing a graceful-shutdown era-promotion if needed.
 
 3. Confirm with user: "Promoting this host to Primary will append an era-promotion entry naming `<previous-primary>` as deposed. Continue? [y/N]"
 
-4. On yes: `bash bbc/scripts/promote.sh` and surface the output.
+4. On yes: `bash <bbc>/scripts/promote.sh` (with the tenant repo as cwd) and surface the output.
 
 5. After success, tell user:
-   - Start `bash bbc/scripts/heartbeat-emit.sh --loop` on this host (or set up systemd/cron).
-   - Original Primary, when it wakes, MUST run `bash bbc/scripts/deconflict.sh` before any mutating script.
+   - Start `bash <bbc>/scripts/heartbeat-emit.sh --loop` on this host (or set up systemd/cron).
+   - Original Primary, when it wakes, MUST run `bash <bbc>/scripts/deconflict.sh` before any mutating script.
 
 Do NOT auto-start the heartbeat daemon. Daemon-management is operator territory.
 </process>
 
 <refusal_examples>
 - "/bbc:promote is Main-only."
-- "Already Primary per _log/role; nothing to promote."
+- "Already Primary per <tenant>/_log/role; nothing to promote."
 - "Cancelled — no era-promotion emitted."
 </refusal_examples>

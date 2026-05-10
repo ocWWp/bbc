@@ -8,20 +8,22 @@ allowed-tools:
 ---
 
 <objective>
-Update `memory/ops/bindings.yaml` to bind a role to an active adapter. Used when:
+Update the active **tenant repo's** `memory/ops/bindings.yaml` to bind a role to an active adapter. Used when:
 - A previously unbound role gets its first adapter (e.g., binding `image-edit-provider` to a new candidate).
 - A role's binding changes from one adapter to another (vendor swap).
 - A provisional binding flips to permanent.
 
 This command does NOT activate adapters or run the F1 ranker. It records the binding decision after the human (or future ranker) has made it.
+
+Operates against `$BBC_REPO` or current dir. Role contracts live in the BBC product repo at `<bbc>/memory/ops/provider-roles/`; tenant adapter declarations live in `<tenant>/memory/ops/providers/`.
 </objective>
 
 <process>
-1. Detect layer. Refuse unless `layer == manager` or `layer == main`.
+1. Detect layer (run from tenant cwd). Refuse unless `layer == manager` or `layer == main`.
 
 2. Ask the user for:
-   - `--role <role-id>` — must exist at `memory/ops/provider-roles/<role>.yaml`.
-   - `--provider <provider-id>` — must exist as an `active` adapter at `memory/ops/providers/<id>.yaml`. Refuse if status is `candidate` (caller must promote to active first via separate proposal), `deprecated` (use `/bbc:decommission` instead), or `archived` (impossible).
+   - `--role <role-id>` — must exist at `<bbc>/memory/ops/provider-roles/<role>.yaml` (BBC product repo defines the role contracts).
+   - `--provider <provider-id>` — must exist as an `active` adapter at `<tenant>/memory/ops/providers/<id>.yaml`. Refuse if status is `candidate` (caller must promote to active first via separate proposal), `deprecated` (use `/bbc:decommission` instead), or `archived` (impossible).
 
 3. Validate that the named adapter declares `implements: [<role-id>]`. Refuse with: "Adapter `<provider>` does NOT implement role `<role>`. Update the adapter's `implements:` field first via a separate proposal."
 

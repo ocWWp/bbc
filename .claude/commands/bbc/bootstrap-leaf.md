@@ -9,7 +9,7 @@ allowed-tools:
 <objective>
 Wrap `bbc/scripts/bootstrap-leaf.sh` with a friendlier interface. Used for two cases:
 
-1. **Create a new leaf** for a workstream (e.g., when adding `<<tenant-marketing>>` as a new repo BBC governs).
+1. **Create a new leaf** for a workstream (e.g., when adding `marketing` or `mobile` as a new repo your tenant governs).
 2. **Refresh an existing leaf** after Main's `Precedence rule` or `Non-negotiable principles` sections changed — the auto-header re-extracts them verbatim.
 
 The script itself is idempotent; this command just adds context awareness.
@@ -19,14 +19,15 @@ The script itself is idempotent; this command just adds context awareness.
 1. Get the leaf name from the user. Validate:
    - Lowercase, kebab-case, no slashes, no dots.
    - Not the reserved name `_template`.
-   - Match the conventional pattern (`<<<tenant-app-web>>>`, `<<<tenant-app-api>>>`, `<<tenant-marketing>>`, etc.) where applicable.
+   - Match a kebab-case convention that names the workstream this leaf governs (e.g. `web`, `api`, `mobile`, `marketing`, `data`).
 
-2. Check whether `bbc/distribution/<name>/` already exists. Tell the user whether this is a create or a refresh.
+2. Check whether `<tenant-repo>/distribution/<name>/` already exists (where `<tenant-repo>` is the dir holding the user's tenant content — typically the repo set via `BBC_REPO`, or the BBC product repo itself if developing on BBC). Tell the user whether this is a create or a refresh.
 
-3. Run the script from the BBC repo root:
+3. Run the script from the tenant repo root (or BBC repo root if no separate tenant exists yet):
    ```bash
-   cd bbc && bash scripts/bootstrap-leaf.sh <name>
+   bash <bbc>/scripts/bootstrap-leaf.sh <name>
    ```
+   where `<bbc>` is the path to the BBC product repo (e.g. `/Users/grid/Documents/GitHub/bbc`).
 
 4. Report:
    - The new (or refreshed) leaf path.

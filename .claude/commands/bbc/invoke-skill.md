@@ -18,7 +18,7 @@ Use this when an agent should "do an X" and you want the right specialization au
    layer=$(bash bbc/scripts/which-layer.sh)
    ```
    Map to caller tier:
-   - `leaf:<name>` → caller is `<name>` (e.g., `<tenant-app-web>`)
+   - `leaf:<name>` → caller is `<name>` (e.g., `web`)
    - `manager` or `main` → caller is `general`
    - `unknown` → refuse.
 

@@ -12,16 +12,18 @@ allowed-tools:
 Orchestrate a provider decommission through the F4 three-phase lifecycle: Announce → Quarantine → Purge. Used when a vendor must be replaced (cost change, policy violation, vendor death, quality regression).
 
 This command does NOT batch all three phases into one go. Each phase is a separate user action with explicit confirmation. The runbook is the orchestrator; the user is the decision-maker.
+
+Operates against the **active tenant repo** (`$BBC_REPO` or current dir). The provider adapter YAML being decommissioned lives in `<tenant>/memory/ops/providers/<id>.yaml`.
 </objective>
 
 <process>
-1. Detect layer:
+1. Detect layer (run from tenant cwd):
    ```bash
-   layer=$(bash bbc/scripts/which-layer.sh)
+   layer=$(bash <bbc>/scripts/which-layer.sh)   # <bbc> = path to BBC product repo
    ```
-   Refuse unless `layer == manager` (initiator) or `layer == main` (accepter). Print: "Run `/bbc:decommission` from `bbc/manager/` to file the announce, or from BBC root to accept a phase."
+   Refuse unless `layer == manager` (initiator) or `layer == main` (accepter). Print: "Run `/bbc:decommission` from `<tenant>/manager/` to file the announce, or from `<tenant>/` root to accept a phase."
 
-2. Get the provider id from the user. Validate it exists at `memory/ops/providers/<id>.yaml`. If it's already in `_archived/`, refuse with: "Provider `<id>` is already archived."
+2. Get the provider id from the user. Validate it exists at `<tenant>/memory/ops/providers/<id>.yaml`. If it's already in `_archived/`, refuse with: "Provider `<id>` is already archived."
 
 3. Determine the current phase by reading the adapter's `status:`:
    - `active` → next action is Announce.

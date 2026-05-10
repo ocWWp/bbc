@@ -29,12 +29,12 @@ Use when debugging "wrong reviewer was used" or "didn't get the brand voice I ex
 ```
 resolution_trace:
   requested: pr-review
-  caller: <tenant-app-web>
+  caller: web
   chain:
     - { skill_id: skill, path: memory/skills/_abstract/skill.yaml }
     - { skill_id: review-skill, path: memory/skills/_abstract/review-skill.yaml }
     - { skill_id: general.pr-review, path: memory/skills/general/pr-review.yaml }
-    - { skill_id: <tenant-app-web>.pr-review, path: memory/skills/<tenant-app-web>/pr-review.yaml }
-  effective_skill_id: <tenant-app-web>.pr-review
+    - { skill_id: web.pr-review, path: memory/skills/web/pr-review.yaml }
+  effective_skill_id: web.pr-review
 ```
 </example_output>
