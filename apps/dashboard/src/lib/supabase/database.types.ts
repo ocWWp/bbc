@@ -12,6 +12,12 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_keys: {
+        Row: { created_at: string; created_by: string | null; id: string; key_id: string; last_used_at: string | null; name: string; revoked_at: string | null; scope: Database["public"]["Enums"]["api_key_scope"]; secret_hash: string; tenant_id: string }
+        Insert: { created_at?: string; created_by?: string | null; id?: string; key_id: string; last_used_at?: string | null; name: string; revoked_at?: string | null; scope?: Database["public"]["Enums"]["api_key_scope"]; secret_hash: string; tenant_id: string }
+        Update: { created_at?: string; created_by?: string | null; id?: string; key_id?: string; last_used_at?: string | null; name?: string; revoked_at?: string | null; scope?: Database["public"]["Enums"]["api_key_scope"]; secret_hash?: string; tenant_id?: string }
+        Relationships: [{ foreignKeyName: "api_keys_tenant_id_fkey"; columns: ["tenant_id"]; isOneToOne: false; referencedRelation: "tenants"; referencedColumns: ["id"] }]
+      }
       bindings: {
         Row: { bound_at: string; notes: string | null; provider_id: string; provisional: boolean; role: string; tenant_id: string }
         Insert: { bound_at?: string; notes?: string | null; provider_id: string; provisional?: boolean; role: string; tenant_id: string }
@@ -75,18 +81,24 @@ export type Database = {
     }
     Views: { [_ in never]: never }
     Functions: {
-      _require_admin: { Args: never; Returns: { actor: string; tenant_id: string; user_id: string }[] }
+      _compose_api_key: { Args: { p_key_id: string; p_secret: string }; Returns: string }
+      _require_admin: { Args: never; Returns: { out_actor: string; out_tenant_id: string; out_user_id: string }[] }
       accept_proposal: { Args: { p_proposal_id: string }; Returns: undefined }
       auth_tenant: { Args: never; Returns: string }
       change_member_role: { Args: { p_new_role: Database["public"]["Enums"]["tenant_role"]; p_user_id: string }; Returns: undefined }
+      create_api_key: { Args: { p_name: string; p_scope?: Database["public"]["Enums"]["api_key_scope"] }; Returns: string }
       create_invitation: { Args: { p_identifier: string; p_provider: string; p_role?: Database["public"]["Enums"]["tenant_role"] }; Returns: string }
       create_tenant_with_seed: { Args: { p_name: string; p_owner_user_id: string; p_slug: string }; Returns: string }
       is_member_of: { Args: { p_tenant_id: string }; Returns: boolean }
       reject_proposal: { Args: { p_proposal_id: string; p_reason: string }; Returns: undefined }
       remove_member: { Args: { p_user_id: string }; Returns: undefined }
+      resolve_api_key: { Args: { p_token: string }; Returns: { out_key_id: string; out_scope: Database["public"]["Enums"]["api_key_scope"]; out_tenant_id: string }[] }
+      revoke_api_key: { Args: { p_key_id: string }; Returns: undefined }
       revoke_invitation: { Args: { p_invitation_id: string }; Returns: undefined }
+      setup_self_serve_tenant: { Args: { p_email: string; p_name: string; p_slug: string }; Returns: string }
     }
     Enums: {
+      api_key_scope: "read" | "write" | "admin"
       queue_status: "pending" | "accepted" | "rejected"
       tenant_role: "admin" | "member" | "viewer"
     }

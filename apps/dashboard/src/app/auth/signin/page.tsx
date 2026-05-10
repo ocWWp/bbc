@@ -89,6 +89,16 @@ export default async function SignInPage({ searchParams }: PageProps) {
 
       <SignInForm callbackUrl={target} />
 
+      {process.env.BBC_SIGNUP_MODE === "open" && (
+        <div style={{ marginTop: 24, padding: 16, border: "1px dashed #aaa", borderRadius: 4 }}>
+          <h3 style={{ marginTop: 0, fontSize: 14 }}>No invitation? Create your own tenant</h3>
+          <p className="mono-sm muted" style={{ marginBottom: 8 }}>
+            This BBC instance allows self-service signup. You'll get a fresh tenant where you're the admin.
+          </p>
+          <a href="/auth/self-serve" className="btn">Create my own tenant →</a>
+        </div>
+      )}
+
       <p className="mono-sm" style={{ marginTop: 32 }}>
         After signing in you'll be sent to <code>{target}</code>.
       </p>

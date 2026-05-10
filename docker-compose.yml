@@ -1,0 +1,72 @@
+# BBC self-host — docker-compose
+#
+# Brings up the BBC dashboard pointed at a tenant repo (default: the Acme
+# example tenant baked into this image). Supabase is NOT started here —
+# either point at a remote Supabase project or run `supabase start` locally
+# in a separate terminal.
+#
+# Usage:
+#
+#   1. Copy `.env.example` to `.env` at the repo root, fill in the three
+#      NEXT_PUBLIC_SUPABASE_* + SUPABASE_SERVICE_ROLE_KEY values.
+#   2. (Optional) set BBC_REPO_HOST_PATH to mount your own tenant repo;
+#      defaults to ./examples/example-tenant.
+#   3. `docker compose up --build`
+#   4. Open http://localhost:3000
+#
+# To run Supabase locally:
+#
+#   brew install supabase/tap/supabase
+#   cd apps/dashboard
+#   supabase start
+#   # copy the printed URL + anon key + service_role key into the root .env
+#   cd ../..
+#   docker compose up --build
+
+services:
+  dashboard:
+    build:
+      context: .
+      dockerfile: apps/dashboard/Dockerfile
+    image: bbc-dashboard:local
+    container_name: bbc-dashboard
+    ports:
+      - "3000:3000"
+    environment:
+      # Supabase wiring — supplied via .env file at repo root
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+
+      # Tenant + mode
+      BBC_REPO: /app/tenant
+      BBC_MODE: ${BBC_MODE:-file}
+
+      # Optional self-serve signup
+      BBC_SIGNUP_MODE: ${BBC_SIGNUP_MODE:-invite_only}
+
+    volumes:
+      # Mount the tenant repo at /app/tenant. By default this is the Acme
+      # example tenant inside the image (already baked in via the Dockerfile
+      # COPY); to use your own tenant, override BBC_REPO_HOST_PATH and
+      # uncomment this line:
+      - ${BBC_REPO_HOST_PATH:-./examples/example-tenant}:/app/tenant:ro
+
+    restart: unless-stopped
+
+# To add the MCP server to the same compose, uncomment:
+#
+#   mcp:
+#     build:
+#       context: .
+#       dockerfile: apps/mcp-server/Dockerfile
+#     image: bbc-mcp:local
+#     container_name: bbc-mcp
+#     ports:
+#       - "4501:4501"
+#     environment:
+#       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+#       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+#     restart: unless-stopped
+#
+# (apps/mcp-server/Dockerfile not yet authored — Phase Y.4 follow-up.)

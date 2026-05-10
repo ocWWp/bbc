@@ -14,6 +14,9 @@ distribution/*/local/
 .env.*
 !.env.example
 
+# Docker build cache (large)
+.docker-cache/
+
 # Editor / OS junk
 .DS_Store
 .AppleDouble
