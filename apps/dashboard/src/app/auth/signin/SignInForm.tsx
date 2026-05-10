@@ -1,18 +1,35 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 type Mode = "signin" | "signup" | "reset";
 
 export function SignInForm({ callbackUrl }: { callbackUrl: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+
+  // Pre-fill email + flip to signup mode when arriving from an invitation link
+  // (`?email=…&source=invite`). The invite/<token> route redirects through here.
+  useEffect(() => {
+    const e = searchParams.get("email");
+    if (e) setEmail(e);
+    const source = searchParams.get("source");
+    if (source === "invite") {
+      setMode("signup");
+      setMessage({
+        kind: "ok",
+        text: "Welcome — you've been invited. Set a password to create your account.",
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const supabase = getSupabaseBrowserClient();
 

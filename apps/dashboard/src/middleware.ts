@@ -9,7 +9,8 @@ export async function middleware(request: NextRequest) {
   const { nextUrl } = request;
   const isAuthRoute =
     nextUrl.pathname.startsWith("/auth") ||
-    nextUrl.pathname.startsWith("/api/auth");
+    nextUrl.pathname.startsWith("/api/auth") ||
+    nextUrl.pathname.startsWith("/invite");  // invitation landing pages must be reachable without a session
 
   const { response, user } = await updateSession(request);
 

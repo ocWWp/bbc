@@ -15,6 +15,7 @@ type SearchParams = Promise<{ ok?: string; error?: string }>;
 type MemberRow = {
   user_id: string;
   role: "admin" | "member" | "viewer";
+  template_slug: string | null;
   joined_at: string;
 };
 
@@ -30,7 +31,16 @@ type InvitationRow = {
   provider: string;
   identifier: string;
   role: "admin" | "member" | "viewer";
+  template_slug: string | null;
   created_at: string;
+};
+
+type TemplateRow = {
+  slug: string;
+  display_name: string;
+  description: string;
+  base_role: "admin" | "member" | "viewer";
+  focus_areas: string[];
 };
 
 export default async function TeamPage({ searchParams }: { searchParams: SearchParams }) {
@@ -43,8 +53,15 @@ export default async function TeamPage({ searchParams }: { searchParams: SearchP
 
   const { data: members } = await sb
     .from("tenant_members")
-    .select("user_id, role, joined_at")
+    .select("user_id, role, template_slug, joined_at")
     .order("joined_at", { ascending: true });
+
+  const { data: templates } = await sb
+    .from("role_templates")
+    .select("slug, display_name, description, base_role, focus_areas")
+    .order("base_role", { ascending: false });
+  const templateRows = (templates ?? []) as TemplateRow[];
+  const templateBySlug = new Map(templateRows.map((t) => [t.slug, t]));
 
   const memberRows = (members ?? []) as MemberRow[];
   const memberIds = memberRows.map((m) => m.user_id);
@@ -62,7 +79,7 @@ export default async function TeamPage({ searchParams }: { searchParams: SearchP
 
   const { data: invitations } = await sb
     .from("tenant_invitations")
-    .select("id, provider, identifier, role, created_at")
+    .select("id, provider, identifier, role, template_slug, created_at")
     .order("created_at", { ascending: false });
 
   const invitationRows = (invitations ?? []) as InvitationRow[];
@@ -100,7 +117,8 @@ export default async function TeamPage({ searchParams }: { searchParams: SearchP
           <thead>
             <tr style={{ borderBottom: "1px solid #ccc", textAlign: "left" }}>
               <th style={{ padding: 8 }}>Identity</th>
-              <th style={{ padding: 8 }}>Role</th>
+              <th style={{ padding: 8 }}>Template</th>
+              <th style={{ padding: 8 }}>Base role</th>
               <th style={{ padding: 8 }}>Joined</th>
               {isAdmin && <th style={{ padding: 8 }}>Actions</th>}
             </tr>
@@ -112,11 +130,15 @@ export default async function TeamPage({ searchParams }: { searchParams: SearchP
                 ? `${profile.provider}:${profile.identifier}`
                 : m.user_id;
               const isSelf = m.user_id === a.actor.user_id;
+              const tmpl = m.template_slug ? templateBySlug.get(m.template_slug) : null;
               return (
                 <tr key={m.user_id} style={{ borderBottom: "1px solid #eee" }}>
                   <td style={{ padding: 8 }}>
                     {label}
                     {isSelf && <span className="muted"> (you)</span>}
+                  </td>
+                  <td style={{ padding: 8 }}>
+                    {tmpl ? tmpl.display_name : m.template_slug ?? "(none)"}
                   </td>
                   <td style={{ padding: 8 }}>{m.role}</td>
                   <td style={{ padding: 8 }} className="mono-sm">
@@ -159,16 +181,22 @@ export default async function TeamPage({ searchParams }: { searchParams: SearchP
             <thead>
               <tr style={{ borderBottom: "1px solid #ccc", textAlign: "left" }}>
                 <th style={{ padding: 8 }}>Identity</th>
-                <th style={{ padding: 8 }}>Role</th>
+                <th style={{ padding: 8 }}>Template</th>
+                <th style={{ padding: 8 }}>Base role</th>
                 <th style={{ padding: 8 }}>Invited</th>
                 {isAdmin && <th style={{ padding: 8 }}>Actions</th>}
               </tr>
             </thead>
             <tbody>
-              {pending.map((inv) => (
+              {pending.map((inv) => {
+                const invTmpl = inv.template_slug ? templateBySlug.get(inv.template_slug) : null;
+                return (
                 <tr key={inv.id} style={{ borderBottom: "1px solid #eee" }}>
                   <td style={{ padding: 8 }}>
                     {inv.provider}:{inv.identifier}
+                  </td>
+                  <td style={{ padding: 8 }}>
+                    {invTmpl ? invTmpl.display_name : inv.template_slug ?? "(none)"}
                   </td>
                   <td style={{ padding: 8 }}>{inv.role}</td>
                   <td style={{ padding: 8 }} className="mono-sm">
@@ -183,7 +211,8 @@ export default async function TeamPage({ searchParams }: { searchParams: SearchP
                     </td>
                   )}
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -208,17 +237,45 @@ export default async function TeamPage({ searchParams }: { searchParams: SearchP
               required
               style={{ minWidth: 280 }}
             />
-            <select name="role" defaultValue="member">
-              <option value="admin">admin</option>
-              <option value="member">member</option>
-              <option value="viewer">viewer</option>
+            <select name="template_slug" defaultValue="engineering">
+              {templateRows.map((t) => (
+                <option key={t.slug} value={t.slug} title={t.description}>
+                  {t.display_name} ({t.base_role})
+                </option>
+              ))}
             </select>
             <button type="submit" className="btn primary">Invite</button>
           </form>
           <p className="mono-sm muted" style={{ marginTop: 8 }}>
-            The invited identity can sign up via /auth/signin and will land in this tenant
-            with the selected role.
+            The invited identity gets an email (if RESEND_API_KEY is set) with a link that pre-fills
+            their email at signup. The template determines their base role and focus areas.
           </p>
+
+          <details style={{ marginTop: 16 }}>
+            <summary className="mono-sm" style={{ cursor: "pointer", color: "#888" }}>
+              ▸ What does each template grant?
+            </summary>
+            <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid #ccc", textAlign: "left" }}>
+                  <th style={{ padding: 6 }}>Template</th>
+                  <th style={{ padding: 6 }}>Base role</th>
+                  <th style={{ padding: 6 }}>Focus areas</th>
+                  <th style={{ padding: 6 }}>What it does</th>
+                </tr>
+              </thead>
+              <tbody>
+                {templateRows.map((t) => (
+                  <tr key={t.slug} style={{ borderBottom: "1px solid #eee" }}>
+                    <td style={{ padding: 6 }}><strong>{t.display_name}</strong></td>
+                    <td style={{ padding: 6 }}>{t.base_role}</td>
+                    <td style={{ padding: 6 }} className="mono-sm">{t.focus_areas.join(", ")}</td>
+                    <td style={{ padding: 6 }}>{t.description}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </details>
         </section>
       )}
     </main>

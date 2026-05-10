@@ -87,10 +87,16 @@ export async function POST(req: NextRequest) {
   // Step 2: Create the auth user. The check_invitation BEFORE trigger sees the
   // invitation we just inserted and allows; the create_profile_and_membership
   // AFTER trigger creates the profile + admin tenant_members row.
+  //
+  // BBC_SIGNUP_AUTOCONFIRM=true skips the email-confirmation step (dev-friendly,
+  // and necessary when no SMTP is wired). Default false for prod safety —
+  // someone could spoof signup with an email they don't own. Production
+  // deployments should leave this unset and wire real SMTP via Resend / SES.
+  const autoConfirm = (process.env.BBC_SIGNUP_AUTOCONFIRM ?? "false").toLowerCase() === "true";
   const { data: created, error: createErr } = await sb.auth.admin.createUser({
     email,
     password,
-    email_confirm: false, // user confirms via Supabase's email link
+    email_confirm: autoConfirm,
   });
   if (createErr) {
     // Tenant + invitation already exist; surface the auth error so the user
@@ -108,6 +114,8 @@ export async function POST(req: NextRequest) {
     tenant_slug: slug,
     user_id: created.user?.id,
     next: "/auth/signin",
-    message: `Tenant '${tenantName}' created. Check your email to confirm, then sign in.`,
+    message: autoConfirm
+      ? `Tenant '${tenantName}' created. Sign in with your email + password.`
+      : `Tenant '${tenantName}' created. Check your email to confirm, then sign in.`,
   });
 }

@@ -60,17 +60,23 @@ export type Database = {
         Update: { body?: string; created_at?: string; cross_leaf_impact?: Json | null; frontmatter?: Json; id?: string; manager_review?: Json | null; promotion_check?: Json | null; proposal_id?: string; reject_reason?: string | null; resolved_at?: string | null; status?: Database["public"]["Enums"]["queue_status"]; tenant_id?: string }
         Relationships: [{ foreignKeyName: "queue_items_tenant_id_fkey"; columns: ["tenant_id"]; isOneToOne: false; referencedRelation: "tenants"; referencedColumns: ["id"] }]
       }
+      role_templates: {
+        Row: { base_role: Database["public"]["Enums"]["tenant_role"]; created_at: string; description: string; display_name: string; focus_areas: string[]; is_predefined: boolean; permission_tags: string[]; slug: string }
+        Insert: { base_role: Database["public"]["Enums"]["tenant_role"]; created_at?: string; description?: string; display_name: string; focus_areas?: string[]; is_predefined?: boolean; permission_tags?: string[]; slug: string }
+        Update: { base_role?: Database["public"]["Enums"]["tenant_role"]; created_at?: string; description?: string; display_name?: string; focus_areas?: string[]; is_predefined?: boolean; permission_tags?: string[]; slug?: string }
+        Relationships: []
+      }
       tenant_invitations: {
-        Row: { created_at: string; id: string; identifier: string; invited_by: string | null; provider: string; role: Database["public"]["Enums"]["tenant_role"]; tenant_id: string }
-        Insert: { created_at?: string; id?: string; identifier: string; invited_by?: string | null; provider: string; role?: Database["public"]["Enums"]["tenant_role"]; tenant_id: string }
-        Update: { created_at?: string; id?: string; identifier?: string; invited_by?: string | null; provider?: string; role?: Database["public"]["Enums"]["tenant_role"]; tenant_id?: string }
-        Relationships: [{ foreignKeyName: "tenant_invitations_tenant_id_fkey"; columns: ["tenant_id"]; isOneToOne: false; referencedRelation: "tenants"; referencedColumns: ["id"] }]
+        Row: { consumed_at: string | null; created_at: string; id: string; identifier: string; invitation_token: string | null; invited_by: string | null; provider: string; role: Database["public"]["Enums"]["tenant_role"]; template_slug: string | null; tenant_id: string }
+        Insert: { consumed_at?: string | null; created_at?: string; id?: string; identifier: string; invitation_token?: string | null; invited_by?: string | null; provider: string; role?: Database["public"]["Enums"]["tenant_role"]; template_slug?: string | null; tenant_id: string }
+        Update: { consumed_at?: string | null; created_at?: string; id?: string; identifier?: string; invitation_token?: string | null; invited_by?: string | null; provider?: string; role?: Database["public"]["Enums"]["tenant_role"]; template_slug?: string | null; tenant_id?: string }
+        Relationships: [{ foreignKeyName: "tenant_invitations_template_slug_fkey"; columns: ["template_slug"]; isOneToOne: false; referencedRelation: "role_templates"; referencedColumns: ["slug"] }, { foreignKeyName: "tenant_invitations_tenant_id_fkey"; columns: ["tenant_id"]; isOneToOne: false; referencedRelation: "tenants"; referencedColumns: ["id"] }]
       }
       tenant_members: {
-        Row: { joined_at: string; role: Database["public"]["Enums"]["tenant_role"]; tenant_id: string; user_id: string }
-        Insert: { joined_at?: string; role?: Database["public"]["Enums"]["tenant_role"]; tenant_id: string; user_id: string }
-        Update: { joined_at?: string; role?: Database["public"]["Enums"]["tenant_role"]; tenant_id?: string; user_id?: string }
-        Relationships: [{ foreignKeyName: "tenant_members_tenant_id_fkey"; columns: ["tenant_id"]; isOneToOne: false; referencedRelation: "tenants"; referencedColumns: ["id"] }]
+        Row: { joined_at: string; role: Database["public"]["Enums"]["tenant_role"]; template_slug: string | null; tenant_id: string; user_id: string }
+        Insert: { joined_at?: string; role?: Database["public"]["Enums"]["tenant_role"]; template_slug?: string | null; tenant_id: string; user_id: string }
+        Update: { joined_at?: string; role?: Database["public"]["Enums"]["tenant_role"]; template_slug?: string | null; tenant_id?: string; user_id?: string }
+        Relationships: [{ foreignKeyName: "tenant_members_template_slug_fkey"; columns: ["template_slug"]; isOneToOne: false; referencedRelation: "role_templates"; referencedColumns: ["slug"] }, { foreignKeyName: "tenant_members_tenant_id_fkey"; columns: ["tenant_id"]; isOneToOne: false; referencedRelation: "tenants"; referencedColumns: ["id"] }]
       }
       tenants: {
         Row: { created_at: string; created_by: string | null; id: string; name: string; plan: string; slug: string }
@@ -86,13 +92,15 @@ export type Database = {
       accept_proposal: { Args: { p_proposal_id: string }; Returns: undefined }
       auth_tenant: { Args: never; Returns: string }
       change_member_role: { Args: { p_new_role: Database["public"]["Enums"]["tenant_role"]; p_user_id: string }; Returns: undefined }
+      consume_invitation_token: { Args: { p_token: string }; Returns: undefined }
       create_api_key: { Args: { p_name: string; p_scope?: Database["public"]["Enums"]["api_key_scope"] }; Returns: string }
-      create_invitation: { Args: { p_identifier: string; p_provider: string; p_role?: Database["public"]["Enums"]["tenant_role"] }; Returns: string }
+      create_invitation: { Args: { p_identifier: string; p_provider: string; p_template_slug?: string }; Returns: string }
       create_tenant_with_seed: { Args: { p_name: string; p_owner_user_id: string; p_slug: string }; Returns: string }
       is_member_of: { Args: { p_tenant_id: string }; Returns: boolean }
       reject_proposal: { Args: { p_proposal_id: string; p_reason: string }; Returns: undefined }
       remove_member: { Args: { p_user_id: string }; Returns: undefined }
       resolve_api_key: { Args: { p_token: string }; Returns: { out_key_id: string; out_scope: Database["public"]["Enums"]["api_key_scope"]; out_tenant_id: string }[] }
+      resolve_invitation_token: { Args: { p_token: string }; Returns: { out_consumed: boolean; out_email: string; out_provider: string; out_role: Database["public"]["Enums"]["tenant_role"]; out_tenant_name: string; out_tenant_slug: string }[] }
       revoke_api_key: { Args: { p_key_id: string }; Returns: undefined }
       revoke_invitation: { Args: { p_invitation_id: string }; Returns: undefined }
       setup_self_serve_tenant: { Args: { p_email: string; p_name: string; p_slug: string }; Returns: string }
