@@ -1,0 +1,41 @@
+---
+id: provider_example_design_source
+provider_id: example-design-source
+type: provider-adapter
+implements: [design-source]
+contract_version: 1
+status: example
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-09T00:00:00Z
+updated: 2026-05-09T00:00:00Z
+tags: [adapter, example, design]
+---
+
+# Adapter: example-design-source
+
+**This is a generic example.** Copy, rename to your chosen vendor (`figma.yaml`, `penpot.yaml`, `sketch.yaml`, …), fill in real values, reference in `bindings.yaml`.
+
+## Metadata
+
+- supports_components: <true | false>
+- supports_design_tokens: <true | false>
+- supports_dev_mode_handoff: <true | false>
+- supports_mcp: <true | false — important for agent integrations>
+- file_url_pattern: <e.g. https://www.example-design.com/file/{id}>
+
+## Runtime
+
+- access: <browser | desktop app | CLI>
+- official sdk: <package | API endpoint>
+
+## bbc-provider-tag
+
+```
+bbc-provider:example-design-source
+```
+
+## Notes
+
+The design source is where canonical UI specs live. Avoid copying-and-pasting design tokens into your code; reference them via the source-of-truth URL in `memory/design/` files. If your design tool exposes an MCP server (Figma's does, as of late 2025), prefer that over screenshot-driven workflows for agent-readable design context.

@@ -54,7 +54,7 @@ human_verification:
 
 # Phase 0: Productization Foundation — Verification Report
 
-**Phase Goal:** ADR in `bbc/memory/decisions/` evolving Main's principles for two-mode deployment + `bbc/CLAUDE.md` lock matrix + principle 1 update + `memory/architecture/deployment-modes.md` + repo decision (generalize `8azi-dashboard` → `bbc-dashboard`, keep `8azi-*` as `examples/` reference tenant).
+**Phase Goal:** ADR in `bbc/memory/decisions/` evolving Main's principles for two-mode deployment + `bbc/CLAUDE.md` lock matrix + principle 1 update + `memory/architecture/deployment-modes.md` + repo decision (generalize `bbc-dashboard` → `bbc-dashboard`, keep `tenant-*` as `examples/` reference tenant).
 
 **Verified:** 2026-05-08
 **Status:** gaps_found
@@ -72,7 +72,7 @@ human_verification:
 | 4   | `bbc/CLAUDE.md` lock matrix is updated to reflect two-mode governance                          | ✗ FAILED   | The diff modifies only principle 1. The lock matrix table is byte-identical to baseline. ADR-0004 §Consequences/Governance bullet 2 explicitly commits to "A new lock-matrix row governs DB-mode tables..." — the row does not exist. CLAUDE.md's own §What changes this file says lock matrix and precedence rule must update **together** with principle changes. |
 | 5   | `memory/architecture/deployment-modes.md` exists (or schema-permitted equivalent)              | ✓ VERIFIED | Lives at `memory/tech/deployment-modes.md` instead of `memory/architecture/`. The plan specified `architecture/`, but `memory/_schema.md` only permits categories `product/design/tech/ops/people/glossary/decisions`. Placing it under `tech/` is the schema-correct call. The body delivers a concrete file↔table mapping, storage interfaces, invariant translation, mode selection, migration paths. |
 | 6   | File↔DB mapping is complete in both directions                                                 | ⚠️ PARTIAL | Content artifacts (memory/, queue/, _log/, bindings.yaml) mapped well. Meta artifacts (_schema.md, _index.md, scripts/, actor-string convention) and lossy-by-design projections in both directions are uncovered. See gap above. |
-| 7   | Repo decision (monorepo + 8azi-dashboard generalization) is recorded concretely               | ✓ VERIFIED | `memory/tech/repo-structure.md` lays out a complete tree (apps/, packages/, examples/, templates/), names pnpm workspaces specifically, gives a 6-step migration plan from 8azi-dashboard → apps/dashboard/, calls out what stays separate (8azi-web, 8azi-api). Concrete enough for a Phase 1 first-task starter to execute without further design work. |
+| 7   | Repo decision (monorepo + bbc-dashboard generalization) is recorded concretely               | ✓ VERIFIED | `memory/tech/repo-structure.md` lays out a complete tree (apps/, packages/, examples/, templates/), names pnpm workspaces specifically, gives a 6-step migration plan from bbc-dashboard → apps/dashboard/, calls out what stays separate (<tenant-app-web>, <tenant-app-api>). Concrete enough for a Phase 1 first-task starter to execute without further design work. |
 | 8   | Index + governance compliance maintained                                                       | ⚠️ PARTIAL | `memory/_index.md` references all 4 new entries (ADR-0004 under decisions, tech-deployment-modes and tech-repo-structure under tech, ops-deployment-targets under ops). **However:** the ops table has a stray empty row (line 31: `\| `` \| \| \| \| \|`) — index regeneration introduced a junk row, probably from a blank line in `memory/ops/`. Cosmetic but the index is auto-generated, so this implies `scripts/index-memory.sh` has a bug or an unexpected sibling file. |
 
 **Score:** 5/8 truths fully verified, 2 partial, 1 failed.
@@ -105,7 +105,7 @@ human_verification:
 | File                       | Line | Pattern                                              | Severity   | Impact                                                                                                                                                       |
 | -------------------------- | ---- | ---------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `memory/_index.md`         | 31   | Empty/junk row in auto-generated table               | ℹ️ Info    | Cosmetic; suggests `scripts/index-memory.sh` mis-handled a blank file or stray newline in `memory/ops/`. Doesn't block Phase 1.                              |
-| `memory/tech/deployment-modes.md` | 135  | "Schema DDL — lives in `8azi-dashboard/...`"  | ⚠️ Warning | Document still names `8azi-dashboard` as the home of migrations even though `tech/repo-structure.md` (same author, same day) decided migrations move to `apps/dashboard/supabase/migrations/`. Internal inconsistency between two docs accepted in the same commit set. |
+| `memory/tech/deployment-modes.md` | 135  | "Schema DDL — lives in `bbc-dashboard/...`"  | ⚠️ Warning | Document still names `bbc-dashboard` as the home of migrations even though `tech/repo-structure.md` (same author, same day) decided migrations move to `apps/dashboard/supabase/migrations/`. Internal inconsistency between two docs accepted in the same commit set. |
 | `memory/decisions/0004-two-deployment-modes.md` | (whole §Governance) | Principle 6 ("no silent autonomy") barely engaged with under §Consequences | 🛑 Blocker | The plan explicitly flagged this as the most consequential governance document. Skipping the principle-6 evolution here is the kind of silent weakening CLAUDE.md §What-changes-this-file forbids. See gap #2. |
 
 ### Human Verification Required
@@ -128,7 +128,7 @@ Phase 0 substantively delivered the four memory documents. Quality is high: the 
 
 3. **File↔DB mapping has meta-artifact gaps (PARTIAL).** Mapping covers content (memory/, queue/, _log/, bindings.yaml) but skips meta artifacts (_schema.md self-reference, _index.md, scripts/, actor-string convention). And §Migration paths claims lossless both ways without enumerating the lossy-by-design projections (tenant_id on DB→file, filesystem mtime/git-history on file→DB).
 
-**One inconsistency between docs:** `tech/deployment-modes.md` line 135 says migrations live in `8azi-dashboard/supabase/migrations/`; `tech/repo-structure.md` (same commit set) decides they move to `apps/dashboard/supabase/migrations/`. Trivial fix.
+**One inconsistency between docs:** `tech/deployment-modes.md` line 135 says migrations live in `bbc-dashboard/supabase/migrations/`; `tech/repo-structure.md` (same commit set) decides they move to `apps/dashboard/supabase/migrations/`. Trivial fix.
 
 **One cosmetic glitch:** `_index.md` line 31 has a junk empty row — likely a `scripts/index-memory.sh` bug worth filing as a Phase 1 cleanup task.
 
@@ -202,11 +202,11 @@ These are forward-looking gaps, not round-1 regressions. The fix is sufficient f
 
 ### Gap 3 — Path consistency: ✓ VERIFIED (zero residual references)
 
-`grep -rn "8azi-dashboard/supabase" memory/ CLAUDE.md` returns zero hits. The previously offending line in `memory/tech/deployment-modes.md` §Out of scope now reads:
+`grep -rn "bbc-dashboard/supabase" memory/ CLAUDE.md` returns zero hits. The previously offending line in `memory/tech/deployment-modes.md` §Out of scope now reads:
 
-> Schema DDL — lives in `apps/dashboard/supabase/migrations/0003+...sql` (Phase 1–2 of productization). The path reflects the monorepo layout decided in `tech/repo-structure.md`; the actual move from `8azi-dashboard/` happens as Phase 1's first task.
+> Schema DDL — lives in `apps/dashboard/supabase/migrations/0003+...sql` (Phase 1–2 of productization). The path reflects the monorepo layout decided in `tech/repo-structure.md`; the actual move from `bbc-dashboard/` happens as Phase 1's first task.
 
-This is the right framing: it cites the canonical path (`apps/dashboard/...`), explicitly references `tech/repo-structure.md` as the source of truth for the layout, and acknowledges the move-from-`8azi-dashboard/` as a Phase-1 task (not a Phase-0 commitment). The single remaining mention of `8azi-dashboard` is in the migration-source phrasing, which is correct — that path *is* where the code lives today.
+This is the right framing: it cites the canonical path (`apps/dashboard/...`), explicitly references `tech/repo-structure.md` as the source of truth for the layout, and acknowledges the move-from-`bbc-dashboard/` as a Phase-1 task (not a Phase-0 commitment). The single remaining mention of `bbc-dashboard` is in the migration-source phrasing, which is correct — that path *is* where the code lives today.
 
 ## Coherence pass (new check)
 

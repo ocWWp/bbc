@@ -24,7 +24,7 @@ cross_leaf_impact:
   notes: "<short>"
 ```
 
-If `followup_proposals_required: true`, your review's `notes` must list the specific follow-up actions (e.g., "leaf 8azi-web must update local copy citing voice-tone.md within same week").
+If `followup_proposals_required: true`, your review's `notes` must list the specific follow-up actions (e.g., "leaf <tenant-app-web> must update local copy citing voice-tone.md within same week").
 
 ## Rules
 

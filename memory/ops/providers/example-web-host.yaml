@@ -1,0 +1,50 @@
+---
+id: provider_example_web_host
+provider_id: example-web-host
+type: provider-adapter
+implements: [web-host]
+contract_version: 1
+status: example
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-09T00:00:00Z
+updated: 2026-05-09T00:00:00Z
+tags: [adapter, example, hosting]
+---
+
+# Adapter: example-web-host
+
+**This is a generic example.** Copy, rename to your chosen vendor (`vercel.yaml`, `cloudflare-workers.yaml`, `netlify.yaml`, `fly.yaml`, …), fill in real values, reference in `bindings.yaml`.
+
+## Metadata
+
+- runtime: <serverless | edge | container | static>
+- supports_streaming: <true | false>
+- supports_websockets: <true | false>
+- supports_long_lived_connections: <true | false>
+- supports_filesystem_writes: <true | false>
+- supports_cron: <true | false>
+- regions: [<region-codes>]
+
+## Runtime
+
+- deploy_endpoint: <CLI or git-push trigger>
+- production_url_pattern: <https://*.example-web.com or your-custom-domain>
+
+## bbc-provider-tag
+
+```
+bbc-provider:example-web-host
+```
+
+## Limits
+
+- max_request_duration_s: <integer>
+- max_response_size_mb: <integer>
+- max_concurrent_executions: <integer or null>
+- cold_start_p95_ms: <integer if known>
+
+## Notes
+
+If your tenant runs a Next.js app, edge runtime vs node runtime matters: edge is faster cold starts, no `fs` / `child_process`, smaller node_modules window. The dashboard in BBC requires either node-with-fs (file-mode) OR edge-with-Supabase (DB-mode). Document which mode this adapter supports in `bindings.yaml` notes.

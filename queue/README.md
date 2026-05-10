@@ -23,7 +23,7 @@ A proposal is **pending** while it sits at the top level of `queue/`. A human ru
 - `<originator>` — `leaf-<name>` or `manager`.
 - `<short-slug>` — kebab-case, ≤ 40 chars, describes the change.
 
-Example: `2026-05-08T12-04-32Z__leaf-8azi-web__rule-voice-emoji.md`
+Example: `2026-05-08T12-04-32Z__leaf-<tenant-app-web>__rule-voice-emoji.md`
 
 ## How to invoke `propose.sh`
 

@@ -1,0 +1,44 @@
+---
+id: provider_example_analytics
+provider_id: example-analytics
+type: provider-adapter
+implements: [analytics]
+contract_version: 1
+status: example
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-09T00:00:00Z
+updated: 2026-05-09T00:00:00Z
+tags: [adapter, example, analytics]
+---
+
+# Adapter: example-analytics
+
+**This is a generic example.** Copy, rename to your chosen vendor (`posthog.yaml`, `mixpanel.yaml`, `amplitude.yaml`, `plausible.yaml`, …), fill in real values, reference in `bindings.yaml`.
+
+## Metadata
+
+- supports_event_tracking: <true | false>
+- supports_user_identification: <true | false>
+- supports_funnels: <true | false>
+- supports_session_recording: <true | false>
+- supports_self_host: <true | false>
+- gdpr_dpa_available: <true | false>
+- residency: [<region-codes the vendor stores data in>]
+
+## Runtime
+
+- endpoint: <https://app.example-analytics.com/api>
+- auth: project key in client SDK; server key for export
+- official sdk: <npm package | pypi package>
+
+## bbc-provider-tag
+
+```
+bbc-provider:example-analytics
+```
+
+## Notes
+
+Analytics adapters tend to be early-bound (the SDK ships in your client) and hard to swap later because event taxonomies become a dependency. Pin the event-name conventions in your tenant's `memory/product/events.md` so swapping vendors only changes the transport, not the schema.

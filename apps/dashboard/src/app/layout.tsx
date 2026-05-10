@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "BBC Dashboard",
-  description: "PM tab for the 8aZi Brain Cortex",
+  description: "PM tab for the BBC — Brain Cortex",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

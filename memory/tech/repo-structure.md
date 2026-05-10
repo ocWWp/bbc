@@ -19,7 +19,7 @@ Companion to ADR-0004. Concrete layout for productizing BBC.
 
 **Single repo: `github.com/ZethT/bbc`.** All product code (dashboard, MCP server, protocol docs, templates, deployment artifacts) lives here. No separate `bbc-dashboard` or `bbc-mcp` repos.
 
-**The current `8azi-dashboard` repo is generalized into `apps/dashboard/` inside the monorepo** and renamed conceptually to `bbc-dashboard`. The 8azi-specific seed data (memory layout, vendors list, voice anchors) stays as one example tenant under `examples/8azi-tenant/` for demos and onboarding flows.
+**The current `bbc-dashboard` repo is generalized into `apps/dashboard/` inside the monorepo**. The tenant-specific seed data (memory layout, vendors list, voice anchors) stays as one example tenant under `examples/example-tenant/` for demos and onboarding flows.
 
 ## Rationale
 
@@ -60,9 +60,9 @@ bbc/
 │
 ├── distribution/                      # Distribution leaves (current state, unchanged)
 │   ├── _template/
-│   ├── 8azi-api/                      # Tenant-specific leaf for 8aZi product
-│   ├── 8azi-web/
-│   ├── 8azi-dashboard/                # NOTE: stays as a leaf shadowing the app
+│   ├── <<tenant-app-api>>/                      # Tenant-specific leaf for the tenant's product
+│   ├── <<tenant-app-web>>/
+│   ├── bbc-dashboard/                # NOTE: stays as a leaf shadowing the app
 │   └── dashboard/                     # NOTE: stays as the BBC-product-dashboard leaf
 │
 ├── queue/                             # Proposal queue (file-mode, unchanged)
@@ -70,7 +70,7 @@ bbc/
 ├── scripts/                           # Bash protocol scripts (file-mode transport, unchanged)
 │
 ├── apps/
-│   ├── dashboard/                     # The BBC dashboard (Next.js) — generalized from 8azi-dashboard
+│   ├── dashboard/                     # The BBC dashboard (Next.js) — generalized from bbc-dashboard
 │   │   ├── src/
 │   │   │   ├── app/                   # Next.js app router
 │   │   │   ├── components/
@@ -120,22 +120,22 @@ bbc/
 │       └── README.tpl
 │
 └── examples/                          # NEW: example tenants (read-only, for demos and tests)
-    └── 8azi-tenant/                   # The current 8aZi memory layout, lifted as an example
+    └── example-tenant/                   # The current BBC tenant memory layout, lifted as an example
         ├── memory/
         ├── distribution/
         └── README.md                  # "This is one example of how to use BBC, not BBC itself"
 ```
 
-## Migration plan (8azi-dashboard → apps/dashboard/)
+## Migration plan (bbc-dashboard → apps/dashboard/)
 
 This happens as the first task of Phase 1, not Phase 0. Phase 0 just records the decision.
 
-1. **Create `apps/dashboard/`** in the monorepo. Copy the contents of `/Users/grid/Documents/GitHub/8azi-dashboard/` into it (preserving git history via `git subtree add` if reasonable; otherwise a flat copy with a single migration commit).
+1. **Create `apps/dashboard/`** in the monorepo. Copy the contents of `/Users/grid/Documents/GitHub/bbc-dashboard/` into it (preserving git history via `git subtree add` if reasonable; otherwise a flat copy with a single migration commit).
 2. **Update import paths.** Most code uses `@/*` aliases (already in `tsconfig.json`); those keep working. Anything referencing the BBC repo via `BBC_REPO=../bbc` env var changes to relative paths inside the monorepo (or stays env-var-driven so file-mode self-host still works).
 3. **Wire workspaces.** Root `package.json` declares workspaces; `apps/dashboard/package.json` becomes a workspace member. Same for any future `apps/mcp-server/` and `packages/*`.
-4. **Update `bbc/distribution/dashboard/CLAUDE.md`.** The leaf currently shadows an external `8azi-dashboard` repo. After the move, it shadows `apps/dashboard/` in the same repo. Update the `What this leaf governs` section and the `Quick map` paths.
-5. **Archive the standalone `github.com/ZethT/8azi-dashboard` repo.** Add a README pointing to `github.com/ZethT/bbc/apps/dashboard/`. Don't delete it (broken links to old commits matter).
-6. **Update `.env.local` and `bbc/.claude/commands/bbc/dashboard.md`** to point at the new in-monorepo path. The `/bbc:dashboard` skill we updated in this session needs its hardcoded `/Users/grid/Documents/GitHub/8azi-dashboard` paths swapped for `apps/dashboard/`.
+4. **Update `bbc/distribution/dashboard/CLAUDE.md`.** The leaf currently shadows an external `bbc-dashboard` repo. After the move, it shadows `apps/dashboard/` in the same repo. Update the `What this leaf governs` section and the `Quick map` paths.
+5. **Archive the originally-standalone dashboard repo.** Add a README pointing to `github.com/ZethT/bbc/apps/dashboard/`. Don't delete it (broken links to old commits matter).
+6. **Update `.env.local` and `bbc/.claude/commands/bbc/dashboard.md`** to point at the new in-monorepo path. The `/bbc:dashboard` skill we updated in this session needs its hardcoded `/Users/grid/Documents/GitHub/bbc-dashboard` paths swapped for `apps/dashboard/`.
 
 ## Workspace tooling
 
@@ -160,7 +160,7 @@ Optional later: Turborepo or Nx for build caching once the tree gets bigger. Not
 
 ## What stays separate
 
-- **`8azi-web` / `8azi-api`** stay as separate repos. They are *applications using BBC*, not parts of the BBC product. The `distribution/8azi-web/` and `distribution/8azi-api/` leaves inside the BBC monorepo continue to govern those external repos via the existing leaf protocol.
+- **`<<<tenant-app-web>>>` / `<<<tenant-app-api>>>`** stay as separate repos. They are *applications using BBC*, not parts of the BBC product. The `distribution/<<tenant-app-web>>/` and `distribution/<<tenant-app-api>>/` leaves inside the BBC monorepo continue to govern those external repos via the existing leaf protocol.
 
 - **Per-tenant deployments** in production are not in this repo. Each customer's BBC data lives in their tenant rows on the SaaS Postgres (DB-mode) or in their own self-host (file-mode). The repo holds the product code, not customer data.
 

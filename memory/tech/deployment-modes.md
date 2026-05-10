@@ -107,7 +107,7 @@ How each Main principle materializes in each mode:
 
 ### 5. Voice is single-source
 
-- **Both modes**: `memory/design/voice-tone.md` (file) / `memory_files` row at path `design/voice-tone.md` (DB). Cross-repo consumers (8azi-* applications) read it from BBC's API or filesystem.
+- **Both modes**: `memory/design/voice-tone.md` (file) / `memory_files` row at path `design/voice-tone.md` (DB). Cross-repo consumers (tenant-* applications) read it from BBC's API or filesystem.
 
 ### 6. No silent autonomy
 
@@ -132,6 +132,6 @@ Both directions must be lossless for `accepted` audit data; lossy is acceptable 
 
 ## Out of scope for this doc
 
-- Schema DDL — lives in `apps/dashboard/supabase/migrations/0003+...sql` (Phase 1–2 of productization). The path reflects the monorepo layout decided in `tech/repo-structure.md`; the actual move from `8azi-dashboard/` happens as Phase 1's first task.
+- Schema DDL — lives in `apps/dashboard/supabase/migrations/0003+...sql` (Phase 1–2 of productization). The path reflects the monorepo layout decided in `tech/repo-structure.md`; the actual move from `bbc-dashboard/` happens as Phase 1's first task.
 - API surface for the MCP server — separate doc, Phase 6.
 - Pricing / billing model — `memory/product/` (Phase 8).

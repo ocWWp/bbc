@@ -4,7 +4,9 @@ You are an LLM operating inside the BBC repo. Read this first, then `CLAUDE.md`,
 
 ## What this repo is
 
-Company brain for 8aZi. Three layers (Main → Manager → Distribution) communicating through Markdown memory and a proposal queue.
+The BBC product — a brain protocol + dashboard + MCP server. Three layers (Main → Manager → Distribution) communicating through Markdown memory and a proposal queue.
+
+If you're operating against a tenant repo (the dashboard launched with `BBC_REPO=path-to-tenant-repo`), this BBC repo provides the protocol contracts; the tenant repo provides the actual memory + queue + log content. See [`docs/tenant-repo-architecture.md`](docs/tenant-repo-architecture.md).
 
 ## How to find your layer
 
@@ -23,7 +25,7 @@ If you can't tell which layer you're in, stop and ask the human.
 1. **Precedence is Main > Manager > Distribution.** You cannot override an upper layer; you can only specialize or propose.
 2. **Direct writes only inside your `owning_layer`.** Anything else goes through `scripts/propose.sh`.
 3. **Memory files always have YAML frontmatter** with at minimum: `id`, `type`, `scope`, `layer`, `source`, `created`, `updated`, `owning_layer`, `status`. See `memory/_schema.md`.
-4. **Don't invent vendor names.** If a tool is "what's currently used for X," it lives in `memory/ops/vendors.md`. Cite that file; don't hardcode names elsewhere.
+4. **Don't invent vendor names.** Vendors are bound to roles (`db-provider`, `llm-provider`, …) in the tenant's `memory/ops/bindings.yaml`. Cite roles in prose; only adapter YAMLs and the bindings table name vendors.
 5. **Never modify Main's `CLAUDE.md` from a non-Main session.** Even if asked.
 
 ## Files you'll touch most

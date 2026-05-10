@@ -38,9 +38,9 @@ You are a **leaf**: a single workstream's view into BBC. You own:
 
 When you fill out a real leaf, replace the rest of this file with:
 
-- The repo path this leaf shadows (e.g., `/Users/grid/Documents/GitHub/8azi-web/`).
+- The repo path this leaf shadows (e.g., `/Users/grid/Documents/GitHub/<<tenant-app-web>>/`).
 - Leaf-specific commands and how to run them.
 - Leaf-specific tooling (e.g., MCP servers used here, dev/test commands).
-- File-ownership rules within this repo (high caution / touch sparingly / free game) — see `8azi-web/AGENTS.md` for the pattern.
+- File-ownership rules within this repo (high caution / touch sparingly / free game) — see `<<tenant-app-web>>/AGENTS.md` for the pattern.
 
 Until then: this leaf is a stub. It exists to prove bootstrap works, not to do work.

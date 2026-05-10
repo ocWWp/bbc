@@ -38,4 +38,4 @@ Authoritative source of UI design specs. Frontends translate these specs into co
 
 ## Notes
 
-In 8azi V1, design-source is accessed via Figma MCP rather than direct API. The MCP-based access is captured in adapter metadata.
+In tenant V1, design-source is accessed via Figma MCP rather than direct API. The MCP-based access is captured in adapter metadata.

@@ -1,0 +1,38 @@
+---
+id: bindings_acme_2026-05-09
+type: provider-bindings
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-09T11:30:00Z
+updated: 2026-05-09T11:30:00Z
+status: accepted
+tags: [bindings, providers]
+provenance: [prop_2026-05-09T11-15-00Z_human-alice_bind-postgres-managed]
+---
+
+# Active provider bindings — Acme Co
+
+| role | provider | provisional | bound_at | notes |
+|---|---|---|---|---|
+| db-provider | example-db-provider | yes | 2026-05-09 | Acme committed to a managed-Postgres provider (ADR-0002); specific vendor TBD. Currently using the placeholder adapter. |
+| llm-provider | (unbound) | — | — | Pending vendor selection. Candidates: Anthropic Claude family, OpenAI GPT family. |
+| email-delivery | (unbound) | — | — | Pending. Will pick one of the example-email-delivery candidates. |
+| web-host | (unbound) | — | — | Pending. Probably Vercel or Cloudflare. |
+| api-host | (unbound) | — | — | Pending. Will become the home of Acme's MCP server when shipped. |
+| analytics | (unbound) | — | — | Holding off until launch. |
+| design-source | (unbound) | — | — | Carla likely picks Figma. |
+
+## Rules
+
+- Exactly ONE adapter is bound to each role at any moment.
+- Provisional bindings (status: candidate) MUST be flipped to active or replaced before production traffic.
+- Binding changes go through the queue protocol like any Main-owned memory edit. The proposal MUST cite an ADR explaining the rationale.
+- Adding a new role (e.g., `subscription-receipt`, `image-edit-provider`) requires extending BBC's `memory/ops/provider-roles/` with the contract first.
+
+## See also
+
+- Role contracts: `../../../../memory/ops/provider-roles/<role>.yaml` (in BBC, not in this tenant)
+- Adapter declarations: `memory/ops/providers/example-*.yaml` (this tenant's local copies)
+- Bootstrap rationale: `memory/decisions/0001-acme-bbc-bootstrap.md`
+- First binding decision: `memory/decisions/0002-acme-pick-postgres.md`

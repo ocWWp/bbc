@@ -16,7 +16,7 @@ tags: [provider-role, infra, hosting]
 
 ## Purpose
 
-Hosts long-running container or process for the API tier (FastAPI / 8azi-api). Different from web-host because API workloads are not edge-friendly (long-lived connections, heavy CPU, large memory footprint).
+Hosts long-running container or process for the API tier (FastAPI / <tenant-app-api>). Different from web-host because API workloads are not edge-friendly (long-lived connections, heavy CPU, large memory footprint).
 
 ## Required operations
 
@@ -42,4 +42,4 @@ Hosts long-running container or process for the API tier (FastAPI / 8azi-api). D
 
 ## Notes
 
-If 8azi adds workers or background jobs that don't need request handling, those go through a separate (future) `worker-host` role, not this one.
+If tenant adds workers or background jobs that don't need request handling, those go through a separate (future) `worker-host` role, not this one.

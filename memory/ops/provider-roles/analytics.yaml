@@ -47,4 +47,4 @@ Records product events (page views, feature use, funnel steps, custom events) an
 
 ## Notes
 
-8azi V1 binding is provisional (PostHog vs Amplitude vs Mixpanel under evaluation). The role contract is vendor-neutral and applies to any of them.
+tenant V1 binding is provisional (PostHog vs Amplitude vs Mixpanel under evaluation). The role contract is vendor-neutral and applies to any of them.

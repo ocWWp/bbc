@@ -1,11 +1,15 @@
 import path from "node:path";
 
 /**
- * Resolves the BBC repo root.
+ * Resolves the tenant repo root that the dashboard reads from in file-mode.
  *
  * Priority:
  *   1. process.env.BBC_REPO (absolute or relative to dashboard cwd)
- *   2. Monorepo default: ../../ relative to this package (apps/dashboard/ → bbc/)
+ *   2. Default: examples/example-tenant/ — the demo Acme Co tenant inside
+ *      the BBC monorepo. Newcomers get a populated dashboard out of the box.
+ *
+ * For your own tenant, set BBC_REPO=path-to-your-tenant-repo. See
+ * docs/tenant-repo-architecture.md.
  *
  * Reads at request-time. No caching.
  */
@@ -14,7 +18,7 @@ export function bbcRepoRoot(): string {
   if (env) {
     return path.isAbsolute(env) ? env : path.resolve(process.cwd(), env);
   }
-  return path.resolve(process.cwd(), "..", "..");
+  return path.resolve(process.cwd(), "..", "..", "examples", "example-tenant");
 }
 
 export const BBC = {

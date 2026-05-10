@@ -74,7 +74,7 @@ A review-skill produces a verdict + rationale + findings. It does NOT mutate the
 # === inherited from general.pr-review (memory/skills/general/pr-review.yaml) ===
 # Skill: general.pr-review
 
-Base concrete reviewer for any pull request, regardless of leaf. Extended by leaf-specific specializations (e.g., marketing.pr-review, 8azi-web.pr-review).
+Base concrete reviewer for any pull request, regardless of leaf. Extended by leaf-specific specializations (e.g., marketing.pr-review, <tenant-app-web>.pr-review).
 
 ## Inherits
 

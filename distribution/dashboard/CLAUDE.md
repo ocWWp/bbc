@@ -51,7 +51,7 @@ This leaf governs the visual front-end (PM tab), now living **inside the BBC mon
 bbc/apps/dashboard/   (workspace name: @bbc/dashboard)
 ```
 
-(Previously at the standalone `8azi-dashboard` repo; moved into the monorepo per `memory/tech/repo-structure.md`, ADR-0004 / Phase 1 of productization.)
+(Previously at the originally-standalone dashboard repo; moved into the monorepo per `memory/tech/repo-structure.md`, ADR-0004 / Phase 1 of productization.)
 
 It is a Next.js 16 / React 19 app that reads BBC state (file-mode via `fs`, DB-mode via `@supabase/ssr`) and provides:
 - Overview (`/`) — current phase, last-7d counts, latest log entries.
@@ -99,7 +99,7 @@ It still reads BBC repo state via Node `fs` and shells out to BBC's own bash scr
 
 ## Cross-repo coordination
 
-The dashboard reads from `bbc/` only (its own monorepo). It does not touch `8azi-web/`, `8azi-api/`, or any other repo. Decoupling is intentional: the dashboard's correctness depends only on BBC's protocol contract (memory schema, queue format, log format), not on other repos' state.
+The dashboard reads from `bbc/` only (its own monorepo). It does not touch `<tenant-app-web>/`, `<tenant-app-api>/`, or any other repo. Decoupling is intentional: the dashboard's correctness depends only on BBC's protocol contract (memory schema, queue format, log format), not on other repos' state.
 
 ## Local-only knowledge
 

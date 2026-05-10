@@ -9,7 +9,7 @@ allowed-tools:
 <objective>
 Wrap `bbc/scripts/bootstrap-leaf.sh` with a friendlier interface. Used for two cases:
 
-1. **Create a new leaf** for a workstream (e.g., when adding `8azi-market` as a new repo BBC governs).
+1. **Create a new leaf** for a workstream (e.g., when adding `<<tenant-marketing>>` as a new repo BBC governs).
 2. **Refresh an existing leaf** after Main's `Precedence rule` or `Non-negotiable principles` sections changed — the auto-header re-extracts them verbatim.
 
 The script itself is idempotent; this command just adds context awareness.
@@ -19,7 +19,7 @@ The script itself is idempotent; this command just adds context awareness.
 1. Get the leaf name from the user. Validate:
    - Lowercase, kebab-case, no slashes, no dots.
    - Not the reserved name `_template`.
-   - Match the conventional pattern (`8azi-web`, `8azi-api`, `8azi-market`, etc.) where applicable.
+   - Match the conventional pattern (`<<<tenant-app-web>>>`, `<<<tenant-app-api>>>`, `<<tenant-marketing>>`, etc.) where applicable.
 
 2. Check whether `bbc/distribution/<name>/` already exists. Tell the user whether this is a create or a refresh.
 
@@ -35,7 +35,7 @@ The script itself is idempotent; this command just adds context awareness.
      - For a new leaf: edit the lower section of its `CLAUDE.md` to fill in the repo path it shadows, leaf-specific commands, MCPs, and ownership rules.
      - For a refresh: nothing — the lower (human-edited) section is preserved.
 
-5. If the user is creating a leaf for an existing 8azi repo (web, api, market), suggest they queue M1/M2/M3 as a real migration phase, since BBC V1 keeps stub leaves inside `bbc/`. Don't auto-link the leaf to an external repo without an explicit decision.
+5. If the user is creating a leaf for an existing tenant repo (web, api, market), suggest they queue M1/M2/M3 as a real migration phase, since BBC V1 keeps stub leaves inside `bbc/`. Don't auto-link the leaf to an external repo without an explicit decision.
 </process>
 
 <verification>

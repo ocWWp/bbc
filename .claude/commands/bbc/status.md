@@ -40,7 +40,7 @@ Do NOT modify anything. Read-only command.
 <example_output>
 ```
 === BBC status ===
-Layer: leaf:8azi-web-stub
+Layer: leaf:<tenant-app-web>-stub
 Time:  2026-05-08T10:00:00Z
 
 Pending (1):

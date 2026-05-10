@@ -47,4 +47,4 @@ Validates iOS / Android in-app purchase receipts and exposes subscription status
 
 ## Notes
 
-8azi mobile flows assume a single subscription tier in V1. Multi-tier support requires a future contract revision.
+tenant mobile flows assume a single subscription tier in V1. Multi-tier support requires a future contract revision.

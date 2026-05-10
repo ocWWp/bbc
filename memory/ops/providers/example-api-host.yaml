@@ -1,0 +1,48 @@
+---
+id: provider_example_api_host
+provider_id: example-api-host
+type: provider-adapter
+implements: [api-host]
+contract_version: 1
+status: example
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-09T00:00:00Z
+updated: 2026-05-09T00:00:00Z
+tags: [adapter, example, hosting]
+---
+
+# Adapter: example-api-host
+
+**This is a generic example.** Copy, rename to your chosen vendor (`railway.yaml`, `fly.yaml`, `render.yaml`, `aws-fargate.yaml`, …), fill in real values, reference in `bindings.yaml`.
+
+## Metadata
+
+- runtime: <container | serverless-function>
+- supports_persistent_storage: <true | false>
+- supports_background_workers: <true | false>
+- supports_internal_networking: <true | false>
+- regions: [<region-codes>]
+
+## Runtime
+
+- deploy_method: <git-push | docker-image | CLI>
+- container_runtime_url: <Dockerfile path or platform-specific spec>
+
+## bbc-provider-tag
+
+```
+bbc-provider:example-api-host
+```
+
+## Limits
+
+- min_instance_size: <vCPU x RAM>
+- max_instance_size: <vCPU x RAM>
+- supports_autoscaling: <true | false>
+- pricing_model: <per-second | per-request | per-instance>
+
+## Notes
+
+API hosts differ from web-hosts on background work: long-lived workers, scheduled jobs, websocket fan-out. BBC's MCP server (`apps/mcp-server/`) needs a long-lived process and falls under api-host, not web-host. If a tenant runs both a web app and an API service, they may bind two providers (one per role); that's allowed and audit-tracked.

@@ -1,5 +1,5 @@
 {
   "version": 1,
-  "comment": "Skills approved for Manager-layer use. Schema mirrors 8azi-web/skills-lock.json. V1 starts empty — populate as Manager workflows mature.",
+  "comment": "Skills approved for Manager-layer use. Schema mirrors <tenant-app-web>/skills-lock.json. V1 starts empty — populate as Manager workflows mature.",
   "skills": {}
 }

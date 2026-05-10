@@ -15,7 +15,7 @@ tags: [skill, review, pr]
 
 # Skill: general.pr-review
 
-Base concrete reviewer for any pull request, regardless of leaf. Extended by leaf-specific specializations (e.g., marketing.pr-review, 8azi-web.pr-review).
+Base concrete reviewer for any pull request, regardless of leaf. Extended by leaf-specific specializations (e.g., marketing.pr-review, <tenant-app-web>.pr-review).
 
 ## Inherits
 

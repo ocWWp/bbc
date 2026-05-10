@@ -2,7 +2,7 @@
 # install-daemons.sh — install/uninstall macOS launchd agents that run the
 # BBC auto-update + heartbeat scripts.
 #
-# Per-user agents at ~/Library/LaunchAgents/com.8azi.bbc.<name>.plist.
+# Per-user agents at ~/Library/LaunchAgents/com.tenant.bbc.<name>.plist.
 #
 # Usage:
 #   install-daemons.sh --install <refresh|heartbeat|all>
@@ -15,8 +15,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 LA_DIR="$HOME/Library/LaunchAgents"
 
-REFRESH_LABEL="com.8azi.bbc.refresh"
-HEARTBEAT_LABEL="com.8azi.bbc.heartbeat"
+REFRESH_LABEL="com.tenant.bbc.refresh"
+HEARTBEAT_LABEL="com.tenant.bbc.heartbeat"
 REFRESH_PLIST="$LA_DIR/$REFRESH_LABEL.plist"
 HEARTBEAT_PLIST="$LA_DIR/$HEARTBEAT_LABEL.plist"
 

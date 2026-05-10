@@ -77,7 +77,7 @@ def find_skill(skill_id):
 
 # --- Specificity walk: find the most-specific concrete skill matching SHORT_ID ---
 # Layer order (most specific to least):
-#   1. <caller>.<short>            (e.g., 8azi-web.pr-review)
+#   1. <caller>.<short>            (e.g., <tenant-app-web>.pr-review)
 #   2. <caller-brand>.<short>      (skipped in V1 — no brand tier)
 #   3. general.<short>
 #   4. <short>                     (abstract; rare for direct invocation)

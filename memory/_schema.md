@@ -8,7 +8,7 @@ Every file under `memory/` MUST have YAML frontmatter matching this schema. Vali
 ---
 id: mem_<YYYY-MM-DD>_<short-slug>      # stable, unique, sortable
 type: principle | fact | decision | runbook | glossary | rule
-scope: org | product:8azi | repo:<name> | leaf:<name>
+scope: org | product:tenant | repo:<name> | leaf:<name>
 layer: main | manager | distribution
 source: human:<who> | leaf:<name> | manager | external:<url>
 created: <ISO-8601 UTC>
@@ -25,7 +25,7 @@ status: accepted | proposed | superseded | archived
 
 - **id** — `mem_` prefix, ISO date, hyphen-slug. Once published, never change.
 - **type** — pick one. Use `decision` for ADR-style records (`memory/decisions/`); use `principle` for top-level rules; `fact` for observations; `runbook` for procedures; `glossary` for term definitions; `rule` for enforceable constraints.
-- **scope** — how broadly does this apply. `org` = company-wide; `product:8azi` = the 8aZi product; `repo:8azi-web` = single repo; `leaf:<name>` = single Distribution leaf only.
+- **scope** — how broadly does this apply. `org` = company-wide; `product:tenant` = the the tenant's product; `repo:<<tenant-app-web>>` = single repo; `leaf:<name>` = single Distribution leaf only.
 - **layer** — where the file lives in the trust hierarchy. Promoting a fact from leaf to org bumps both `layer` and `owning_layer`.
 - **source** — where the fact came from. Lets us re-derive provenance.
 - **owning_layer** — who can directly mutate this file (without going through the queue). Often equals `layer` but not always (e.g., a Manager-curated runbook in `memory/ops/` might have `layer: main, owning_layer: manager`).

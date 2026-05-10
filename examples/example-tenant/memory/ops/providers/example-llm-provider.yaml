@@ -1,0 +1,56 @@
+---
+id: provider_example_llm
+provider_id: example-llm-provider
+type: provider-adapter
+implements: [llm-provider]
+contract_version: 1
+status: example
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-09T00:00:00Z
+updated: 2026-05-09T00:00:00Z
+tags: [adapter, example, llm]
+---
+
+# Adapter: example-llm-provider
+
+**This is a generic example.** Copy, rename to your chosen vendor (`anthropic.yaml`, `openai.yaml`, `mistral.yaml`, …), fill in real values, reference in `bindings.yaml`.
+
+## Metadata
+
+- model_family: <e.g. Claude | GPT | Gemini | open-source>
+- model_id_pinned: <specific model ID — pin for reproducibility>
+- context_window_tokens: <integer>
+- supports_tool_use: <true | false>
+- supports_streaming: <true | false>
+- supports_vision: <true | false>
+- supports_caching: <true | false>
+
+## Runtime
+
+- endpoint: <https://api.example-llm.com/v1>
+- auth: API key in `Authorization: Bearer <key>` header
+- official sdk: <npm package | pypi package>
+
+## bbc-provider-tag
+
+```
+bbc-provider:example-llm-provider
+```
+
+## Pricing signals
+
+- input_per_1k_tokens: <$X.XX>
+- output_per_1k_tokens: <$X.XX>
+- caching_discount: <% if applicable>
+
+## Stability signals
+
+- vendor_status_page: <url>
+- model_deprecation_policy: <link>
+- last_model_change: <ISO date>
+
+## Notes
+
+LLM providers move fast. Keep `model_id_pinned` explicit in `bindings.yaml` so your prompts don't silently retarget when the vendor releases a new default. The role contract `memory/ops/provider-roles/llm-provider.yaml` should describe which operations a tenant relies on (chat, completion, tool-use, vision); list any gaps here.

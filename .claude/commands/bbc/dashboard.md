@@ -7,7 +7,7 @@ allowed-tools:
 ---
 
 <objective>
-Point the user at the visual front-end for BBC. The dashboard lives at `bbc/apps/dashboard/` inside the BBC monorepo (Next.js 16, default port 3000, `@bbc/dashboard` workspace) and reads BBC's `_log/`, `queue/`, and `bindings.yaml` (file-mode) or the equivalent tables (DB-mode).
+Point the user at the visual front-end for BBC. The dashboard lives at `bbc/apps/dashboard/` inside the BBC monorepo (Next.js 16, default port 3000, `@bbc/dashboard` workspace) and reads the tenant's `memory/`, `queue/`, `_log/`, `bindings.yaml` from the path in `BBC_REPO` (file-mode default: `examples/example-tenant/`) or the equivalent tables (DB-mode).
 
 Use this when the user says "open the dashboard", "/bbc:dashboard", or asks where the BBC UI is. If it isn't running, start it in the background, wait for it to come up, then open the browser.
 
@@ -43,7 +43,7 @@ Note on Main's principle #6 ("no silent autonomy"): that principle governs BBC *
    - When up: print the status block (now showing "starting → up") and `open` the URL.
    - If it does not come up within 30s: print the start command and the path to background-task output, and stop.
 
-6. The command may start a local dev process. It must NOT modify any BBC file (`memory/**`, `queue/**`, `bindings.yaml`, `_log/**`) or any dashboard source file.
+6. The command may start a local dev process. It must NOT modify any tenant file (`memory/**`, `queue/**`, `bindings.yaml`, `_log/**` under `BBC_REPO`) or any BBC product file. Reads only.
 </process>
 
 <example_output>

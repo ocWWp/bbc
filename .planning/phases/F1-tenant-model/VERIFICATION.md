@@ -59,13 +59,13 @@ human_verification:
 
 # Phase F1: Tenant Model + Auth Generalization — Verification Report
 
-**Phase Goal:** Move 8azi-dashboard into the BBC monorepo as `apps/dashboard/` (Part A), then add tenant-scoped auth/data (Part B). Sets the foundation for multi-tenant SaaS hosting.
+**Phase Goal:** Move bbc-dashboard into the BBC monorepo as `apps/dashboard/` (Part A), then add tenant-scoped auth/data (Part B). Sets the foundation for multi-tenant SaaS hosting.
 
 **Plan reference:** `/Users/grid/.claude/plans/i-need-you-to-merry-teacup.md` § "Phase 1 — Tenant model + auth generalization"; sub-plan in `bbc/memory/tech/repo-structure.md` § "Migration plan".
 
 ---
 
-## Part A — Monorepo migration (8azi-dashboard → apps/dashboard/)
+## Part A — Monorepo migration (bbc-dashboard → apps/dashboard/)
 
 **Verified:** 2026-05-08
 **Status:** gaps_found (1 minor doc-reference gap; all functional claims verified)
@@ -79,7 +79,7 @@ human_verification:
 | 2   | The dashboard contents moved into bbc/apps/dashboard with workspace name @bbc/dashboard              | VERIFIED   | `bbc/apps/dashboard/package.json` `name: "@bbc/dashboard"`; `src/`, `supabase/`, `tsconfig.json`, `next.config.ts`, `README.md`, `.env.example`, `.env.local`, `.gitignore` all present. `.bbc-leaf/` removed.        |
 | 3   | Path resolution updated so the dashboard finds the BBC root from its new location                    | VERIFIED   | `src/lib/bbc-paths.ts` line 17: `path.resolve(process.cwd(), "..", "..")` — moved from `../bbc` to `../../`. Comment block confirms intent: "Monorepo default: ../../ relative to this package (apps/dashboard/ → bbc/)". |
 | 4   | The dashboard builds and serves all expected routes                                                  | VERIFIED   | `.next/server/app` contains `page`, `auth/{callback,signin,signout}`, `bindings`, `graph`, `log`, `queue`, `queue/[id]`, `skills` (all 10 expected routes). Live probes: `/`=307, `/auth/signin`=200, `/queue`=307.    |
-| 5   | The standalone repo at /Users/grid/Documents/GitHub/8azi-dashboard is preserved as a rollback safety | VERIFIED   | `ls /Users/grid/Documents/GitHub/8azi-dashboard/` returns the original tree (`src`, `supabase`, `package.json`, `package-lock.json`, `tsconfig.json`, etc.).                                                            |
+| 5   | The standalone repo at /Users/grid/Documents/GitHub/bbc-dashboard is preserved as a rollback safety | VERIFIED   | `ls /Users/grid/Documents/GitHub/bbc-dashboard/` returns the original tree (`src`, `supabase`, `package.json`, `package-lock.json`, `tsconfig.json`, etc.).                                                            |
 | 6   | No stale path/leaf references remain in the updated docs after the move                              | PARTIAL    | `bbc/.claude/commands/bbc/dashboard.md`, `bbc/distribution/dashboard/CLAUDE.md`, and source files are clean. **But** `bbc/apps/dashboard/README.md` line 99 still references `.bbc-leaf/README.md` (dir removed) and line 96 the standalone-relative path `../bbc/distribution/dashboard/CLAUDE.md`. |
 
 **Score:** 5/6 truths fully verified, 1 partial.
@@ -95,7 +95,7 @@ human_verification:
 | `bbc/apps/dashboard/.env.local`                | carries Supabase URL + publishable key              | VERIFIED   | File present, contains 3 Supabase-keyed entries (URL + key + service role).                   |
 | `bbc/apps/dashboard/src/lib/bbc-paths.ts`      | default fallback resolves to bbc root from new loc  | VERIFIED   | `path.resolve(process.cwd(), "..", "..")` — correct for `apps/dashboard/` → `bbc/`.           |
 | `bbc/apps/dashboard/.next/`                    | build artifacts produced                            | VERIFIED   | All 10 expected routes compiled.                                                              |
-| `/Users/grid/Documents/GitHub/8azi-dashboard/` | standalone repo preserved (rollback)                | VERIFIED   | Tree intact.                                                                                  |
+| `/Users/grid/Documents/GitHub/bbc-dashboard/` | standalone repo preserved (rollback)                | VERIFIED   | Tree intact.                                                                                  |
 | `bbc/.gitignore`                               | includes `node_modules`                             | VERIFIED   | Line 25.                                                                                      |
 
 ### Key Link Verification
@@ -121,9 +121,9 @@ No TODO/FIXME/PLACEHOLDER scaffolding found in the migrated source. No empty han
 
 - Part B (tenant-model SQL migration, multi-tenant auth generalization) is explicitly deferred — not flagged.
 - `MemoryStore` / `QueueStore` interface refactor and per-vendor swap-test are Phase 2 work — not flagged.
-- Archiving the `ZethT/8azi-dashboard` GitHub repo is a manual step the user owns — not flagged.
-- `bbc/memory/tech/repo-structure.md` and `.planning/phases/D*/SUMMARY.md` mentions of `8azi-dashboard` are historical migration documentation, not live path references — not flagged.
-- `src/lib/folder-annotations.ts` references to `8azi-web` and `8azi-api` are unrelated leaves (web/api), not the dashboard — not flagged.
+- Archiving the `ZethT/bbc-dashboard` GitHub repo is a manual step the user owns — not flagged.
+- `bbc/memory/tech/repo-structure.md` and `.planning/phases/D*/SUMMARY.md` mentions of `bbc-dashboard` are historical migration documentation, not live path references — not flagged.
+- `src/lib/folder-annotations.ts` references to `<tenant-app-web>` and `<tenant-app-api>` are unrelated leaves (web/api), not the dashboard — not flagged.
 
 ### Human Verification Required
 

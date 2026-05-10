@@ -1,0 +1,48 @@
+---
+id: provider_example_email
+provider_id: example-email-delivery
+type: provider-adapter
+implements: [email-delivery]
+contract_version: 1
+status: example
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-09T00:00:00Z
+updated: 2026-05-09T00:00:00Z
+tags: [adapter, example, email]
+---
+
+# Adapter: example-email-delivery
+
+**This is a generic example.** Copy, rename to your chosen vendor (`resend.yaml`, `sendgrid.yaml`, `postmark.yaml`, `ses.yaml`, …), fill in real values, reference in `bindings.yaml`.
+
+## Metadata
+
+- supports_transactional: <true | false>
+- supports_marketing: <true | false>
+- supports_dkim_setup: <true | false>
+- supports_webhooks: <true | false>
+- max_attachment_mb: <integer>
+
+## Runtime
+
+- endpoint: <https://api.example-email.com/v1/send>
+- auth: API key
+- official sdk: <package name>
+
+## bbc-provider-tag
+
+```
+bbc-provider:example-email-delivery
+```
+
+## Deliverability signals
+
+- expected_inbox_rate: <% — vendor-published or measured>
+- supports_bounce_handling: <true | false>
+- supports_complaint_handling: <true | false>
+
+## Notes
+
+Distinguish transactional (signup confirms, password resets, invitations) from marketing (newsletters, broadcasts). A tenant may bind two different providers — one to `email-delivery` for transactional, a hypothetical `marketing-email` role for the rest. Keep that decision visible in `bindings.yaml` so it's auditable.

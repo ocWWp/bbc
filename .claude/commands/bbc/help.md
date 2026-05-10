@@ -24,7 +24,7 @@ You are at: <layer>
 Any layer:
   /bbc:status            Show layer + pending queue + recent accepts
   /bbc:bootstrap-leaf    Create or refresh a Distribution leaf
-  /bbc:dashboard         Open the 8azi-dashboard (PM tab) — status + browser
+  /bbc:dashboard         Open the bbc-dashboard (PM tab) — status + browser
   /bbc:help              This command
 
 Distribution leaves and Manager:

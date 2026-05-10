@@ -1,0 +1,61 @@
+---
+id: provider_example_db
+provider_id: example-db-provider
+type: provider-adapter
+implements: [db-provider]
+contract_version: 1
+status: example
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-09T00:00:00Z
+updated: 2026-05-09T00:00:00Z
+tags: [adapter, example, db]
+---
+
+# Adapter: example-db-provider
+
+**This is a generic example.** Copy this file, rename to `<your-vendor>.yaml`, fill in the real values, and reference it in your tenant's `bindings.yaml`.
+
+## Metadata
+
+- engine: <postgres | sqlite | mysql | …>
+- engine_version: "<version>"
+- supports_row_level_security: <true | false>
+- supports_realtime: <true | false>
+- backup_strategy_url: <link to vendor docs>
+- max_connections: <integer; verify per project tier>
+- regions: [<region-codes>]
+
+## Runtime
+
+- endpoint: <https://your-project.example-vendor.com>
+- auth:
+  - <service-key | rotating-token | OAuth | etc.>
+  - <client-key with scope/RLS gates>
+- consumer-side SDK:
+  - <which packages your tenant repos import>
+- official sdk: <npm package name | pypi package name>
+
+## bbc-provider-tag
+
+```
+bbc-provider:example-db-provider
+```
+
+Use this tag at consumer call sites (per F4-build-2 convention) so adapter swaps stay greppable.
+
+## Stability signals
+
+- vendor_status_page: <url>
+- last_incident_seen: <ISO date | unknown>
+- declared_uptime_sla: <e.g. 99.9%>
+
+## External signals
+
+- github_stars: <number, indicative>
+- ecosystem_maturity: <low | medium | high>
+
+## Notes
+
+What does this adapter cover that role-contract `memory/ops/provider-roles/db-provider.yaml` requires? List the operations: connection pooling, schema migrations, RLS, backups, etc. Anything the role contract requires that this vendor does NOT provide should be flagged here.

@@ -43,4 +43,4 @@ Primary persistent store for user data, charts, readings, sessions, subscription
 
 ## Notes
 
-For 8azi V1, db-provider includes auth (Supabase bundles them). When/if auth is split off into its own role, this role's contract removes the auth operation and a new `auth-provider` role is introduced.
+For tenant V1, db-provider includes auth (Supabase bundles them). When/if auth is split off into its own role, this role's contract removes the auth operation and a new `auth-provider` role is introduced.

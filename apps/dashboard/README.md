@@ -9,12 +9,17 @@ From the **bbc/** monorepo root:
 pnpm install
 cp apps/dashboard/.env.example apps/dashboard/.env.local
 # fill in NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, SUPABASE_SERVICE_ROLE_KEY
-pnpm dev          # http://localhost:3000
+pnpm --filter @bbc/dashboard dev          # http://localhost:3000
 ```
 
-Or from `apps/dashboard/` directly: `pnpm dev`.
+Default tenant: the dashboard reads `examples/example-tenant/` (the Acme Co demo) so you see populated data immediately.
 
-`BBC_REPO` env var overrides the BBC repo location (default: `../../` relative to this package — i.e. the monorepo root).
+To point at your own tenant repo:
+```bash
+BBC_REPO=/path/to/your-tenant pnpm --filter @bbc/dashboard dev
+```
+
+See [`docs/tenant-repo-architecture.md`](../../docs/tenant-repo-architecture.md) for the skeleton+slot model.
 
 ## Routes
 

@@ -10,10 +10,10 @@ Some memory files are read or enforced by more than one Distribution leaf. Chang
 | `memory/ops/vendors.md` | any leaf that integrates external services | same day |
 | `memory/glossary/terms.md` | every leaf | same week |
 
-When the existing 8azi repos migrate (M1, M2), the cross-repo sync precedent already in place becomes a Manager rule:
+When the existing tenant repos migrate (M1, M2), the cross-repo sync precedent already in place becomes a Manager rule:
 
-- `pillar-interactions.ts` (8azi-web) ↔ `prompts.py` (8azi-api) — voice anchor sync, same week.
-- `nayin-lookup.json` (8azi-web) generated from `constants.py` (8azi-api) — same day, enforced by `nayin-cross-repo-sync.test.ts`.
+- `pillar-interactions.ts` (<tenant-app-web>) ↔ `prompts.py` (<tenant-app-api>) — voice anchor sync, same week.
+- `nayin-lookup.json` (<tenant-app-web>) generated from `constants.py` (<tenant-app-api>) — same day, enforced by `nayin-cross-repo-sync.test.ts`.
 
 ## When a proposal touches a cross-leaf file
 

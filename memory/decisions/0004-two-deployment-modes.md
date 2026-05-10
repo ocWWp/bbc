@@ -85,7 +85,7 @@ The MCP server is a **single binary that talks to whichever store the host is co
 
 ### Surface area
 
-- BBC stops being a private dev tool of `8aZi`. It becomes a generic product. The current `8azi-*` family of repos (8azi-web, 8azi-api, 8azi-dashboard) are recharacterized as **example applications** that *use* BBC, not as the product itself. The dashboard repo (currently `8azi-dashboard`) needs renaming/generalizing into `bbc-dashboard`; the 8azi-specific deployment becomes a tenant inside an `examples/` reference.
+- BBC stops being a private dev tool of `<your-tenant>`. It becomes a generic product. The current `tenant-*` family of repos (<<<tenant-app-web>>>, <<<tenant-app-api>>>, bbc-dashboard) are recharacterized as **example applications** that *use* BBC, not as the product itself. The dashboard repo (originally a standalone repo) was renamed/generalized into the apps/dashboard/ workspace; the tenant-specific deployment becomes a tenant inside an `examples/` reference.
 
 - The README of `bbc/` updates to position BBC as a product, with a clear "self-host vs hosted" comparison and a domain link to the SaaS landing.
 

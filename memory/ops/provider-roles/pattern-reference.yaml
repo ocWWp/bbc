@@ -37,4 +37,4 @@ Library of UI/UX patterns from real-world apps for design inspiration and consis
 
 ## Notes
 
-Pattern-reference is used during design phases (`8azi-web` Phase 0.5 onward) for taste and convention checking. Optional at the runtime level — no production code path depends on it.
+Pattern-reference is used during design phases (`<tenant-app-web>` Phase 0.5 onward) for taste and convention checking. Optional at the runtime level — no production code path depends on it.

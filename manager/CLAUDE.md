@@ -46,7 +46,7 @@ If you create a new such file, set `layer: manager` and `owning_layer: manager` 
 ## What lives where
 
 - `manager/CLAUDE.md` — this file.
-- `manager/agents/` — sub-agent role definitions (memory-curator, queue-reviewer, leaf-coordinator). Reusable patterns mirroring `8azi-web/.claude/agents/`.
+- `manager/agents/` — sub-agent role definitions (memory-curator, queue-reviewer, leaf-coordinator). Reusable patterns mirroring `<tenant-app-web>/.claude/agents/`.
 - `manager/rules/` — concrete review and coordination rules. These are referenced by your review protocol above.
 - `manager/skills-lock.json` — skills/tools currently approved for Manager-layer use.
 

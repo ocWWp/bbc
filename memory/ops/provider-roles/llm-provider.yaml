@@ -16,7 +16,7 @@ tags: [provider-role, llm]
 
 ## Purpose
 
-Generates text from a prompt, with optional system message, tool-use, and structured output. Used by 8azi-api for chart readings, party reading flows, and any other LLM-mediated feature.
+Generates text from a prompt, with optional system message, tool-use, and structured output. Used by the tenant's API service for chart readings, party reading flows, and any other LLM-mediated feature.
 
 ## Required operations
 
@@ -56,4 +56,4 @@ Generates text from a prompt, with optional system message, tool-use, and struct
 
 ## Notes
 
-The 8azi voice ("Mr. 8aZi") is enforced via prompts at the consumer layer, not at the provider layer. An llm-provider adapter is voice-neutral.
+The tenant voice ("<your-tenant-voice>") is enforced via prompts at the consumer layer, not at the provider layer. An llm-provider adapter is voice-neutral.
