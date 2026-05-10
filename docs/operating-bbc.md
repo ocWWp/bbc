@@ -111,12 +111,9 @@ Once you're admin in a tenant:
 - Every accept/reject/invite/role-change/api-key-issue is recorded with actor + target.
 
 ### Issue agent API keys
-- Today (Phase 6): no UI yet. Run in SQL editor as admin:
-  ```sql
-  select public.create_api_key('my-claude-desktop', 'read');
-  -- Returns: bbc_<key_id>.<secret>  (one time only — store it now)
-  ```
-- A future Phase 9 release adds an `/api-keys` page in the dashboard.
+- **/api-keys** page (admin-only). Form to create a new key (name + scope: read | write | admin); list of active keys with `last_used_at`; revoke buttons.
+- Plaintext token is shown ONCE on creation (in a dismissible green panel). Copy it then; only the bcrypt hash is stored.
+- SQL fallback (still works): `select public.create_api_key('my-claude-desktop', 'read');` returns `bbc_<key_id>.<secret>` once.
 - Wire the token into Claude Desktop / Cursor / your custom agent. See `apps/mcp-server/README.md` for transport config.
 
 ### Manage roles
@@ -166,12 +163,38 @@ To go back: remove the line.
 | Generate dashboard types | `mcp__supabase__generate_typescript_types` then drop into `apps/dashboard/src/lib/supabase/database.types.ts` |
 | Add a new BBC tool agents can call | `apps/mcp-server/src/tools/<name>.ts` + register in `src/server.ts` |
 
-## What's deferred
+## Self-service signup
 
-- A welcome-tour UI for first-time users (Phase 11).
-- An `/api-keys` page in the dashboard (Phase 9).
-- Self-host docker-compose stack (Phase 7).
-- Stripe billing UI (Phase 8).
-- The auto-tenant-creation flow for a stranger signing up without an invitation (Phase 9 wires `create_tenant_with_seed()` into the signup endpoint).
+Off by default (invite-only). To enable:
 
-If you find yourself doing something that *should* be in the dashboard but isn't yet, that's probably a phase-deferred item — file an issue and link to the relevant phase in `/Users/grid/.claude/plans/i-need-you-to-merry-teacup.md`.
+```bash
+echo "BBC_SIGNUP_MODE=open" >> apps/dashboard/.env.local
+pnpm --filter @bbc/dashboard dev
+```
+
+In `open` mode, `/auth/signin` shows a "Create my own tenant" CTA that links to `/auth/self-serve`. New users pick a tenant name + email + password; the route handler `setup_self_serve_tenant()` (migration 0014) atomically creates a tenant + admin invitation + bindings + audit log row, then `auth.admin.createUser` triggers normal signup.
+
+Caveat: `auth.admin.createUser({ email_confirm: false })` requires Supabase to send the confirmation email. Without SMTP wired (Resend / Postmark / SES), the user creates a tenant but can't sign in. For local dev, you can manually confirm via Supabase Studio → Auth → Users.
+
+## Welcome tour
+
+`/welcome` route shows a 3-screen client-side tour for new users (memory → queue → invite/api-keys). Skip button + localStorage flag (`bbc.welcome.skipped`) so it doesn't re-show. **Currently you have to navigate there manually** — first-visit auto-redirect from `/` is a follow-up (needs a `welcomed_at` profile column for server-side detection).
+
+## Self-host via Docker
+
+```bash
+cp .env.example .env   # at repo root, fill in Supabase keys
+docker compose up --build
+# → http://localhost:3000 against examples/example-tenant/
+```
+
+The `dashboard` service builds from `apps/dashboard/Dockerfile` (multi-stage Node 22 + pnpm), mounts `examples/example-tenant/` (or whatever you point `BBC_REPO_HOST_PATH=` at) as `/app/tenant`, reads Supabase env from your root `.env`. `BBC_SIGNUP_MODE` is also configurable per the same env file.
+
+## What's still missing
+
+- **Welcome tour first-visit auto-redirect** — page exists but nothing routes new users there from `/`. Needs a `welcomed_at` profile column for server-side detection.
+- **Self-serve signup auto-confirm** — when running without SMTP, signup completes but user can't sign in until manually confirmed in Supabase Studio. Add a `BBC_SIGNUP_AUTOCONFIRM` toggle.
+- **Stripe billing UI** (Phase 8 of the productization roadmap).
+- **`bbc-cli` for self-host bootstrapping** (`bbc-cli init my-team` mentioned in `examples/example-tenant/README.md`).
+
+If you find yourself doing something that *should* be in the dashboard but isn't yet, file an issue.

@@ -23,16 +23,21 @@ See [`docs/tenant-repo-architecture.md`](../../docs/tenant-repo-architecture.md)
 
 ## Routes
 
-- `/` — overview: BBC repo path, current phase, last-7d counts, latest log entry.
-- `/queue` — pending proposals + recent accepts/rejects. Accept/Reject buttons.
+- `/` — overview: tenant repo path, current state, last-7d counts, latest log entry.
+- `/queue` — pending proposals + recent accepts/rejects. Accept/Reject buttons (member+).
 - `/queue/[id]` — single proposal detail (frontmatter + body + manager_review).
-- `/skills` — slash commands, F2 skill hierarchy, leaf agents, external pinned skills.
+- `/skills` — slash commands + skill hierarchy + leaf agents.
 - `/graph` — three SVG views (layer hierarchy, folder tree, queue workflow).
 - `/log` — operations log paginated.
 - `/bindings` — current role → adapter table.
+- `/team` — list members + pending invitations; invite/role-change/remove (admin).
+- `/api-keys` — list + issue + revoke MCP tokens (admin). Plaintext token shown once.
+- `/welcome` — 3-screen tour for first-time users (memory → queue → invite).
 - `/auth/signin` — GitHub OAuth + Google OAuth + email/password.
+- `/auth/self-serve` — create-your-own-tenant signup. Gated by `BBC_SIGNUP_MODE=open`.
 - `/auth/callback` — OAuth code-exchange route.
 - `/auth/signout` — POST to clear session.
+- `/api/auth/self-serve-signup` — POST endpoint for self-serve. Same gating.
 
 ## Auth
 

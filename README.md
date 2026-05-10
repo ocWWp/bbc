@@ -71,9 +71,21 @@ BBC_REPO=examples/example-tenant pnpm --filter @bbc/dashboard dev
 # http://localhost:3000
 ```
 
-The dashboard reads the Acme Co demo at `examples/example-tenant/`. Click around `/queue`, `/log`, `/bindings` to see what a populated tenant looks like.
+Or via Docker (`cp .env.example .env` first, fill in Supabase keys):
+
+```bash
+docker compose up --build
+```
+
+The dashboard reads the Acme Co demo at `examples/example-tenant/` by default. Routes:
+
+- `/` overview · `/queue` propose/accept · `/log` audit · `/bindings` role→provider
+- `/team` invite teammates · `/api-keys` issue MCP tokens (admin-only)
+- `/welcome` 3-screen onboarding · `/skills` · `/graph`
 
 To use BBC against your own tenant, fork [`templates/initial-tenant/`](templates/initial-tenant/) into a new repo, then `BBC_REPO=path-to-your-tenant pnpm --filter @bbc/dashboard dev`.
+
+To allow strangers to self-serve sign up (and auto-create their own tenant), set `BBC_SIGNUP_MODE=open` in `apps/dashboard/.env.local`. Default is `invite_only`.
 
 ## Slash commands
 
