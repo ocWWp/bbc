@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BBC — Brain Cortex · Tutorial</title>
+<meta name="description" content="A markdown-based brain protocol for engineering teams. 10-minute tutorial." />
+<style>
+  :root {
+    --bg: #0e0e10;
+    --panel: #16161a;
+    --line: #2a2a30;
+    --ink: #e8e8ea;
+    --mute: #8b8b92;
+    --accent: #7af0c8;
+    --accent-2: #f0a87a;
+    --warn: #f0c87a;
+    --link: #7ad0f0;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 64px 24px 96px; }
+  header { margin-bottom: 56px; }
+  h1 {
+    font: 700 44px/1.15 ui-monospace, SFMono-Regular, Menlo, monospace;
+    margin: 0 0 6px;
+    letter-spacing: -0.02em;
+  }
+  h1 .dot { color: var(--accent); }
+  h2 {
+    font: 600 22px/1.3 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    margin: 56px 0 12px;
+    letter-spacing: -0.01em;
+  }
+  h3 {
+    font: 600 16px/1.4 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    margin: 28px 0 8px;
+  }
+  p { margin: 0 0 14px; }
+  .lede { color: var(--mute); font-size: 18px; line-height: 1.55; }
+  ul, ol { padding-left: 22px; margin: 0 0 14px; }
+  li { margin: 4px 0; }
+  a { color: var(--link); text-decoration: none; border-bottom: 1px dashed var(--line); }
+  a:hover { border-bottom-color: var(--link); }
+  code {
+    font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: var(--panel);
+    padding: 2px 6px;
+    border-radius: 3px;
+    border: 1px solid var(--line);
+  }
+  pre {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    padding: 16px 18px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 8px 0 16px;
+    position: relative;
+  }
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--ink);
+  }
+  pre .copy {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: var(--bg);
+    color: var(--mute);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 3px 8px;
+    font: 11px ui-monospace, monospace;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.12s;
+  }
+  pre:hover .copy { opacity: 1; }
+  .copy:hover { color: var(--ink); }
+  .copy.ok { color: var(--accent); }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    padding: 14px 18px;
+    border-radius: 4px;
+    margin: 16px 0;
+    color: var(--ink);
+  }
+  .panel.warn { border-left-color: var(--warn); }
+  .panel.note { border-left-color: var(--accent-2); }
+  .badge {
+    display: inline-block;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--mute);
+    font: 11px ui-monospace, monospace;
+    padding: 2px 8px;
+    border-radius: 99px;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .badge.ok { color: var(--accent); border-color: rgba(122, 240, 200, 0.3); }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 20px;
+    font-size: 14px;
+  }
+  th, td {
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+    padding: 10px 12px;
+  }
+  th { color: var(--mute); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .layered {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 18px;
+    margin: 16px 0 24px;
+    font: 13px/1.7 ui-monospace, monospace;
+    color: var(--mute);
+    white-space: pre;
+    overflow-x: auto;
+  }
+  .layered .main { color: var(--accent); }
+  .layered .mgr { color: var(--accent-2); }
+  .layered .leaf { color: var(--link); }
+  footer {
+    margin-top: 80px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    color: var(--mute);
+    font-size: 13px;
+  }
+  .rule { height: 1px; background: var(--line); margin: 56px 0 0; }
+  .nav-pills { margin: 16px 0 0; }
+  .nav-pills a {
+    display: inline-block;
+    padding: 4px 10px;
+    margin-right: 6px;
+    border: 1px solid var(--line);
+    border-radius: 99px;
+    color: var(--mute);
+    font: 12px ui-monospace, monospace;
+  }
+  .nav-pills a:hover { color: var(--ink); border-color: var(--ink); }
+  .toc {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin: 24px 0;
+    font-size: 14px;
+  }
+  .toc ol { margin: 0; padding-left: 24px; }
+  .toc li { margin: 2px 0; }
+  .toc a { border: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <span class="badge">temporary tutorial</span>
+  <span class="badge ok">v0.1 · 2026-05-10</span>
+  <h1>BBC<span class="dot">.</span> Brain Cortex</h1>
+  <p class="lede">A markdown-based brain protocol for engineering teams. Three-layer governance, a proposal queue, a dashboard, and an MCP server — so your team and your agents read from the same canonical source of truth.</p>
+  <nav class="nav-pills">
+    <a href="https://github.com/ZethT/bbc">github</a>
+    <a href="../README.md">repo readme</a>
+    <a href="./operating-bbc.md">operator quickstart</a>
+    <a href="./tenant-repo-architecture.md">architecture</a>
+  </nav>
+</header>
+
+<div class="toc">
+<strong>What's in this tutorial</strong>
+<ol>
+  <li><a href="#why">Why BBC exists</a></li>
+  <li><a href="#shape">The shape: skeleton + slot</a></li>
+  <li><a href="#run">Run it in 60 seconds</a></li>
+  <li><a href="#protocol">The protocol in 3 paragraphs</a></li>
+  <li><a href="#first-tenant">Your first tenant</a></li>
+  <li><a href="#agents">Wiring agents (MCP)</a></li>
+  <li><a href="#next">What to read next</a></li>
+</ol>
+</div>
+
+<h2 id="why">1. Why BBC exists</h2>
+<p>Most teams accumulate decisions in Slack threads, Notion pages, and individual heads. The result is drift: agents can't reliably find your voice spec; new hires can't trace why you picked Postgres; vendor changes leak into prose nobody updates.</p>
+<p>BBC says: <strong>memory is the contract.</strong> Decisions live as markdown files with a strict schema. Cross-layer changes go through a proposal queue (propose → review → accept/reject). Vendors are abstracted behind named roles (<code>db-provider</code>, <code>llm-provider</code>) so you can swap them without rewriting prose. The audit trail is forever.</p>
+<p>The product is the <em>protocol + dashboard + MCP server</em> — your tenant content (your team's actual decisions, voice, bindings) plugs in via a separate repo or via Supabase rows. <a href="./tenant-repo-architecture.md">Skeleton + slot.</a></p>
+
+<h2 id="shape">2. The shape: skeleton + slot</h2>
+<div class="layered">github.com/ZethT/bbc                          (public, AGPL-3.0)
+  apps/dashboard         <span class="main">// Next.js dashboard UI</span>
+  apps/mcp-server        <span class="main">// Model Context Protocol bridge for agents</span>
+  packages/store         <span class="main">// typed storage interface</span>
+  scripts/               <span class="main">// bash protocol scripts</span>
+  manager/               <span class="main">// Manager rules + queue-review agent</span>
+  memory/_schema.md      <span class="main">// the contract</span>
+  memory/ops/provider-roles/      <span class="main">// db-provider, llm-provider, …</span>
+  memory/ops/providers/example-*  <span class="main">// adapter shape (placeholders)</span>
+  templates/initial-tenant/       <span class="main">// bare forkable skeleton</span>
+  examples/example-tenant/        <span class="main">// runnable Acme Co demo</span>
+  docs/                  <span class="main">// this file lives here</span>
+
+                         <span style="color:var(--mute)">↕  plugged in via BBC_REPO env var (file-mode)</span>
+                         <span style="color:var(--mute)">↕  or via Supabase rows (DB-mode, multi-tenant SaaS)</span>
+
+your-tenant-repo                              (private — your call)
+  CLAUDE.md              <span class="leaf">// your Main precedence rules</span>
+  memory/                <span class="leaf">// your decisions, voice, glossary, vendors</span>
+    ops/bindings.yaml    <span class="leaf">// your role → vendor table</span>
+    ops/providers/*.yaml <span class="leaf">// your real adapter declarations</span>
+  distribution/&lt;leaf&gt;/   <span class="leaf">// per-workstream context</span>
+  queue/                 <span class="leaf">// live + archived proposals</span>
+  _log/operations.jsonl  <span class="leaf">// your audit trail</span></div>
+
+<p><strong>BBC ships generic.</strong> Your tenant ships specific. The dashboard reads <code>BBC_REPO</code> at request time and renders whatever tenant is plugged in.</p>
+
+<h2 id="run">3. Run it in 60 seconds</h2>
+<pre><button class="copy">copy</button><code>git clone https://github.com/ZethT/bbc
+cd bbc
+pnpm install
+pnpm --filter @bbc/dashboard dev
+# → http://localhost:3000  (against examples/example-tenant — Acme Co demo)</code></pre>
+
+<p>Or via Docker (after copying <code>.env.example</code> → <code>.env</code> with your Supabase keys):</p>
+<pre><button class="copy">copy</button><code>docker compose up --build</code></pre>
+
+<div class="panel note">
+You'll see Acme Co — a fictional 3-person team with sample decisions, bindings, audit log, queue items. It's not real; it's the demo. Click around <code>/queue</code>, <code>/log</code>, <code>/bindings</code>, <code>/team</code> to see the surfaces.
+</div>
+
+<h2 id="protocol">4. The protocol in 3 paragraphs</h2>
+
+<p><strong>Three layers of trust.</strong> Main &gt; Manager &gt; Distribution. Main holds principles (locked from below). Manager defines product workflow + queue review. Distribution is per-workstream context (one folder per repo/team you govern). Lower layers can <em>specialize</em> upper rules; they cannot override. Conflict → Main wins.</p>
+
+<p><strong>Memory has a schema.</strong> Every file under <code>memory/</code> has YAML frontmatter (id, type, scope, layer, source, owning_layer, status). The schema in <code>memory/_schema.md</code> is the contract. Storage is a binding: markdown files in self-host file-mode, RLS-gated rows in the multi-tenant SaaS. The shape stays the same.</p>
+
+<p><strong>Changes go through the queue.</strong> A leaf <em>proposes</em>. The Manager <em>reviews</em>. An admin <em>accepts</em> or <em>rejects</em>. Both outcomes stay forever as the audit trail. The dashboard surfaces this at <code>/queue</code>; the bash equivalents are <code>scripts/{propose,accept,reject}.sh</code>.</p>
+
+<h2 id="first-tenant">5. Your first tenant</h2>
+
+<p>Two paths. Pick by audience:</p>
+
+<table>
+  <tr>
+    <th>Path</th>
+    <th>What you get</th>
+    <th>Who it's for</th>
+  </tr>
+  <tr>
+    <td><strong>Fork the skeleton</strong></td>
+    <td>A bare tenant repo (CLAUDE.md, schema, sample queue) you can flesh out from scratch.</td>
+    <td>You want full control + git history of your tenant content.</td>
+  </tr>
+  <tr>
+    <td><strong>Self-serve sign up</strong></td>
+    <td>Land on <code>/auth/self-serve</code>, pick a tenant name, get a fresh tenant with you as admin (gated by <code>BBC_SIGNUP_MODE=open</code>).</td>
+    <td>Trying out the SaaS path; want everything in one place.</td>
+  </tr>
+</table>
+
+<h3>Fork path</h3>
+<pre><button class="copy">copy</button><code>mkdir ~/Documents/GitHub/your-tenant
+cd ~/Documents/GitHub/your-tenant
+cp -R /path/to/bbc/templates/initial-tenant/. .
+git init &amp;&amp; git add -A &amp;&amp; git commit -m "Bootstrap from BBC initial-tenant template"
+
+# Edit CLAUDE.md, memory/decisions/0001-*.md, memory/people/team.md, memory/ops/bindings.yaml — make them YOURS.
+
+# Run BBC against your new tenant:
+cd /path/to/bbc
+BBC_REPO=~/Documents/GitHub/your-tenant pnpm --filter @bbc/dashboard dev</code></pre>
+
+<h3>Self-serve path</h3>
+<pre><button class="copy">copy</button><code>echo "BBC_SIGNUP_MODE=open" &gt;&gt; apps/dashboard/.env.local
+pnpm --filter @bbc/dashboard dev
+# Visit /auth/signin → "Create my own tenant" link → /auth/self-serve</code></pre>
+
+<div class="panel warn">
+Self-serve needs Supabase to send a confirmation email. If you haven't wired SMTP (Resend / Postmark / SES), you'll create a tenant but won't be able to sign in. For local dev, manually confirm via Supabase Studio → Auth → Users.
+</div>
+
+<h2 id="agents">6. Wiring agents (MCP)</h2>
+
+<p>BBC ships an MCP server at <code>apps/mcp-server/</code> so agents (Claude Desktop, Cursor, your custom integrations) can read+write a tenant's BBC instance. Per-tenant API tokens, RLS-gated under the hood.</p>
+
+<p>Issue a token at <strong>/api-keys</strong> (admin role required). The plaintext is shown ONCE in a panel — copy it before navigating away. Format: <code>bbc_&lt;key_id&gt;.&lt;secret&gt;</code>.</p>
+
+<p>Pass on the wire as a standard bearer token:</p>
+<pre><button class="copy">copy</button><code>Authorization: Bearer bbc_&lt;key_id&gt;.&lt;secret&gt;</code></pre>
+
+<p>Tools available today (read-only; write tools are a Phase 6.1 follow-up):</p>
+<ul>
+  <li><code>read_memory</code> — fetch a memory file by path</li>
+  <li><code>list_queue</code> — list queue items by status</li>
+  <li><code>read_log</code> — recent operations_log entries</li>
+</ul>
+
+<p>Wire-up details, transport config, security model: see <a href="../apps/mcp-server/README.md">apps/mcp-server/README.md</a>.</p>
+
+<h2 id="next">7. What to read next</h2>
+
+<table>
+  <tr>
+    <th>If you want to…</th>
+    <th>Read</th>
+  </tr>
+  <tr>
+    <td>Run BBC for your team (operator playbook)</td>
+    <td><a href="./operating-bbc.md">docs/operating-bbc.md</a></td>
+  </tr>
+  <tr>
+    <td>Understand the BBC vs tenant repo split</td>
+    <td><a href="./tenant-repo-architecture.md">docs/tenant-repo-architecture.md</a></td>
+  </tr>
+  <tr>
+    <td>Author a Distribution leaf</td>
+    <td><a href="../distribution/_template/CLAUDE.md">distribution/_template/CLAUDE.md</a></td>
+  </tr>
+  <tr>
+    <td>Bootstrap onto BBC as an LLM agent</td>
+    <td><a href="../AGENTS.md">AGENTS.md</a></td>
+  </tr>
+  <tr>
+    <td>Wire BBC for a SaaS deployment (DB-mode)</td>
+    <td><a href="../memory/tech/deployment-modes.md">memory/tech/deployment-modes.md</a></td>
+  </tr>
+  <tr>
+    <td>Govern provider roles + adapter swaps</td>
+    <td><a href="../memory/ops/provider-roles/">memory/ops/provider-roles/</a></td>
+  </tr>
+</table>
+
+<div class="panel">
+This page is intentionally <strong>temporary</strong> — a single self-contained HTML file at <code>docs/tutorial.html</code>. The real docs site (Mintlify or Docusaurus) ships in Phase 11 of the productization roadmap. Until then, this is the front door.
+</div>
+
+<footer>
+  <p>BBC — Brain Cortex. AGPL-3.0. <a href="https://github.com/ZethT/bbc">github.com/ZethT/bbc</a></p>
+  <p>Tutorial v0.1 · last updated 2026-05-10. <a href="https://github.com/ZethT/bbc/blob/main/docs/tutorial.html">edit this page</a> if something's wrong.</p>
+</footer>
+
+</div>
+
+<script>
+  // tiny click-to-copy on code blocks
+  document.querySelectorAll('pre').forEach(pre => {
+    const btn = pre.querySelector('.copy');
+    if (!btn) return;
+    btn.addEventListener('click', async () => {
+      const code = pre.querySelector('code')?.innerText || '';
+      try {
+        await navigator.clipboard.writeText(code);
+        const original = btn.innerText;
+        btn.innerText = 'copied';
+        btn.classList.add('ok');
+        setTimeout(() => {
+          btn.innerText = original;
+          btn.classList.remove('ok');
+        }, 1200);
+      } catch {
+        btn.innerText = '✗';
+      }
+    });
+  });
+</script>
+
+</body>
+</html>
