@@ -1,5 +1,5 @@
 ---
-name: bbc:invoke
+name: bbc:invoke-skill
 description: Resolve a skill for the current caller and surface its effective body
 allowed-tools:
   - Read
