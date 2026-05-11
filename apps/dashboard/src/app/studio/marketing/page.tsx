@@ -1,13 +1,16 @@
 import { redirect } from "next/navigation";
 import { requireActor } from "@/lib/auth/require-user";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
 import "@/lib/studio/templates"; // side-effect registration
 import { listClientTemplates } from "@/lib/studio/templates/registry";
 
-import StudioClient from "./StudioClient";
+import StudioClient, { type RecentRun } from "./StudioClient";
 
 export const metadata = {
   title: "Marketing Studio · BBC",
 };
+
+export const dynamic = "force-dynamic";
 
 export default async function MarketingStudioPage() {
   const a = await requireActor();
@@ -16,6 +19,36 @@ export default async function MarketingStudioPage() {
   }
 
   const templates = listClientTemplates();
+  const knownTemplateIds = new Set(templates.map((t) => t.id));
+
+  const supabase = await getSupabaseServerClient();
+  const { data: recentRows } = await supabase
+    .from("studio_runs")
+    .select("id, template_id, task, inputs, status, created_at")
+    .eq("tenant_id", a.actor.tenant_id)
+    .order("created_at", { ascending: false })
+    .limit(8);
+
+  type RecentRow = {
+    id: string;
+    template_id: string;
+    task: string;
+    inputs: Record<string, string> | null;
+    status: string;
+    created_at: string;
+  };
+  const recentRuns: RecentRun[] = ((recentRows ?? []) as RecentRow[])
+    .filter((r) => knownTemplateIds.has(r.template_id))
+    .slice(0, 5)
+    .map((r) => ({
+      id: r.id,
+      templateId: r.template_id,
+      task: r.task,
+      inputs: r.inputs ?? {},
+      status: r.status,
+      createdAt: r.created_at,
+    }));
+
   const authorHint = {
     name: a.actor.identifier,
     handle: a.actor.identifier.replace(/[^a-z0-9]+/gi, "").toLowerCase().slice(0, 16),
@@ -37,7 +70,7 @@ export default async function MarketingStudioPage() {
         </p>
       </header>
 
-      <StudioClient templates={templates} authorHint={authorHint} />
+      <StudioClient templates={templates} authorHint={authorHint} recentRuns={recentRuns} />
     </main>
   );
 }

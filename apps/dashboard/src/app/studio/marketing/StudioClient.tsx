@@ -36,6 +36,15 @@ type AuthorHint = {
   role?: string;
 };
 
+export type RecentRun = {
+  id: string;
+  templateId: string;
+  task: string;
+  inputs: Record<string, string>;
+  status: string;
+  createdAt: string;
+};
+
 type Stage =
   | { kind: "idle" }
   | { kind: "proposing"; task: string }
@@ -74,9 +83,10 @@ const PLACEHOLDERS = [
 type Props = {
   templates: ClientTemplate[];
   authorHint?: AuthorHint;
+  recentRuns?: RecentRun[];
 };
 
-export default function StudioClient({ templates, authorHint }: Props) {
+export default function StudioClient({ templates, authorHint, recentRuns = [] }: Props) {
   const [stage, setStage] = useState<Stage>({ kind: "idle" });
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -206,8 +216,33 @@ export default function StudioClient({ templates, authorHint }: Props) {
     setTask("");
   }, []);
 
+  const handleRecentClick = useCallback(
+    (run: RecentRun) => {
+      const tpl = templatesById.get(run.templateId);
+      if (!tpl) return;
+      const candidate: TemplateProposal = {
+        templateId: tpl.id,
+        label: tpl.label,
+        rationale: "Re-running with last-used inputs.",
+      };
+      // Skip proposal: jump straight to configuring with the saved inputs.
+      setTask(run.task);
+      setStage({ kind: "configuring", task: run.task, candidate, inputs: run.inputs });
+      setError(null);
+    },
+    [templatesById],
+  );
+
   return (
     <div>
+      {stage.kind === "idle" && recentRuns.length > 0 ? (
+        <RecentRunsChips
+          runs={recentRuns}
+          templatesById={templatesById}
+          onClick={handleRecentClick}
+        />
+      ) : null}
+
       <TaskEntry
         task={task}
         setTask={setTask}
@@ -625,6 +660,78 @@ function ReviewStage({
       </div>
     </section>
   );
+}
+
+// ---------- Recent runs chips ----------
+
+function RecentRunsChips({
+  runs,
+  templatesById,
+  onClick,
+}: {
+  runs: RecentRun[];
+  templatesById: Map<string, ClientTemplate>;
+  onClick: (r: RecentRun) => void;
+}) {
+  return (
+    <div className="mb-4">
+      <div className="text-[11px] font-semibold tracking-[0.16em] uppercase text-muted-foreground mb-2">
+        Recent
+      </div>
+      <ul className="flex flex-wrap gap-2">
+        {runs.map((run) => {
+          const tpl = templatesById.get(run.templateId);
+          if (!tpl) return null;
+          return (
+            <li key={run.id}>
+              <button
+                type="button"
+                onClick={() => onClick(run)}
+                className="group inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1.5 text-xs font-medium hover:border-foreground/40 hover:bg-accent/40 transition-colors max-w-[280px]"
+                title={run.task}
+              >
+                <StatusDot status={run.status} />
+                <span className="text-[11px] uppercase tracking-widest text-muted-foreground">
+                  {tpl.label}
+                </span>
+                <span className="text-muted-foreground/60">·</span>
+                <span className="truncate">{run.task}</span>
+                <span className="text-muted-foreground/70 shrink-0">
+                  {relativeAge(run.createdAt)}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function StatusDot({ status }: { status: string }) {
+  const color =
+    status === "accepted"
+      ? "bg-emerald-500"
+      : status === "rejected"
+        ? "bg-muted-foreground/40"
+        : status === "error"
+          ? "bg-destructive"
+          : "bg-studio-accent";
+  return <span aria-hidden className={`size-1.5 rounded-full ${color}`} />;
+}
+
+function relativeAge(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const diff = Date.now() - then;
+  const min = Math.round(diff / 60_000);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const d = Math.round(hr / 24);
+  if (d < 7) return `${d}d ago`;
+  return new Date(iso).toLocaleDateString();
 }
 
 // ---------- Rotating placeholder ----------
