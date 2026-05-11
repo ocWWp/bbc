@@ -34,7 +34,26 @@ export type ExtractResult =
   | { ok: true; proposals: Proposal[] }
   | { ok: false; error: string };
 
-export async function extractMemoryProposals(text: string): Promise<ExtractResult> {
+export type SourceContext = {
+  sourceId?: string;
+  kind?: "text" | "url" | "file";
+  locator?: Record<string, unknown>;
+};
+
+function sourceTag(ctx: SourceContext | undefined): string {
+  if (!ctx?.kind) return "";
+  const loc = ctx.locator ?? {};
+  const where =
+    ctx.kind === "url" && typeof loc.href === "string" ? loc.href :
+    ctx.kind === "file" && typeof loc.filename === "string" ? loc.filename :
+    "";
+  return `<source channel="${ctx.kind}"${where ? ` location="${where.replace(/"/g, "&quot;")}"` : ""} />\n\n`;
+}
+
+export async function extractMemoryProposals(
+  text: string,
+  source?: SourceContext,
+): Promise<ExtractResult> {
   const a = await requireActor();
   if (!a.ok) return { ok: false, error: "unauthorized" };
 
@@ -47,6 +66,7 @@ export async function extractMemoryProposals(text: string): Promise<ExtractResul
     return { ok: false, error: `Add a bit more — at least ${MIN_INPUT_CHARS} characters.` };
   }
   const truncated = trimmed.length > MAX_INPUT_CHARS ? trimmed.slice(0, MAX_INPUT_CHARS) : trimmed;
+  const taggedInput = sourceTag(source) + truncated;
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -63,7 +83,7 @@ export async function extractMemoryProposals(text: string): Promise<ExtractResul
       system: SYSTEM_PROMPT,
       tools: [EXTRACT_PROPOSALS_TOOL],
       tool_choice: { type: "tool", name: EXTRACT_PROPOSALS_TOOL.name },
-      messages: [{ role: "user", content: truncated }],
+      messages: [{ role: "user", content: taggedInput }],
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "unknown";
@@ -100,7 +120,10 @@ export type BulkAcceptResult =
   | { ok: true; created: number; firstId: string | null }
   | { ok: false; error: string };
 
-export async function bulkAcceptProposals(proposals: Proposal[]): Promise<BulkAcceptResult> {
+export async function bulkAcceptProposals(
+  proposals: Proposal[],
+  sourceId?: string,
+): Promise<BulkAcceptResult> {
   const a = await requireActor();
   if (!a.ok) return { ok: false, error: a.output };
   const r = requireRole(a.actor, "member");
@@ -145,6 +168,27 @@ export async function bulkAcceptProposals(proposals: Proposal[]): Promise<BulkAc
     .order("id", { ascending: true });
 
   if (error) return { ok: false, error: error.message };
+
+  // Phase I.20: link every accepted memory back to the source that spawned it.
+  // Best-effort -- a failure here doesn't reject the memories, just leaves them
+  // unattributed (matches the pre-I.20 path where memories had no provenance).
+  if (sourceId && data && data.length > 0) {
+    const joinRows = data.map((m: { id: string }) => ({
+      memory_id: m.id,
+      source_id: sourceId,
+      tenant_id: tenantId,
+    }));
+    const { error: joinErr } = await supabase.from("memory_file_sources").insert(joinRows);
+    if (joinErr) {
+      console.warn(`memory_file_sources insert failed: ${joinErr.message}`);
+    } else {
+      await supabase
+        .from("ingestion_sources")
+        .update({ status: "integrated" })
+        .eq("id", sourceId)
+        .eq("tenant_id", tenantId);
+    }
+  }
 
   revalidatePath("/memory");
   return { ok: true, created: data?.length ?? 0, firstId: data?.[0]?.id ?? null };
