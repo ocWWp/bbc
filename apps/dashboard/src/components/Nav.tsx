@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { ThemeToggle } from "./theme-toggle";
 
 export default async function Nav() {
   const supabase = await getSupabaseServerClient();
@@ -36,11 +37,16 @@ export default async function Nav() {
             <img src={avatar} alt="" width={20} height={20} className="nav-avatar" />
           )}
           <span className="nav-username">{label}</span>
+          <ThemeToggle />
           <form action="/auth/signout" method="post">
             <button type="submit" className="btn nav-signout">sign out</button>
           </form>
         </div>
-      ) : null}
+      ) : (
+        <div className="nav-user">
+          <ThemeToggle />
+        </div>
+      )}
     </nav>
   );
 }
