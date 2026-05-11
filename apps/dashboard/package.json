@@ -12,6 +12,7 @@
     "db:seed-example-tenant": "tsx scripts/seed-example-tenant.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.95.1",
     "@bbc/store": "workspace:*",
     "@blocknote/core": "^0.50.0",
     "@blocknote/mantine": "^0.50.0",
