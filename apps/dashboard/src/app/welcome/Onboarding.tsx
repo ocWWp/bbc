@@ -103,27 +103,32 @@ export function Onboarding({ tenantSlug, previewMode = false }: { tenantSlug: st
       setError(res.error);
       return;
     }
+    setProposals(final);
     setCreated({ count: res.created, firstId: res.firstId });
     setPhase("done");
   }
 
   const stepIndex = phase === "extracting" ? 0 : phaseOrder.indexOf(phase);
   const segments = stepIndex >= 2 ? 3 : phase === "extracting" ? 1.5 : stepIndex + 1;
+  const wide = phase === "dump" || phase === "review";
 
   return (
     <main className="ambient-bg -mx-6 -mt-6 min-h-[calc(100vh-3rem)]">
-      <div className="mx-auto max-w-2xl px-6 pb-16 pt-10">
-        <header className="flex items-center justify-between gap-4 pb-12">
+      <div className={`mx-auto px-6 pb-16 pt-10 ${wide ? "max-w-5xl" : "max-w-2xl"}`}>
+        <header className="flex items-center justify-between gap-4 pb-10">
           <Link href="/" className="text-sm font-semibold tracking-[-0.01em] text-foreground/90 hover:text-foreground transition-colors">
             bbc
           </Link>
-          <button
-            type="button"
-            onClick={skip}
-            className="text-xs text-muted-foreground/80 hover:text-foreground transition-colors"
-          >
-            Skip onboarding →
-          </button>
+          <div className="flex items-center gap-4 text-xs text-muted-foreground/80">
+            <StepLabel phase={phase} />
+            <button
+              type="button"
+              onClick={skip}
+              className="hover:text-foreground transition-colors"
+            >
+              Skip →
+            </button>
+          </div>
         </header>
 
         <ProgressBar value={segments / 3} />
@@ -183,13 +188,29 @@ export function Onboarding({ tenantSlug, previewMode = false }: { tenantSlug: st
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, ease: [0.2, 0, 0, 1] }}
               >
-                <DoneStep count={created.count} firstId={created.firstId} tenantSlug={tenantSlug} />
+                <DoneStep
+                  count={created.count}
+                  firstId={created.firstId}
+                  tenantSlug={tenantSlug}
+                  proposals={proposals}
+                />
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       </div>
     </main>
+  );
+}
+
+function StepLabel({ phase }: { phase: Phase }) {
+  const label =
+    phase === "dump" ? "Step 1 of 3"
+    : phase === "extracting" ? "Step 2 of 3"
+    : phase === "review" ? "Step 3 of 3"
+    : "Done";
+  return (
+    <span className="font-mono uppercase tracking-[0.18em] text-[10px]">{label}</span>
   );
 }
 

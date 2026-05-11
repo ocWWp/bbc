@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TypeChip } from "@/components/memory/type-chip";
 import type { Proposal } from "@/lib/memory/extractor/types";
@@ -13,16 +13,26 @@ type Props = {
   error: string | null;
 };
 
+type Row = Proposal & { included: boolean };
+
+const TYPE_ORDER: Supertag[] = ["product", "voice", "team", "vendor", "decision"];
+
 export function ReviewStep({ proposals, onAcceptAll, onBack, error }: Props) {
-  const [items, setItems] = useState<Proposal[]>(proposals);
+  const [rows, setRows] = useState<Row[]>(() =>
+    proposals.map((p) => ({ ...p, included: true })),
+  );
   const [pending, start] = useTransition();
 
-  const updateTitle = (i: number, title: string) =>
-    setItems((prev) => prev.map((p, j) => (j === i ? { ...p, title } : p)));
+  const includedCount = rows.filter((r) => r.included).length;
+  const included = useMemo(() => rows.filter((r) => r.included), [rows]);
 
-  const dismiss = (i: number) => setItems((prev) => prev.filter((_, j) => j !== i));
+  const toggle = (i: number) =>
+    setRows((prev) => prev.map((r, j) => (j === i ? { ...r, included: !r.included } : r)));
 
-  const accept = () => start(() => onAcceptAll(items));
+  const rename = (i: number, title: string) =>
+    setRows((prev) => prev.map((r, j) => (j === i ? { ...r, title } : r)));
+
+  const accept = () => start(() => onAcceptAll(included.map(({ included: _, ...rest }) => rest)));
 
   return (
     <section className="space-y-7">
@@ -31,63 +41,37 @@ export function ReviewStep({ proposals, onAcceptAll, onBack, error }: Props) {
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: [0.2, 0, 0, 1] }}
-          className="text-5xl font-semibold tracking-[-0.025em] text-foreground"
+          className="text-4xl font-semibold tracking-[-0.025em] text-foreground sm:text-[2.75rem] sm:leading-[1.05]"
         >
-          We structured{" "}
-          <span className="relative inline-block">
-            <motion.span
-              key={items.length}
-              initial={{ scale: 0.85, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.35, ease: [0.2, 0, 0, 1] }}
-              className="relative z-10 inline-block tabular-nums text-brain-accent-foreground"
-              style={{
-                background: "var(--brain-accent)",
-                padding: "0 0.18em",
-                borderRadius: "0.18em",
-                boxShadow: "0 0 32px -8px color-mix(in oklch, var(--brain-accent) 70%, transparent)",
-              }}
-            >
-              {items.length}
-            </motion.span>
-          </span>{" "}
-          {items.length === 1 ? "item" : "items"}.
+          Review what we found.
         </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.08, ease: [0.2, 0, 0, 1] }}
-          className="text-[15px] leading-relaxed text-muted-foreground max-w-xl"
+          className="max-w-xl text-[15px] leading-relaxed text-muted-foreground"
         >
-          Click any title to rename. Dismiss anything that's wrong. The rest land in your brain in one click.
+          Uncheck anything that's wrong. Click a title to rename. The rest lands in your brain.
         </motion.p>
       </div>
 
-      <motion.ul layout className="space-y-2">
-        <AnimatePresence initial={true}>
-          {items.map((p, i) => (
-            <ProposalCard
-              key={`${p.type}-${p.title}-${i}`}
-              proposal={p}
-              index={i}
-              onRename={(t) => updateTitle(i, t)}
-              onDismiss={() => dismiss(i)}
-            />
-          ))}
-        </AnimatePresence>
-      </motion.ul>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-10">
+        <ul className="space-y-1.5">
+          <AnimatePresence initial={true}>
+            {rows.map((row, i) => (
+              <ProposalRow
+                key={`${row.type}-${row.title}-${i}`}
+                row={row}
+                index={i}
+                onToggle={() => toggle(i)}
+                onRename={(t) => rename(i, t)}
+              />
+            ))}
+          </AnimatePresence>
+        </ul>
 
-      {items.length === 0 && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="rounded-xl border border-dashed border-border/70 py-14 text-center"
-        >
-          <p className="text-sm text-muted-foreground">
-            All dismissed. Go back and add more detail.
-          </p>
-        </motion.div>
-      )}
+        <BrainPreview included={included} total={rows.length} />
+      </div>
 
       <div className="flex items-center justify-between gap-3 pt-2">
         <button
@@ -101,10 +85,10 @@ export function ReviewStep({ proposals, onAcceptAll, onBack, error }: Props) {
         <button
           type="button"
           onClick={accept}
-          disabled={pending || items.length === 0}
+          disabled={pending || includedCount === 0}
           className="group/btn relative inline-flex items-center gap-2 rounded-full bg-brain-accent px-5 py-2.5 text-sm font-medium text-brain-accent-foreground shadow-[0_2px_12px_-2px_color-mix(in_oklch,var(--brain-accent)_50%,transparent),0_0_32px_-12px_color-mix(in_oklch,var(--brain-accent)_70%,transparent)] transition-all duration-200 hover:shadow-[0_4px_20px_-2px_color-mix(in_oklch,var(--brain-accent)_60%,transparent),0_0_44px_-8px_color-mix(in_oklch,var(--brain-accent)_80%,transparent)] hover:-translate-y-[1px] active:translate-y-0 disabled:opacity-40 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:translate-y-0"
         >
-          {pending ? "Adding to your brain…" : `Accept ${items.length}`}
+          {pending ? "Adding to your brain…" : `Save ${includedCount} to brain`}
           {!pending && (
             <span className="transition-transform duration-200 group-hover/btn:translate-x-0.5">→</span>
           )}
@@ -124,49 +108,47 @@ export function ReviewStep({ proposals, onAcceptAll, onBack, error }: Props) {
   );
 }
 
-function ProposalCard({
-  proposal,
+function ProposalRow({
+  row,
   index,
+  onToggle,
   onRename,
-  onDismiss,
 }: {
-  proposal: Proposal;
+  row: Row;
   index: number;
+  onToggle: () => void;
   onRename: (t: string) => void;
-  onDismiss: () => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const [title, setTitle] = useState(proposal.title);
+  const [title, setTitle] = useState(row.title);
 
   const commit = () => {
-    if (title.trim() && title !== proposal.title) onRename(title.trim());
+    if (title.trim() && title !== row.title) onRename(title.trim());
     setEditing(false);
   };
 
   return (
     <motion.li
       layout
-      initial={{ opacity: 0, y: 12, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, x: -24, scale: 0.95 }}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, x: -24 }}
       transition={{
-        duration: 0.4,
+        duration: 0.35,
         ease: [0.2, 0, 0, 1],
-        delay: Math.min(index * 0.08, 0.6),
+        delay: Math.min(index * 0.06, 0.4),
       }}
-      className="group relative overflow-hidden rounded-xl border border-border/70 bg-card/50 px-5 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_16px_-8px_rgba(0,0,0,0.08)] backdrop-blur-sm transition-all duration-200 hover:border-foreground/20 hover:shadow-[0_2px_6px_rgba(0,0,0,0.06),0_8px_24px_-8px_rgba(0,0,0,0.12)] hover:-translate-y-[1px] dark:bg-card/40 dark:hover:bg-card/60"
+      className={`group relative flex items-start gap-3 rounded-xl border px-4 py-3.5 backdrop-blur-sm transition-all duration-200 ${
+        row.included
+          ? "border-border/70 bg-card/50 hover:border-foreground/15 hover:bg-card/70 dark:bg-card/40"
+          : "border-dashed border-border/50 bg-card/20 opacity-55 hover:opacity-80"
+      }`}
     >
-      {/* Subtle hover gradient */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-        style={{
-          background: "radial-gradient(60% 80% at 50% 0%, color-mix(in oklch, var(--brain-accent) 5%, transparent) 0%, transparent 70%)",
-        }}
-      />
-      <div className="relative flex items-start gap-3.5">
-        <TypeChip type={proposal.type as Supertag} size="sm" className="mt-0.5 shrink-0" />
-        <div className="min-w-0 flex-1">
+      <Checkbox checked={row.included} onChange={onToggle} />
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline gap-2.5">
+          <TypeChip type={row.type as Supertag} size="sm" className="shrink-0" />
           {editing ? (
             <input
               autoFocus
@@ -176,66 +158,156 @@ function ProposalCard({
               onKeyDown={(e) => {
                 if (e.key === "Enter") commit();
                 if (e.key === "Escape") {
-                  setTitle(proposal.title);
+                  setTitle(row.title);
                   setEditing(false);
                 }
               }}
-              className="w-full bg-transparent text-[15px] font-medium tracking-tight outline-none ring-1 ring-ring rounded px-1 -mx-1"
+              className="min-w-0 flex-1 bg-transparent text-[14.5px] font-medium tracking-tight outline-none ring-1 ring-ring rounded px-1 -mx-1"
             />
           ) : (
             <button
               type="button"
               onClick={() => setEditing(true)}
-              className="w-full text-left text-[15px] font-medium tracking-tight leading-snug hover:text-foreground/80 transition-colors"
+              disabled={!row.included}
+              className="min-w-0 flex-1 truncate text-left text-[14.5px] font-medium tracking-tight leading-snug text-foreground hover:text-foreground/70 transition-colors disabled:cursor-default"
             >
-              {proposal.title}
+              {row.title}
             </button>
           )}
-          {proposal.body && (
-            <p className="mt-1 text-sm leading-relaxed text-muted-foreground line-clamp-2">{proposal.body}</p>
-          )}
-          <FieldsPreview type={proposal.type as Supertag} fields={proposal.fields as Record<string, unknown>} />
         </div>
-        <button
-          type="button"
-          onClick={onDismiss}
-          aria-label="Dismiss"
-          className="shrink-0 rounded-md p-1 opacity-0 transition-all group-hover:opacity-60 hover:!opacity-100 hover:bg-muted text-muted-foreground"
-        >
-          <span className="block text-lg leading-none">×</span>
-        </button>
+        {row.body && (
+          <p className="mt-1 line-clamp-1 pl-px text-[13px] leading-relaxed text-muted-foreground">
+            {row.body}
+          </p>
+        )}
       </div>
     </motion.li>
   );
 }
 
-function FieldsPreview({ type, fields }: { type: Supertag; fields: Record<string, unknown> }) {
-  const highlights: string[] = [];
-  if (type === "voice") {
-    if (fields.register) highlights.push(`${fields.register}`);
-    if (Array.isArray(fields.dont_words) && fields.dont_words.length > 0) {
-      highlights.push(`avoids "${(fields.dont_words as string[]).slice(0, 2).join(", ")}"`);
-    }
-  } else if (type === "vendor") {
-    if (fields.role) highlights.push(`${fields.role}`);
-    if (fields.status) highlights.push(`${fields.status}`);
-  } else if (type === "team") {
-    if (fields.role) highlights.push(`${fields.role}`);
-    if (fields.email) highlights.push(`${fields.email}`);
-  } else if (type === "decision") {
-    if (fields.status) highlights.push(`${fields.status}`);
-    if (fields.date) highlights.push(`${fields.date}`);
-  } else if (type === "product") {
-    if (fields.target_user) highlights.push(`for ${fields.target_user}`);
-  }
-  if (highlights.length === 0) return null;
+function Checkbox({ checked, onChange }: { checked: boolean; onChange: () => void }) {
   return (
-    <div className="mt-2 flex flex-wrap gap-1.5">
-      {highlights.map((h, i) => (
-        <span key={i} className="rounded-md bg-muted/70 px-1.5 py-0.5 text-[11px] text-muted-foreground/90">
-          {h}
-        </span>
-      ))}
-    </div>
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      onClick={onChange}
+      className={`mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border transition-all duration-200 ${
+        checked
+          ? "border-transparent bg-brain-accent shadow-[0_0_0_1px_color-mix(in_oklch,var(--brain-accent)_60%,transparent),0_0_12px_-2px_color-mix(in_oklch,var(--brain-accent)_55%,transparent)]"
+          : "border-border bg-card/40 hover:border-foreground/40"
+      }`}
+    >
+      <AnimatePresence>
+        {checked && (
+          <motion.svg
+            key="tick"
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.5, opacity: 0 }}
+            transition={{ duration: 0.18, ease: [0.2, 0, 0, 1] }}
+            width="11"
+            height="11"
+            viewBox="0 0 11 11"
+            fill="none"
+          >
+            <path
+              d="M2 5.5 L4.5 8 L9 3"
+              stroke="var(--brain-accent-foreground)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </motion.svg>
+        )}
+      </AnimatePresence>
+    </button>
   );
 }
+
+function BrainPreview({ included, total }: { included: Row[]; total: number }) {
+  const grouped = useMemo(() => {
+    const m = new Map<Supertag, Row[]>();
+    for (const r of included) {
+      const t = r.type as Supertag;
+      const arr = m.get(t) ?? [];
+      arr.push(r);
+      m.set(t, arr);
+    }
+    return TYPE_ORDER
+      .map((t) => ({ type: t, items: m.get(t) ?? [] }))
+      .filter((g) => g.items.length > 0);
+  }, [included]);
+
+  return (
+    <motion.aside
+      initial={{ opacity: 0, x: 8 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.5, delay: 0.18, ease: [0.2, 0, 0, 1] }}
+      className="hidden lg:block"
+    >
+      <div className="sticky top-10 overflow-hidden rounded-2xl border border-border/70 bg-card/40 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_40px_-16px_rgba(0,0,0,0.18)] backdrop-blur-md dark:bg-card/30">
+        <div className="flex items-baseline justify-between border-b border-border/40 px-5 pt-4 pb-3">
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/80">
+            Your brain
+          </p>
+          <motion.p
+            key={included.length}
+            initial={{ opacity: 0, y: 2 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+            className="text-[11px] tabular-nums text-muted-foreground"
+          >
+            {included.length} of {total}
+          </motion.p>
+        </div>
+
+        {grouped.length === 0 ? (
+          <div className="px-5 py-10 text-center">
+            <p className="text-[12px] leading-relaxed text-muted-foreground/70">
+              Check items on the left to see them here.
+            </p>
+          </div>
+        ) : (
+          <ul className="max-h-[24rem] divide-y divide-border/40 overflow-y-auto px-1 py-1">
+            <AnimatePresence initial={false}>
+              {grouped.map((g) => (
+                <motion.li
+                  layout
+                  key={g.type}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.25, ease: [0.2, 0, 0, 1] }}
+                  className="px-4 py-3"
+                >
+                  <p className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-brain-accent/90">
+                    {g.type} · {g.items.length}
+                  </p>
+                  <ul className="space-y-0.5">
+                    <AnimatePresence initial={false}>
+                      {g.items.map((it, i) => (
+                        <motion.li
+                          layout
+                          key={`${it.title}-${i}`}
+                          initial={{ opacity: 0, x: -4 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: 4 }}
+                          transition={{ duration: 0.22, ease: [0.2, 0, 0, 1] }}
+                          className="truncate text-[13px] leading-relaxed text-foreground/85"
+                        >
+                          {it.title}
+                        </motion.li>
+                      ))}
+                    </AnimatePresence>
+                  </ul>
+                </motion.li>
+              ))}
+            </AnimatePresence>
+          </ul>
+        )}
+      </div>
+    </motion.aside>
+  );
+}
+

@@ -9,8 +9,6 @@ const PHASES = [
   "Structuring memory",
 ];
 
-const WORD = "Structuring";
-
 export function ExtractingStep() {
   const [phase, setPhase] = useState(0);
 
@@ -25,58 +23,73 @@ export function ExtractingStep() {
   }, []);
 
   return (
-    <section className="flex flex-col items-center justify-center gap-10 py-20 text-center">
+    <section className="flex flex-col items-center justify-center gap-8 py-24 text-center">
       <div className="relative">
-        {/* Breathing accent disc */}
         <div
-          className="absolute left-1/2 top-1/2 -z-10 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-brain-accent/20 blur-3xl"
-          style={{ animation: "bbc-breath 2.4s ease-in-out infinite" }}
+          aria-hidden
+          className="absolute left-1/2 top-1/2 -z-10 h-32 w-32 -translate-x-1/2 -translate-y-1/2 rounded-full bg-brain-accent/15 blur-3xl"
+          style={{ animation: "bbc-breath 2.6s ease-in-out infinite" }}
         />
-        {/* Letter wave */}
-        <div className="flex select-none gap-[2px] font-medium text-3xl tracking-[-0.02em] text-foreground">
-          {WORD.split("").map((ch, i) => (
-            <span
-              key={`${ch}-${i}`}
-              className="inline-block"
-              style={{
-                animation: `bbc-letter-wave 1.6s ease-in-out infinite`,
-                animationDelay: `${i * 0.08}s`,
-              }}
-            >
-              {ch}
-            </span>
-          ))}
-          <span
-            className="inline-block"
-            style={{
-              animation: `bbc-letter-wave 1.6s ease-in-out infinite`,
-              animationDelay: `${WORD.length * 0.08}s`,
-            }}
-          >
-            …
-          </span>
-        </div>
-        {/* Subtle scanning underline */}
-        <div className="relative mt-4 h-px w-48 overflow-hidden rounded-full bg-border">
-          <div
-            className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-brain-accent to-transparent"
-            style={{ animation: "bbc-scan 1.8s ease-in-out infinite" }}
-          />
-        </div>
+        <Spinner />
       </div>
 
-      <AnimatePresence mode="wait">
-        <motion.p
-          key={phase}
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -6 }}
-          transition={{ duration: 0.4, ease: [0.2, 0, 0, 1] }}
-          className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground"
-        >
-          {PHASES[phase]}
-        </motion.p>
-      </AnimatePresence>
+      <div className="space-y-2.5">
+        <AnimatePresence mode="wait">
+          <motion.p
+            key={phase}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.4, ease: [0.2, 0, 0, 1] }}
+            className="font-mono text-[11px] uppercase tracking-[0.22em] text-foreground"
+          >
+            {PHASES[phase]}
+          </motion.p>
+        </AnimatePresence>
+        <p className="text-[12px] text-muted-foreground/70">
+          This can take up to 10 seconds
+        </p>
+      </div>
+
+      <div className="mt-1 flex items-center gap-1.5">
+        {PHASES.map((_, i) => (
+          <span
+            key={i}
+            className={`h-px w-6 transition-all duration-500 ${
+              i <= phase ? "bg-brain-accent" : "bg-border"
+            }`}
+          />
+        ))}
+      </div>
     </section>
+  );
+}
+
+function Spinner() {
+  return (
+    <svg
+      width="28"
+      height="28"
+      viewBox="0 0 28 28"
+      fill="none"
+      className="text-foreground"
+      style={{ animation: "bbc-spinner-rotate 1.2s linear infinite" }}
+    >
+      <circle
+        cx="14"
+        cy="14"
+        r="10"
+        stroke="currentColor"
+        strokeOpacity="0.12"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M14 4 a10 10 0 0 1 9.4 6.6"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        fill="none"
+      />
+    </svg>
   );
 }
