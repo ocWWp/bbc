@@ -3,19 +3,22 @@
 import { useMemo, useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TypeChip } from "@/components/memory/type-chip";
-import type { Proposal } from "@/lib/memory/extractor/types";
 import type { Supertag } from "@/lib/memory/types";
+import type { ProposalWithOrigin } from "./source-types";
 
 type Props = {
-  proposals: Proposal[];
-  onAcceptAll: (final: Proposal[]) => Promise<void> | void;
+  proposals: ProposalWithOrigin[];
+  onAcceptAll: (final: ProposalWithOrigin[]) => Promise<void> | void;
   onBack: () => void;
   error: string | null;
 };
 
-type Row = Proposal & { included: boolean };
+type Row = ProposalWithOrigin & { included: boolean };
 
-const TYPE_ORDER: Supertag[] = ["product", "voice", "team", "vendor", "decision"];
+const TYPE_ORDER: Supertag[] = [
+  "product", "voice", "team", "vendor", "decision",
+  "glossary", "skill", "source_artifact", "note",
+];
 
 export function ReviewStep({ proposals, onAcceptAll, onBack, error }: Props) {
   const [rows, setRows] = useState<Row[]>(() =>
@@ -32,7 +35,15 @@ export function ReviewStep({ proposals, onAcceptAll, onBack, error }: Props) {
   const rename = (i: number, title: string) =>
     setRows((prev) => prev.map((r, j) => (j === i ? { ...r, title } : r)));
 
-  const accept = () => start(() => onAcceptAll(included.map(({ included: _, ...rest }) => rest)));
+  const accept = () =>
+    start(() =>
+      onAcceptAll(
+        included.map(({ included: _included, ...rest }) => {
+          void _included;
+          return rest;
+        }),
+      ),
+    );
 
   return (
     <section className="space-y-7">
@@ -147,6 +158,15 @@ function ProposalRow({
       <Checkbox checked={row.included} onChange={onToggle} />
 
       <div className="min-w-0 flex-1">
+        {row._sourceKind && row._sourceLabel && (
+          <p className="mb-1 flex items-center gap-1.5 text-[10.5px] font-mono uppercase tracking-wider text-muted-foreground/70">
+            <span>from {row._sourceKind}</span>
+            <span aria-hidden>·</span>
+            <span className="max-w-[16rem] truncate normal-case tracking-normal text-muted-foreground" title={row._sourceLabel}>
+              {row._sourceLabel}
+            </span>
+          </p>
+        )}
         <div className="flex items-baseline gap-2.5">
           <TypeChip type={row.type as Supertag} size="sm" className="shrink-0" />
           {editing ? (
@@ -239,6 +259,30 @@ function BrainPreview({ included, total }: { included: Row[]; total: number }) {
       .filter((g) => g.items.length > 0);
   }, [included]);
 
+  const sourceCounts = useMemo(() => {
+    const seen = new Set<string>();
+    const counts = { url: 0, file: 0, text: 0 } as Record<"url" | "file" | "text", number>;
+    for (const r of included) {
+      if (!r._sourceId || !r._sourceKind) {
+        counts.text = 1; // textarea contributed at least once
+        continue;
+      }
+      if (seen.has(r._sourceId)) continue;
+      seen.add(r._sourceId);
+      counts[r._sourceKind] = (counts[r._sourceKind] ?? 0) + 1;
+    }
+    return counts;
+  }, [included]);
+
+  const sourcesLabel = useMemo(() => {
+    const parts: string[] = [];
+    if (sourceCounts.text) parts.push("paste");
+    if (sourceCounts.url) parts.push(`${sourceCounts.url} URL${sourceCounts.url === 1 ? "" : "s"}`);
+    if (sourceCounts.file) parts.push(`${sourceCounts.file} file${sourceCounts.file === 1 ? "" : "s"}`);
+    if (parts.length === 0) return null;
+    return parts.join(" + ");
+  }, [sourceCounts]);
+
   return (
     <motion.aside
       initial={{ opacity: 0, x: 8 }}
@@ -269,6 +313,7 @@ function BrainPreview({ included, total }: { included: Row[]; total: number }) {
             </p>
           </div>
         ) : (
+          <>
           <ul className="max-h-[24rem] divide-y divide-border/40 overflow-y-auto px-1 py-1">
             <AnimatePresence initial={false}>
               {grouped.map((g) => (
@@ -305,6 +350,14 @@ function BrainPreview({ included, total }: { included: Row[]; total: number }) {
               ))}
             </AnimatePresence>
           </ul>
+          {sourcesLabel && (
+            <div className="border-t border-border/40 px-5 py-2.5">
+              <p className="text-[10.5px] font-mono uppercase tracking-wider text-muted-foreground/70">
+                Drawn from {sourcesLabel}
+              </p>
+            </div>
+          )}
+          </>
         )}
       </div>
     </motion.aside>
