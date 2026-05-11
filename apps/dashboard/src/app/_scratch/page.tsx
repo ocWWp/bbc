@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 export default function Scratch() {
   return (
@@ -64,6 +65,22 @@ export default function Scratch() {
           </CardFooter>
         </Card>
       </div>
+
+      <h2 className="text-2xl font-bold mt-8">Dialog</h2>
+      <Dialog>
+        <DialogTrigger asChild><Button>Open dialog</Button></DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Review proposal</DialogTitle>
+            <DialogDescription>The marketing agent drafted this post using your voice.</DialogDescription>
+          </DialogHeader>
+          <p className="text-sm">Just shipped MCP write tools. Agents can now propose changes through BBC's queue. Approve or reject — your call.</p>
+          <DialogFooter>
+            <Button variant="outline">Reject</Button>
+            <Button variant="brain">Accept</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
