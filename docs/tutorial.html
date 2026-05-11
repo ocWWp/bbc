@@ -297,7 +297,53 @@ pnpm --filter @bbc/dashboard dev
 Self-serve needs Supabase to send a confirmation email. If you haven't wired SMTP (Resend / Postmark / SES), you'll create a tenant but won't be able to sign in. For local dev, manually confirm via Supabase Studio → Auth → Users.
 </div>
 
-<h2 id="agents">6. Wiring agents (MCP)</h2>
+<h2 id="deploy">6. Self-host vs hosted</h2>
+
+<p>Two ways to run BBC. Same protocol, same dashboard, different responsibility split:</p>
+
+<table>
+  <tr>
+    <th></th>
+    <th>Self-host</th>
+    <th>Hosted (bbc.tools)</th>
+  </tr>
+  <tr>
+    <td><strong>Infra</strong></td>
+    <td>Your Supabase, your OAuth apps, your domain</td>
+    <td>BBC operates a central Supabase + central OAuth apps</td>
+  </tr>
+  <tr>
+    <td><strong>Vendor accounts</strong></td>
+    <td>You register and pay each vendor (Anthropic, AWS, Resend, …) directly</td>
+    <td>BBC provisions + bills via one subscription</td>
+  </tr>
+  <tr>
+    <td><strong>Setup time</strong></td>
+    <td>~10 min once <code>pnpm bbc setup</code> ships; manual today</td>
+    <td>One signup + service picker</td>
+  </tr>
+  <tr>
+    <td><strong>Best for</strong></td>
+    <td>Teams with existing cloud accounts; full data control; compliance</td>
+    <td>Teams that want to start in 60 seconds without spinning up infra</td>
+  </tr>
+</table>
+
+<p>Both paths read the <em>same</em> provider catalog under <code>memory/ops/providers/</code> and the same role contracts under <code>memory/ops/provider-roles/</code>. The hosted path just removes the manual provisioning steps.</p>
+
+<h3>How pricing stays accurate</h3>
+
+<p>Most vendors don't expose a pricing API. BBC handles this honestly with three tiers:</p>
+
+<ul>
+  <li><strong>Live API</strong> for LLMs (via OpenRouter — covers Anthropic, OpenAI, Google, Mistral, Llama hosts) and big cloud (AWS / GCP / Azure pricing APIs). 24h cache. 🟢 <code>live</code> badge.</li>
+  <li><strong>YAML-cached + scheduled refresh</strong> for SaaS subscriptions (Cloudflare, Supabase, Neon, Vercel, Resend, PostHog, Railway, Fly). A nightly CI job re-checks pricing pages and opens a PR when prices drift &gt;5%. 🟡 <code>cached</code> badge.</li>
+  <li><strong>Manual fallback</strong> with a <code>last_verified_at</code> date and <code>sources:</code> URLs the operator can re-check. 🟠 <code>stale</code> badge if past refresh interval.</li>
+</ul>
+
+<p>The dashboard's cost calculator shows the badge next to every line item, so you always see what you're trusting. Full strategy: <a href="./pricing-architecture.md">docs/pricing-architecture.md</a>.</p>
+
+<h2 id="agents">7. Wiring agents (MCP)</h2>
 
 <p>BBC ships an MCP server at <code>apps/mcp-server/</code> so agents (Claude Desktop, Cursor, your custom integrations) can read+write a tenant's BBC instance. Per-tenant API tokens, RLS-gated under the hood.</p>
 
@@ -315,7 +361,7 @@ Self-serve needs Supabase to send a confirmation email. If you haven't wired SMT
 
 <p>Wire-up details, transport config, security model: see <a href="../apps/mcp-server/README.md">apps/mcp-server/README.md</a>.</p>
 
-<h2 id="next">7. What to read next</h2>
+<h2 id="next">8. What to read next</h2>
 
 <table>
   <tr>
@@ -345,6 +391,10 @@ Self-serve needs Supabase to send a confirmation email. If you haven't wired SMT
   <tr>
     <td>Govern provider roles + adapter swaps</td>
     <td><a href="../memory/ops/provider-roles/">memory/ops/provider-roles/</a></td>
+  </tr>
+  <tr>
+    <td>Understand how vendor pricing stays accurate</td>
+    <td><a href="./pricing-architecture.md">docs/pricing-architecture.md</a></td>
   </tr>
 </table>
 

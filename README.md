@@ -23,6 +23,22 @@ A leaf that wants to change a Main- or Manager-owned rule files a **proposal** i
 
 The dashboard, MCP server, and `@bbc/store` interface speak both modes. See `memory/tech/deployment-modes.md` and `docs/tenant-repo-architecture.md`.
 
+## Two ways to run BBC
+
+You can use BBC two ways. Same product, same protocol — different responsibility split:
+
+| | **Self-host** | **Hosted (bbc.tools)** |
+|---|---|---|
+| **Who runs the infra** | You — your Supabase project, your OAuth apps, your domain | BBC operates a central Supabase + central GitHub/Google OAuth apps |
+| **Vendor accounts** | Each vendor (Anthropic, AWS, Resend, …) is yours; you pay them directly | BBC provisions and bills through one subscription |
+| **Setup time** | ~10 min once the bootstrap script lands; manual today (see `docs/operating-bbc.md`) | One signup + service picker on the website |
+| **Cost** | Sum of your vendor bills | BBC subscription + the vendor passthrough costs |
+| **Best for** | Teams that already have cloud accounts, want full control, or have compliance reasons to keep data in their tenancy | Teams that want to start in 60 seconds without spinning up Supabase/OAuth/SMTP themselves |
+
+Both paths read the **same** provider catalog (`memory/ops/providers/*.yaml`) and the **same** role contracts (`memory/ops/provider-roles/*.yaml`). The hosted path just removes the manual provisioning steps.
+
+For pricing accuracy across both paths — and how the cost calculator stays current — see [`docs/pricing-architecture.md`](docs/pricing-architecture.md).
+
 ## Layout
 
 ```
@@ -62,6 +78,7 @@ Three audiences, three docs:
 - **Tenant authors** (forking a tenant repo to plug into BBC) → [`docs/tenant-repo-architecture.md`](docs/tenant-repo-architecture.md). The skeleton + slot model, file-mode vs DB-mode plug-in, forking the template.
 - **Agents** (LLMs opening a session inside `bbc/`) → [`AGENTS.md`](AGENTS.md). Layer detection, hard rules.
 - **Developers** working on the dashboard or MCP server → [`apps/dashboard/README.md`](apps/dashboard/README.md), [`apps/mcp-server/README.md`](apps/mcp-server/README.md).
+- **Anyone curious about pricing** (how the cost calculator stays accurate) → [`docs/pricing-architecture.md`](docs/pricing-architecture.md).
 
 ## Quickstart (file-mode, against the demo tenant)
 
