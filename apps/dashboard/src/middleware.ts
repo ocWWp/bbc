@@ -16,7 +16,11 @@ export async function middleware(request: NextRequest) {
 
   if (isAuthRoute) return response;
 
-  if (!user) {
+  // Dev escape hatch: when Supabase env vars aren't set, skip the auth redirect
+  // so Phase G's public chrome (theme, /terms, /privacy, cookie banner) is browsable.
+  const supabaseConfigured = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL);
+
+  if (!user && supabaseConfigured) {
     const signInUrl = new URL("/auth/signin", nextUrl.origin);
     signInUrl.searchParams.set("callbackUrl", nextUrl.pathname + nextUrl.search);
     return NextResponse.redirect(signInUrl);
