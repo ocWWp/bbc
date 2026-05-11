@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import type { SourceItem } from "./source-types";
 
 const PLACEHOLDERS = [
   "We're a developer-tools startup helping early-stage founders ship product faster. Our voice is direct and lowercase — we never use the word 'leverage' or 'synergy'. The team is Sarah (PM), Alex (eng), Mei (design)...",
@@ -26,11 +27,34 @@ type Props = {
   onChange: (v: string) => void;
   onSubmit: () => void;
   error: string | null;
+  sources: SourceItem[];
+  onAddUrl: (url: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+  onAddFile: (file: File) => Promise<{ ok: true } | { ok: false; error: string }>;
+  onRemoveSource: (sourceId: string) => void;
+  busy?: boolean;
 };
 
-export function DumpStep({ value, onChange, onSubmit, error }: Props) {
+export function DumpStep({
+  value,
+  onChange,
+  onSubmit,
+  error,
+  sources,
+  onAddUrl,
+  onAddFile,
+  onRemoveSource,
+  busy,
+}: Props) {
   const [idx, setIdx] = useState(0);
+  const [urlPopoverOpen, setUrlPopoverOpen] = useState(false);
+  const [urlInput, setUrlInput] = useState("");
+  const [urlBusy, setUrlBusy] = useState(false);
+  const [urlError, setUrlError] = useState<string | null>(null);
+  const [fileBusy, setFileBusy] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     ref.current?.focus();
@@ -43,8 +67,47 @@ export function DumpStep({ value, onChange, onSubmit, error }: Props) {
   }, [value]);
 
   const len = value.length;
-  const canSubmit = len >= MIN && len <= MAX;
-  const progress = Math.min(1, len / SWEET);
+  const hasContent = len >= MIN || sources.length > 0;
+  const canSubmit = hasContent && len <= MAX && !busy;
+  const progress = Math.min(1, Math.max(len / SWEET, sources.length > 0 ? 1 : 0));
+
+  async function handleUrlFetch() {
+    const url = urlInput.trim();
+    if (!url) {
+      setUrlError("Paste a URL first.");
+      return;
+    }
+    setUrlError(null);
+    setUrlBusy(true);
+    const res = await onAddUrl(url);
+    setUrlBusy(false);
+    if (res.ok) {
+      setUrlInput("");
+      setUrlPopoverOpen(false);
+    } else {
+      setUrlError(res.error);
+    }
+  }
+
+  async function handleFiles(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0) return;
+    setFileError(null);
+    setFileBusy(true);
+    for (const file of Array.from(fileList)) {
+      const res = await onAddFile(file);
+      if (!res.ok) {
+        setFileError(res.error);
+        break;
+      }
+    }
+    setFileBusy(false);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
+  const submitLabel =
+    sources.length > 0
+      ? `Structure my brain + ${sources.length} source${sources.length === 1 ? "" : "s"}`
+      : "Structure my brain";
 
   return (
     <section className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-12">
@@ -67,6 +130,19 @@ export function DumpStep({ value, onChange, onSubmit, error }: Props) {
             Voice, team, decisions, vendors — anything that should live in your shared brain. Don't overthink it.
           </motion.p>
         </div>
+
+        {sources.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-wrap gap-2"
+            aria-label="Attached sources"
+          >
+            {sources.map((s) => (
+              <SourceChip key={s.sourceId} source={s} onRemove={() => onRemoveSource(s.sourceId)} />
+            ))}
+          </motion.div>
+        )}
 
         <motion.div
           initial={{ opacity: 0, y: 8 }}
@@ -105,6 +181,122 @@ export function DumpStep({ value, onChange, onSubmit, error }: Props) {
         </motion.div>
 
         <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+          className="grid grid-cols-1 gap-2 sm:grid-cols-3"
+        >
+          <label
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragging(false);
+              handleFiles(e.dataTransfer.files);
+            }}
+            className={`group/tile relative flex cursor-pointer items-center gap-3 rounded-xl border bg-card/40 px-4 py-3 text-left transition-all duration-200 hover:bg-card/70 ${
+              dragging
+                ? "border-brain-accent/60 bg-brain-accent/5 shadow-[0_0_0_1px_color-mix(in_oklch,var(--brain-accent)_30%,transparent)]"
+                : "border-border/70"
+            }`}
+          >
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".md,.markdown,.txt"
+              multiple
+              className="sr-only"
+              onChange={(e) => handleFiles(e.target.files)}
+            />
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground group-hover/tile:text-foreground transition-colors">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">Drop files</p>
+              <p className="truncate text-[11px] text-muted-foreground">
+                {fileBusy ? "Reading…" : ".md or .txt, up to 1 MB"}
+              </p>
+            </div>
+          </label>
+
+          <button
+            type="button"
+            onClick={() => setUrlPopoverOpen((o) => !o)}
+            className="group/tile relative flex items-center gap-3 rounded-xl border border-border/70 bg-card/40 px-4 py-3 text-left transition-all duration-200 hover:bg-card/70"
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground group-hover/tile:text-foreground transition-colors">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">Paste a URL</p>
+              <p className="truncate text-[11px] text-muted-foreground">README, blog post, deck</p>
+            </div>
+          </button>
+
+          <a
+            href="/sources"
+            className="group/tile relative flex items-center gap-3 rounded-xl border border-dashed border-border/60 bg-transparent px-4 py-3 text-left transition-all duration-200 hover:border-border/90 hover:bg-card/40"
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/40 text-muted-foreground group-hover/tile:text-foreground transition-colors">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <circle cx="12" cy="12" r="9" />
+                <line x1="12" y1="8" x2="12" y2="16" />
+                <line x1="8" y1="12" x2="16" y2="12" />
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">More sources</p>
+              <p className="truncate text-[11px] text-muted-foreground">GitHub, Notion, Linear · soon</p>
+            </div>
+          </a>
+        </motion.div>
+
+        {(fileError || urlError) && (
+          <p className="text-xs text-rose-600 dark:text-rose-400">{fileError ?? urlError}</p>
+        )}
+
+        {urlPopoverOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col gap-2 rounded-xl border border-border/70 bg-card/80 px-4 py-3 backdrop-blur-sm sm:flex-row sm:items-center"
+          >
+            <input
+              type="url"
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleUrlFetch(); } }}
+              placeholder="https://acme.com/handbook"
+              className="flex-1 rounded-lg border border-border/60 bg-background/70 px-3 py-1.5 text-sm focus:border-brain-accent/40 focus:outline-none"
+              aria-label="URL to fetch"
+              autoFocus
+            />
+            <button
+              type="button"
+              onClick={handleUrlFetch}
+              disabled={urlBusy || !urlInput.trim()}
+              className="rounded-lg bg-foreground px-3 py-1.5 text-sm font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              {urlBusy ? "Fetching…" : "Fetch"}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setUrlPopoverOpen(false); setUrlError(null); setUrlInput(""); }}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Cancel
+            </button>
+          </motion.div>
+        )}
+
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3, delay: 0.26 }}
@@ -125,7 +317,7 @@ export function DumpStep({ value, onChange, onSubmit, error }: Props) {
               <span className={canSubmit ? "text-foreground" : ""}>{len}</span>
               <span className="text-muted-foreground/60"> / {MAX}</span>
             </span>
-            {len > 0 && len < MIN && (
+            {len > 0 && len < MIN && sources.length === 0 && (
               <span className="text-muted-foreground/60">— need {MIN - len} more</span>
             )}
           </div>
@@ -136,7 +328,7 @@ export function DumpStep({ value, onChange, onSubmit, error }: Props) {
             disabled={!canSubmit}
             className="group/btn relative inline-flex items-center gap-2 rounded-full bg-brain-accent px-5 py-2.5 text-sm font-medium text-brain-accent-foreground shadow-[0_2px_12px_-2px_color-mix(in_oklch,var(--brain-accent)_50%,transparent),0_0_32px_-12px_color-mix(in_oklch,var(--brain-accent)_70%,transparent)] transition-all duration-200 hover:shadow-[0_4px_20px_-2px_color-mix(in_oklch,var(--brain-accent)_60%,transparent),0_0_44px_-8px_color-mix(in_oklch,var(--brain-accent)_80%,transparent)] hover:-translate-y-[1px] active:translate-y-0 disabled:opacity-40 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:translate-y-0"
           >
-            Structure my brain
+            {submitLabel}
             <span className="transition-transform duration-200 group-hover/btn:translate-x-0.5">→</span>
           </button>
         </motion.div>
@@ -154,6 +346,35 @@ export function DumpStep({ value, onChange, onSubmit, error }: Props) {
 
       <SidebarPreview />
     </section>
+  );
+}
+
+function SourceChip({ source, onRemove }: { source: SourceItem; onRemove: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/60 py-1 pl-2 pr-1 text-xs text-foreground">
+      <span className="font-mono uppercase tracking-wider text-[9px] text-muted-foreground">
+        {source.kind}
+      </span>
+      <span className="max-w-[14rem] truncate" title={source.label}>
+        {source.label}
+      </span>
+      {source.reused && (
+        <span className="rounded-full bg-amber-100 px-1.5 text-[9px] text-amber-800 dark:bg-amber-950/60 dark:text-amber-300" title="Same content as a previous ingest">
+          dup
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={`Remove ${source.kind} source`}
+        className="ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
+      >
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden>
+          <line x1="6" y1="6" x2="18" y2="18" />
+          <line x1="6" y1="18" x2="18" y2="6" />
+        </svg>
+      </button>
+    </span>
   );
 }
 

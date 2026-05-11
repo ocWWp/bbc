@@ -4,12 +4,13 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { extractMemoryProposals, bulkAcceptProposals } from "./actions";
+import { extractMemoryProposals, bulkAcceptProposals, ingestSource } from "./actions";
 import type { Proposal } from "@/lib/memory/extractor/types";
 import { DumpStep } from "./_steps/dump-step";
 import { ExtractingStep } from "./_steps/extracting-step";
 import { ReviewStep } from "./_steps/review-step";
 import { DoneStep } from "./_steps/done-step";
+import type { SourceItem, ProposalWithOrigin } from "./_steps/source-types";
 
 const SKIP_KEY = "bbc.welcome.skipped";
 
@@ -60,11 +61,21 @@ async function mockBulkAccept(proposals: Proposal[]): Promise<{ ok: true; create
   return { ok: true, created: proposals.length, firstId: null };
 }
 
+function labelForUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    return `${u.hostname}${u.pathname === "/" ? "" : u.pathname}`.replace(/\/$/, "");
+  } catch {
+    return url;
+  }
+}
+
 export function Onboarding({ tenantSlug, previewMode = false }: { tenantSlug: string; previewMode?: boolean }) {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("dump");
   const [text, setText] = useState("");
-  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [sources, setSources] = useState<SourceItem[]>([]);
+  const [proposals, setProposals] = useState<ProposalWithOrigin[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<{ count: number; firstId: string | null }>({ count: 0, firstId: null });
   const [, startTransition] = useTransition();
@@ -76,35 +87,165 @@ export function Onboarding({ tenantSlug, previewMode = false }: { tenantSlug: st
     router.push("/");
   }
 
+  async function addUrlSource(url: string): Promise<{ ok: true } | { ok: false; error: string }> {
+    if (previewMode) {
+      const fakeId = `preview-url-${Date.now()}`;
+      setSources((s) => [
+        ...s,
+        {
+          sourceId: fakeId,
+          kind: "url",
+          label: labelForUrl(url),
+          rawText: `Preview content fetched from ${url}.`,
+          locator: { kind: "url", href: url },
+        },
+      ]);
+      return { ok: true };
+    }
+    const res = await ingestSource({ kind: "url", url });
+    if (!res.ok) return { ok: false, error: res.error };
+    setSources((s) => [
+      ...s,
+      {
+        sourceId: res.sourceId,
+        kind: "url",
+        label: labelForUrl(url),
+        rawText: res.rawText,
+        locator: res.locator,
+        redactions: res.redactions,
+        reused: res.reused,
+      },
+    ]);
+    return { ok: true };
+  }
+
+  async function addFileSource(file: File): Promise<{ ok: true } | { ok: false; error: string }> {
+    if (previewMode) {
+      const fakeId = `preview-file-${Date.now()}`;
+      setSources((s) => [
+        ...s,
+        {
+          sourceId: fakeId,
+          kind: "file",
+          label: file.name,
+          rawText: `Preview content from file ${file.name}.`,
+          locator: { kind: "file", filename: file.name },
+        },
+      ]);
+      return { ok: true };
+    }
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const res = await ingestSource({ kind: "file", name: file.name, bytes });
+    if (!res.ok) return { ok: false, error: res.error };
+    setSources((s) => [
+      ...s,
+      {
+        sourceId: res.sourceId,
+        kind: "file",
+        label: file.name,
+        rawText: res.rawText,
+        locator: res.locator,
+        redactions: res.redactions,
+        reused: res.reused,
+      },
+    ]);
+    return { ok: true };
+  }
+
+  function removeSource(sourceId: string) {
+    setSources((s) => s.filter((x) => x.sourceId !== sourceId));
+  }
+
   async function onSubmitDump() {
     setError(null);
     setPhase("extracting");
     startTransition(async () => {
-      const res = previewMode ? await mockExtract() : await extractMemoryProposals(text);
-      if (!res.ok) {
-        setError(res.error);
+      const collected: ProposalWithOrigin[] = [];
+
+      // Textarea content (if any) becomes its own batch with no sourceId --
+      // the text adapter's source row is created lazily on accept by passing
+      // sourceId only for the explicit URL/file sources. The textarea path
+      // already worked pre-I.20; we keep it provenance-less for now to avoid
+      // churning every existing test.
+      if (text.trim().length >= 80) {
+        const res = previewMode ? await mockExtract() : await extractMemoryProposals(text);
+        if (!res.ok) {
+          setError(res.error);
+          setPhase("dump");
+          return;
+        }
+        for (const p of res.proposals) collected.push({ ...p });
+      }
+
+      // Each attached source runs its own extract. Origin is stamped so the
+      // review step can attribute and bulk-accept can group by sourceId.
+      for (const src of sources) {
+        const res = previewMode
+          ? await mockExtract()
+          : await extractMemoryProposals(src.rawText, {
+              sourceId: src.sourceId,
+              kind: src.kind,
+              locator: src.locator,
+            });
+        if (!res.ok) {
+          setError(`Source ${src.label}: ${res.error}`);
+          setPhase("dump");
+          return;
+        }
+        for (const p of res.proposals) {
+          collected.push({
+            ...p,
+            _sourceId: src.sourceId,
+            _sourceKind: src.kind,
+            _sourceLabel: src.label,
+          });
+        }
+      }
+
+      if (collected.length === 0) {
+        setError("We couldn't find any structured items. Try adding specifics about your voice, team, or product.");
         setPhase("dump");
         return;
       }
-      if (res.proposals.length === 0) {
-        setError("We couldn't find any structured items in that. Try adding specifics about your voice, team, or product.");
-        setPhase("dump");
-        return;
-      }
-      setProposals(res.proposals);
+      setProposals(collected);
       setPhase("review");
     });
   }
 
-  async function onAcceptAll(final: Proposal[]) {
+  async function onAcceptAll(final: ProposalWithOrigin[]) {
     setError(null);
-    const res = previewMode ? await mockBulkAccept(final) : await bulkAcceptProposals(final);
-    if (!res.ok) {
-      setError(res.error);
-      return;
+    // Group by source so each call to bulkAcceptProposals can link the right
+    // memory_file_sources rows. Proposals with no _sourceId (the textarea
+    // batch) go through with sourceId undefined -- same path as pre-I.20.
+    const groups = new Map<string | undefined, ProposalWithOrigin[]>();
+    for (const p of final) {
+      const key = p._sourceId;
+      const arr = groups.get(key) ?? [];
+      arr.push(p);
+      groups.set(key, arr);
     }
+
+    let totalCreated = 0;
+    let firstId: string | null = null;
+    for (const [sourceId, batch] of groups) {
+      // Strip _ fields before sending to the server action -- it expects plain Proposals.
+      const plain: Proposal[] = batch.map(({ _sourceId, _sourceKind, _sourceLabel, ...p }) => {
+        void _sourceId; void _sourceKind; void _sourceLabel;
+        return p;
+      });
+      const res = previewMode
+        ? await mockBulkAccept(plain)
+        : await bulkAcceptProposals(plain, sourceId);
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      totalCreated += res.created;
+      firstId = firstId ?? res.firstId;
+    }
+
     setProposals(final);
-    setCreated({ count: res.created, firstId: res.firstId });
+    setCreated({ count: totalCreated, firstId });
     setPhase("done");
   }
 
@@ -148,6 +289,10 @@ export function Onboarding({ tenantSlug, previewMode = false }: { tenantSlug: st
                   onChange={setText}
                   onSubmit={onSubmitDump}
                   error={error}
+                  sources={sources}
+                  onAddUrl={addUrlSource}
+                  onAddFile={addFileSource}
+                  onRemoveSource={removeSource}
                 />
               </motion.div>
             )}
