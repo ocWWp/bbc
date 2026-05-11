@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { CommandPalette } from "@/components/command-palette";
+import { CookieBanner } from "@/components/cookie-banner";
 import Nav from "@/components/Nav";
 import "./globals.css";
 
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
           <Toaster />
           <CommandPalette />
+          <CookieBanner />
         </ThemeProvider>
       </body>
     </html>
