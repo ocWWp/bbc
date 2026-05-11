@@ -25,10 +25,16 @@ export type Database = {
         Relationships: [{ foreignKeyName: "bindings_tenant_id_fkey"; columns: ["tenant_id"]; isOneToOne: false; referencedRelation: "tenants"; referencedColumns: ["id"] }]
       }
       memory_files: {
-        Row: { content: string; created_at: string; frontmatter: Json; id: string; path: string; tenant_id: string; updated_at: string }
-        Insert: { content: string; created_at?: string; frontmatter?: Json; id?: string; path: string; tenant_id: string; updated_at?: string }
-        Update: { content?: string; created_at?: string; frontmatter?: Json; id?: string; path?: string; tenant_id?: string; updated_at?: string }
+        Row: { body_blocks: Json; content: string; created_at: string; fields: Json; frontmatter: Json; id: string; path: string; slug: string | null; status: Database["public"]["Enums"]["memory_status"]; tenant_id: string; title: string | null; type: Database["public"]["Enums"]["memory_type"] | null; updated_at: string }
+        Insert: { body_blocks?: Json; content: string; created_at?: string; fields?: Json; frontmatter?: Json; id?: string; path: string; slug?: string | null; status?: Database["public"]["Enums"]["memory_status"]; tenant_id: string; title?: string | null; type?: Database["public"]["Enums"]["memory_type"] | null; updated_at?: string }
+        Update: { body_blocks?: Json; content?: string; created_at?: string; fields?: Json; frontmatter?: Json; id?: string; path?: string; slug?: string | null; status?: Database["public"]["Enums"]["memory_status"]; tenant_id?: string; title?: string | null; type?: Database["public"]["Enums"]["memory_type"] | null; updated_at?: string }
         Relationships: [{ foreignKeyName: "memory_files_tenant_id_fkey"; columns: ["tenant_id"]; isOneToOne: false; referencedRelation: "tenants"; referencedColumns: ["id"] }]
+      }
+      memory_relations: {
+        Row: { created_at: string; created_by: string | null; dst_id: string; id: string; kind: Database["public"]["Enums"]["memory_relation_kind"]; src_id: string; tenant_id: string }
+        Insert: { created_at?: string; created_by?: string | null; dst_id: string; id?: string; kind: Database["public"]["Enums"]["memory_relation_kind"]; src_id: string; tenant_id: string }
+        Update: { created_at?: string; created_by?: string | null; dst_id?: string; id?: string; kind?: Database["public"]["Enums"]["memory_relation_kind"]; src_id?: string; tenant_id?: string }
+        Relationships: [{ foreignKeyName: "memory_relations_tenant_id_fkey"; columns: ["tenant_id"]; isOneToOne: false; referencedRelation: "tenants"; referencedColumns: ["id"] }, { foreignKeyName: "memory_relations_src_id_fkey"; columns: ["src_id"]; isOneToOne: false; referencedRelation: "memory_files"; referencedColumns: ["id"] }, { foreignKeyName: "memory_relations_dst_id_fkey"; columns: ["dst_id"]; isOneToOne: false; referencedRelation: "memory_files"; referencedColumns: ["id"] }]
       }
       operations_log: {
         Row: { action: string; actor: string; id: number; lkg_at_emit: number | null; payload: Json; state_hash: string | null; target: string | null; tenant_id: string; ts: string; v: number }
@@ -107,6 +113,9 @@ export type Database = {
     }
     Enums: {
       api_key_scope: "read" | "write" | "admin"
+      memory_relation_kind: "cites" | "supersedes" | "implements" | "exemplifies" | "owned_by"
+      memory_status: "draft" | "active" | "archived"
+      memory_type: "voice" | "decision" | "glossary" | "vendor" | "product" | "team" | "skill"
       queue_status: "pending" | "accepted" | "rejected"
       tenant_role: "admin" | "member" | "viewer"
     }
