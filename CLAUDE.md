@@ -26,6 +26,9 @@ A lower-layer document can **specialize** an upper rule (add detail, scope to a 
 | `queue/*.md` (proposal body + frontmatter fields written by `propose.sh`) | `propose.sh`, `accept.sh`, `reject.sh` only | n/a |
 | `queue/*.md` review annotation blocks (`manager_review:`, `cross_leaf_impact:`, `promotion_check:`) | Manager session | n/a — Manager appends directly per ADR-0002 |
 | `queue/_accepted/**`, `queue/_rejected/**` | `accept.sh`, `reject.sh` only — immutable once archived | n/a |
+| `ingestion_sources` rows (DB-mode, `owning_layer: manager`) | Authenticated tenant member where `created_by = auth.uid()` (insert + status updates on own rows). Cross-row policy changes via Manager session. | Distribution via `propose_change()` SQL function; see ADR-0005. |
+| `memory_file_sources` join (DB-mode) | Inherits ownership from parent `memory_files` row; member-insert when both sides are owned by the member's tenant. | n/a |
+| `external_accounts` rows (DB-mode, Phase K placeholder) | Manager session (per-tenant OAuth credential records); table created in Phase K. | n/a |
 
 ## Non-negotiable principles
 
