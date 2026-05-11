@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -81,6 +82,13 @@ export default function Scratch() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <h2 className="text-2xl font-bold mt-8">Toast</h2>
+      <div className="flex gap-2">
+        <Button onClick={() => toast.success("Proposal accepted")} variant="brain">Success</Button>
+        <Button onClick={() => toast.error("Couldn't reach Higgsfield")} variant="destructive">Error</Button>
+        <Button onClick={() => toast.info("Agent drafted 3 variants")} variant="outline">Info</Button>
+      </div>
     </div>
   );
 }
