@@ -53,6 +53,8 @@ export function DumpStep({
   const [fileBusy, setFileBusy] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [detectedUrl, setDetectedUrl] = useState<{ url: string; range: [number, number] } | null>(null);
+  const [detectBusy, setDetectBusy] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -87,6 +89,42 @@ export function DumpStep({
     } else {
       setUrlError(res.error);
     }
+  }
+
+  function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const pasted = e.clipboardData.getData("text").trim();
+    // Only react when the entire pasted blob is a single bare URL. Long
+    // copy-pastes that happen to contain a URL stay as text (the user clearly
+    // wanted prose, not a fetch).
+    if (pasted.length < 8 || pasted.length > 500) return;
+    if (!/^https?:\/\/\S+$/i.test(pasted)) return;
+    if (/\s/.test(pasted)) return;
+    // Capture where it will land so we can excise it later if user chooses Fetch.
+    const target = e.currentTarget;
+    const start = target.selectionStart;
+    const end = start + pasted.length;
+    // Defer so React's onChange has already applied the paste.
+    setTimeout(() => setDetectedUrl({ url: pasted, range: [start, end] }), 0);
+  }
+
+  async function fetchDetectedUrl() {
+    if (!detectedUrl) return;
+    setDetectBusy(true);
+    const res = await onAddUrl(detectedUrl.url);
+    setDetectBusy(false);
+    if (!res.ok) {
+      // Surface in the same place as the popover error, then keep the chip
+      // so the user can retry or dismiss.
+      setUrlError(res.error);
+      return;
+    }
+    // Excise the URL from the textarea (and the surrounding whitespace it
+    // probably landed in).
+    const [s, e] = detectedUrl.range;
+    const before = value.slice(0, s);
+    const after = value.slice(e);
+    onChange((before + after).replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim());
+    setDetectedUrl(null);
   }
 
   async function handleFiles(fileList: FileList | null) {
@@ -158,6 +196,7 @@ export function DumpStep({
             ref={ref}
             value={value}
             onChange={(e) => onChange(e.target.value)}
+            onPaste={handlePaste}
             rows={11}
             className="relative w-full resize-none rounded-xl border border-border/80 bg-card/60 px-5 py-4 text-[15px] leading-relaxed shadow-[0_0_0_1px_rgba(0,0,0,0.04),0_2px_4px_-2px_rgba(0,0,0,0.08)] backdrop-blur-sm transition-all duration-300 placeholder:text-muted-foreground/50 focus:outline-none focus:border-brain-accent/40 focus:bg-card/80 focus:shadow-[0_0_0_1px_color-mix(in_oklch,var(--brain-accent)_30%,transparent),0_8px_28px_-12px_color-mix(in_oklch,var(--brain-accent)_25%,transparent)] dark:bg-card/40 dark:focus:bg-card/60"
             aria-label="Brain dump"
@@ -179,6 +218,36 @@ export function DumpStep({
             </div>
           )}
         </motion.div>
+
+        {detectedUrl && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center justify-between gap-3 rounded-lg border border-brain-accent/30 bg-brain-accent/[0.04] px-3 py-2 text-xs"
+          >
+            <p className="min-w-0 flex-1 truncate text-foreground">
+              <span className="text-muted-foreground">Looks like a URL — </span>
+              fetch <span className="font-medium" title={detectedUrl.url}>{labelForDetectedUrl(detectedUrl.url)}</span> as a separate source?
+            </p>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setDetectedUrl(null)}
+                className="rounded-md px-2 py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                Keep as text
+              </button>
+              <button
+                type="button"
+                onClick={fetchDetectedUrl}
+                disabled={detectBusy}
+                className="rounded-md bg-brain-accent px-2.5 py-1 font-medium text-brain-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                {detectBusy ? "Fetching…" : "Fetch"}
+              </button>
+            </div>
+          </motion.div>
+        )}
 
         <motion.div
           initial={{ opacity: 0, y: 6 }}
@@ -347,6 +416,16 @@ export function DumpStep({
       <SidebarPreview />
     </section>
   );
+}
+
+function labelForDetectedUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    const path = u.pathname.length > 1 ? u.pathname.replace(/\/$/, "") : "";
+    return `${u.hostname}${path}`;
+  } catch {
+    return url.length > 40 ? `${url.slice(0, 40)}…` : url;
+  }
 }
 
 function SourceChip({ source, onRemove }: { source: SourceItem; onRemove: () => void }) {
