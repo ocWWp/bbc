@@ -10,6 +10,35 @@ import {
 } from "@/lib/memory/extractor/types";
 import { EXTRACT_PROPOSALS_TOOL, SYSTEM_PROMPT } from "@/lib/memory/extractor/prompt";
 import { supertagSchemas, type Supertag } from "@/lib/memory/types";
+import "@/lib/ingestion"; // registers text/url/file adapters on the shared registry
+import { getAdapter, type IngestionSourceKind } from "@/lib/ingestion/adapter";
+
+// PII pre-scrub: strip the most common high-severity leaks before the raw text
+// reaches the LLM extractor or the database. Patterns are intentionally tight to
+// avoid false positives -- this is a coarse net, not a comprehensive DLP.
+const PII_PATTERNS: Array<{ name: string; re: RegExp }> = [
+  { name: "openai_key", re: /\bsk-(?:proj-)?[a-zA-Z0-9_-]{40,}\b/g },
+  { name: "anthropic_key", re: /\bsk-ant-[a-zA-Z0-9_-]{40,}\b/g },
+  { name: "aws_access_key", re: /\bAKIA[0-9A-Z]{16}\b/g },
+  { name: "github_pat", re: /\bghp_[a-zA-Z0-9]{36}\b/g },
+  { name: "url_password", re: /\b(https?:\/\/[^:@\s]+):([^@\s]+)@/g },
+];
+
+function scrubPII(text: string): { scrubbed: string; redactions: Record<string, number> } {
+  const redactions: Record<string, number> = {};
+  let out = text;
+  for (const { name, re } of PII_PATTERNS) {
+    out = out.replace(re, (_match, ...groups) => {
+      redactions[name] = (redactions[name] ?? 0) + 1;
+      // url_password keeps the URL prefix so the link still parses; only the secret dies.
+      if (name === "url_password" && typeof groups[0] === "string") {
+        return `${groups[0]}:[REDACTED]@`;
+      }
+      return `[REDACTED:${name}]`;
+    });
+  }
+  return { scrubbed: out, redactions };
+}
 
 const MODEL = "claude-sonnet-4-6";
 const MAX_INPUT_CHARS = 8000;
@@ -192,4 +221,108 @@ export async function bulkAcceptProposals(
 
   revalidatePath("/memory");
   return { ok: true, created: data?.length ?? 0, firstId: data?.[0]?.id ?? null };
+}
+
+// ----------------------------------------------------------------------------
+// Phase I.20: ingestSource -- runs the adapter for one source (text/url/file),
+// scrubs PII, and inserts an ingestion_sources row. Returns the source_id and
+// the scrubbed raw text so the caller can hand it to extractMemoryProposals.
+// Idempotent: re-ingesting the same content (same kind + content_hash) returns
+// the existing source_id rather than creating a duplicate row.
+// ----------------------------------------------------------------------------
+
+export type IngestSourceInput =
+  | { kind: "text"; text: string }
+  | { kind: "url"; url: string }
+  | { kind: "file"; name: string; bytes: Uint8Array };
+
+export type IngestResult =
+  | {
+      ok: true;
+      sourceId: string;
+      kind: IngestionSourceKind;
+      rawText: string;
+      locator: Record<string, unknown>;
+      redactions: Record<string, number>;
+      reused: boolean;
+    }
+  | { ok: false; error: string };
+
+export async function ingestSource(input: IngestSourceInput): Promise<IngestResult> {
+  const a = await requireActor();
+  if (!a.ok) return { ok: false, error: "unauthorized" };
+
+  if (rateLimited(a.actor.user_id)) {
+    return { ok: false, error: "Too many ingestions — wait a moment." };
+  }
+
+  const adapter = getAdapter(input.kind);
+  if (!adapter) return { ok: false, error: `Unknown source kind: ${input.kind}` };
+
+  const result = await adapter.ingest(input);
+  if (!result.ok) return { ok: false, error: result.error };
+
+  const { scrubbed, redactions } = scrubPII(result.rawText);
+  const idempotency_key = `${input.kind}:${result.contentHash}`;
+  const supabase = await getSupabaseServerClient();
+  const tenantId = a.actor.tenant_id;
+
+  // Check for an existing source first (RLS-gated read). If found, reuse it --
+  // the user pasting the same URL twice should not log a second row.
+  const { data: existing } = await supabase
+    .from("ingestion_sources")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("idempotency_key", idempotency_key)
+    .maybeSingle();
+
+  if (existing?.id) {
+    return {
+      ok: true,
+      sourceId: existing.id,
+      kind: input.kind,
+      rawText: scrubbed,
+      locator: result.locator,
+      redactions,
+      reused: true,
+    };
+  }
+
+  const locatorWithRedactions = {
+    ...result.locator,
+    ...(Object.keys(redactions).length > 0 ? { redactions } : {}),
+  };
+
+  const { data: inserted, error: insertErr } = await supabase
+    .from("ingestion_sources")
+    .insert({
+      tenant_id: tenantId,
+      created_by: a.actor.user_id,
+      kind: input.kind,
+      status: "extracted",
+      idempotency_key,
+      locator: locatorWithRedactions,
+      content_hash: result.contentHash,
+      byte_size: result.byteSize,
+      fetched_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+
+  if (insertErr) {
+    return { ok: false, error: `Could not record source: ${insertErr.message}` };
+  }
+  if (!inserted?.id) {
+    return { ok: false, error: "Source insert returned no id." };
+  }
+
+  return {
+    ok: true,
+    sourceId: inserted.id,
+    kind: input.kind,
+    rawText: scrubbed,
+    locator: result.locator,
+    redactions,
+    reused: false,
+  };
 }
