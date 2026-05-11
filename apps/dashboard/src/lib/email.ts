@@ -116,6 +116,7 @@ import { WelcomeEmail } from "@/emails/welcome";
 import { InviteEmail } from "@/emails/invite";
 import { QueueDigestEmail } from "@/emails/queue-digest";
 import { PaywallEmail } from "@/emails/paywall";
+import { ContinueOnboardingEmail } from "@/emails/continue-onboarding";
 
 const FROM = process.env.RESEND_FROM_EMAIL || process.env.RESEND_FROM || "BBC <hello@bbc.tools>";
 
@@ -181,4 +182,19 @@ export async function sendPaywall(
     invite_needed: "Inviting teammates needs Startup",
   };
   return resend.emails.send({ from: FROM, to, subject: SUBJECTS[reason], html });
+}
+
+export async function sendContinueOnboarding(to: string, tenantSlug: string, resumeUrl: string) {
+  const resend = getResend();
+  if (!resend) {
+    console.warn("[email] RESEND_API_KEY missing — skipping continue-onboarding to", to);
+    return { skipped: true };
+  }
+  const html = await render(ContinueOnboardingEmail({ tenantSlug, resumeUrl }));
+  return resend.emails.send({
+    from: FROM,
+    to,
+    subject: "Your brain is waiting",
+    html,
+  });
 }
