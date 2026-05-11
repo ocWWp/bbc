@@ -11,6 +11,17 @@ owning_layer: main
 created: 2026-05-09T00:00:00Z
 updated: 2026-05-09T00:00:00Z
 tags: [adapter, example, hosting]
+pricing:
+  source: "manual"
+  units:
+    - { name: monthly_subscription, amount_usd: 0.00, currency: usd }
+    - { name: bandwidth_gb,         per: 1, amount_usd: 0.09, currency: usd }
+    - { name: function_invocations, per: 1000000, amount_usd: 2.00, currency: usd }
+  refresh_interval_hours: 720
+  last_verified_at: "2026-05-10"
+  sources:
+    - "https://vercel.com/pricing"
+    - "https://www.cloudflare.com/plans/developer-platform/"
 ---
 
 # Adapter: example-web-host

@@ -1,0 +1,28 @@
+{
+  "name": "@bbc/pricing",
+  "version": "0.1.0",
+  "private": true,
+  "description": "BBC pricing layer: live API + yaml-cached vendor pricing with freshness badges. Foundations for the cost-calculator UI. See docs/pricing-architecture.md.",
+  "license": "AGPL-3.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./adapters/openrouter": "./src/adapters/openrouter.ts",
+    "./adapters/manual": "./src/adapters/manual.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "type-check": "tsc --noEmit",
+    "smoke": "tsx scripts/smoke.ts"
+  },
+  "dependencies": {
+    "yaml": "^2.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

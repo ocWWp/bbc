@@ -11,6 +11,18 @@ owning_layer: main
 created: 2026-05-09T00:00:00Z
 updated: 2026-05-09T00:00:00Z
 tags: [adapter, example, db]
+pricing:
+  source: "manual"
+  units:
+    - { name: monthly_subscription, amount_usd: 0.00, currency: usd }
+    - { name: storage_gb,           per: 1, amount_usd: 0.125, currency: usd }
+    - { name: egress_gb,            per: 1, amount_usd: 0.09, currency: usd }
+  refresh_interval_hours: 720
+  last_verified_at: "2026-05-10"
+  sources:
+    - "https://supabase.com/pricing"
+    - "https://neon.tech/pricing"
+    - "https://planetscale.com/pricing"
 ---
 
 # Adapter: example-db-provider
