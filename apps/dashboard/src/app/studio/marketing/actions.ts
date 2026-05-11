@@ -1,12 +1,23 @@
 "use server";
 
 import Anthropic from "@anthropic-ai/sdk";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireActor, requireRole } from "@/lib/auth/require-user";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import { loadBrainSummary } from "@/lib/studio/brain-summary";
+import { loadBrainSummary, loadTenantMemoryIds } from "@/lib/studio/brain-summary";
 import "@/lib/studio/templates"; // registers the 10 templates on the shared registry
-import { listTemplateSummaries } from "@/lib/studio/templates/registry";
+import {
+  getTemplate,
+  listTemplateSummaries,
+} from "@/lib/studio/templates/registry";
+import type { OverrideRule } from "@/lib/studio/templates/types";
+import {
+  cleanBlockCitations,
+  EMIT_OUTPUT_TOOL_INPUT_SCHEMA,
+  emitOutputResponseSchema,
+  type OutputBlock,
+} from "@/lib/studio/output-blocks";
 
 /**
  * SECURITY:
@@ -26,8 +37,10 @@ import { listTemplateSummaries } from "@/lib/studio/templates/registry";
  */
 
 const PROPOSE_MODEL = "claude-haiku-4-5-20251001";
+const RUN_MODEL = "claude-sonnet-4-6";
 const MAX_TASK_LEN = 500;
 const MIN_TASK_LEN = 8;
+const MAX_ACTIVE_OVERRIDES = 10;
 
 const proposeRateLimits = new Map<string, number[]>();
 function proposeRateLimited(userId: string): boolean {
@@ -201,4 +214,256 @@ export async function proposeWorkflows(task: string): Promise<ProposeWorkflowsRe
   }
 
   return { ok: true, candidates };
+}
+
+// ----------------------------------------------------------------------------
+// runWorkflow -- executes one template against the user's task + inputs.
+// ----------------------------------------------------------------------------
+
+export type RunWorkflowResult =
+  | {
+      ok: true;
+      runId: string;
+      blocks: OutputBlock[];
+      citedMemoryIds: string[];
+      droppedCitationCount: number;
+    }
+  | { ok: false; error: string };
+
+const runRateLimits = new Map<string, number[]>();
+function runRateLimited(userId: string): boolean {
+  const now = Date.now();
+  const window = 60_000;
+  const max = 6;
+  const arr = (runRateLimits.get(userId) ?? []).filter((t) => now - t < window);
+  if (arr.length >= max) {
+    runRateLimits.set(userId, arr);
+    return true;
+  }
+  arr.push(now);
+  runRateLimits.set(userId, arr);
+  return false;
+}
+
+const EMIT_OUTPUT_TOOL = {
+  name: "emit_output_blocks",
+  description:
+    "Return the generated content as an array of typed output blocks plus the set of memory ids you cited inline. Use the exact block kinds listed in the schema.",
+  input_schema: EMIT_OUTPUT_TOOL_INPUT_SCHEMA,
+};
+
+const inputsRecordSchema = z.record(z.string(), z.string().max(2000));
+
+export async function runWorkflow(
+  templateId: string,
+  task: string,
+  inputs: Record<string, string>,
+): Promise<RunWorkflowResult> {
+  const a = await requireActor();
+  if (!a.ok) return { ok: false, error: a.output };
+  const r = requireRole(a.actor, "member");
+  if (!r.ok) return { ok: false, error: r.output };
+
+  if (runRateLimited(a.actor.user_id)) {
+    return { ok: false, error: "Too many runs -- wait a moment and try again." };
+  }
+
+  const template = getTemplate(templateId);
+  if (!template) return { ok: false, error: `Unknown template: ${templateId}` };
+
+  const trimmed = (task ?? "").trim();
+  if (trimmed.length < MIN_TASK_LEN) {
+    return { ok: false, error: `Describe the task in at least ${MIN_TASK_LEN} characters.` };
+  }
+  if (trimmed.length > MAX_TASK_LEN) {
+    return { ok: false, error: `Task too long -- keep it under ${MAX_TASK_LEN} characters.` };
+  }
+
+  const inputsParsed = inputsRecordSchema.safeParse(inputs ?? {});
+  if (!inputsParsed.success) {
+    return { ok: false, error: "Invalid inputs shape." };
+  }
+
+  // Enforce required first-use inputs server-side. UI also validates, but
+  // never trust the client.
+  for (const fi of template.firstUseInputs) {
+    if (fi.required && !inputsParsed.data[fi.id]) {
+      return { ok: false, error: `Missing required input: ${fi.label}` };
+    }
+  }
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return { ok: false, error: "Server missing ANTHROPIC_API_KEY. Ask your admin." };
+  }
+
+  const supabase = await getSupabaseServerClient();
+  const tenantId = a.actor.tenant_id;
+
+  const [brain, knownMemoryIds, overrides] = await Promise.all([
+    loadBrainSummary(supabase, tenantId),
+    loadTenantMemoryIds(supabase, tenantId),
+    loadActiveOverrides(supabase, tenantId, templateId),
+  ]);
+
+  const prompt = template.buildPrompt({
+    task: trimmed,
+    brain,
+    inputs: inputsParsed.data,
+    overrides,
+  });
+
+  const system =
+    "You are BBC's marketing copy generator. Generate content that is in the founder's voice (per the prompt) and grounded in the brain (cite real memory ids only). Never invent facts. Return via the emit_output_blocks tool only.";
+
+  const client = new Anthropic({ apiKey });
+
+  let resp: Anthropic.Messages.Message;
+  try {
+    resp = await client.messages.create({
+      model: RUN_MODEL,
+      max_tokens: 4096,
+      system,
+      tools: [EMIT_OUTPUT_TOOL],
+      tool_choice: { type: "tool", name: EMIT_OUTPUT_TOOL.name },
+      messages: [{ role: "user", content: prompt }],
+    });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "unknown";
+    await insertErroredRun(supabase, {
+      tenantId,
+      userId: a.actor.user_id,
+      templateId,
+      task: trimmed,
+      inputs: inputsParsed.data,
+      errorMessage: `LLM call failed: ${message}`,
+    });
+    return { ok: false, error: `Generator failed: ${message}` };
+  }
+
+  const toolUse = resp.content.find((c) => c.type === "tool_use");
+  if (!toolUse || toolUse.type !== "tool_use") {
+    return { ok: false, error: "Generator returned no structured output." };
+  }
+
+  const parsed = emitOutputResponseSchema.safeParse(toolUse.input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: `Generator returned invalid shape: ${parsed.error.issues[0]?.message ?? "unknown"}`,
+    };
+  }
+
+  // Strip citations that point at memory not owned by this tenant. Also strip
+  // claimed cited_memory_ids that aren't in the tenant's brain. Both are
+  // defense in depth -- the LLM operates only on the brain summary we passed
+  // so cross-tenant references shouldn't occur, but we don't trust that.
+  let droppedCount = 0;
+  const cleanedBlocks: OutputBlock[] = parsed.data.blocks.map((b) => {
+    const { block, stripped } = cleanBlockCitations(b, knownMemoryIds);
+    droppedCount += stripped;
+    return block;
+  });
+  const validCitedIds = parsed.data.cited_memory_ids.filter((id) => knownMemoryIds.has(id));
+  const droppedIdsCount = parsed.data.cited_memory_ids.length - validCitedIds.length;
+  if (droppedCount > 0 || droppedIdsCount > 0) {
+    console.warn(
+      `studio.runWorkflow: stripped ${droppedCount} inline citations + ${droppedIdsCount} ids (tenant=${tenantId}, template=${templateId})`,
+    );
+  }
+
+  const insertPayload = {
+    tenant_id: tenantId,
+    created_by: a.actor.user_id,
+    template_id: templateId,
+    task: trimmed,
+    inputs: inputsParsed.data,
+    output_blocks: cleanedBlocks,
+    cited_memory_ids: validCitedIds,
+    status: "pending_review" as const,
+    completed_at: new Date().toISOString(),
+  };
+
+  const { data: inserted, error: insertErr } = await supabase
+    .from("studio_runs")
+    .insert(insertPayload)
+    .select("id")
+    .single();
+
+  if (insertErr || !inserted) {
+    return {
+      ok: false,
+      error: `Could not save run: ${insertErr?.message ?? "unknown"}`,
+    };
+  }
+
+  revalidatePath("/studio/marketing");
+
+  return {
+    ok: true,
+    runId: (inserted as { id: string }).id,
+    blocks: cleanedBlocks,
+    citedMemoryIds: validCitedIds,
+    droppedCitationCount: droppedCount + droppedIdsCount,
+  };
+}
+
+// ----------------------------------------------------------------------------
+// Helpers
+// ----------------------------------------------------------------------------
+
+type SupabaseClient = Awaited<ReturnType<typeof getSupabaseServerClient>>;
+
+async function loadActiveOverrides(
+  supabase: SupabaseClient,
+  tenantId: string,
+  templateId: string,
+): Promise<OverrideRule[]> {
+  const { data } = await supabase
+    .from("studio_template_overrides")
+    .select("id, kind, value, summary")
+    .eq("tenant_id", tenantId)
+    .eq("template_id", templateId)
+    .eq("active", true)
+    .order("created_at", { ascending: true })
+    .limit(MAX_ACTIVE_OVERRIDES);
+
+  type OverrideRow = {
+    id: string;
+    kind: OverrideRule["kind"];
+    value: Record<string, unknown> | null;
+    summary: string | null;
+  };
+  const rows = (data ?? []) as unknown as OverrideRow[];
+  return rows.map((r) => ({
+    id: r.id,
+    kind: r.kind,
+    value: r.value ?? {},
+    summary: r.summary ?? "",
+  }));
+}
+
+async function insertErroredRun(
+  supabase: SupabaseClient,
+  args: {
+    tenantId: string;
+    userId: string;
+    templateId: string;
+    task: string;
+    inputs: Record<string, string>;
+    errorMessage: string;
+  },
+): Promise<void> {
+  await supabase.from("studio_runs").insert({
+    tenant_id: args.tenantId,
+    created_by: args.userId,
+    template_id: args.templateId,
+    task: args.task,
+    inputs: args.inputs,
+    output_blocks: [],
+    cited_memory_ids: [],
+    status: "error" as const,
+    error_message: args.errorMessage,
+    completed_at: new Date().toISOString(),
+  });
 }
