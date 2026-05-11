@@ -22,6 +22,7 @@ export default async function Nav() {
     <nav className="top">
       <span className="brand">BBC · dashboard</span>
       <Link href="/">overview</Link>
+      <Link href="/memory">memory</Link>
       <Link href="/queue">queue</Link>
       <Link href="/skills">skills</Link>
       <Link href="/graph">graph</Link>

@@ -1,0 +1,36 @@
+---
+id: skill_marketing-pr-review
+skill_id: marketing.pr-review
+type: skill
+extends: general.pr-review
+contract_version: 1
+scope: leaf:8azi-market
+layer: distribution
+owning_layer: distribution
+created: 2026-05-08T00:00:00Z
+updated: 2026-05-08T00:00:00Z
+status: accepted
+tags: [skill, review, marketing]
+---
+
+# Skill: marketing.pr-review
+
+Inherits from `general.pr-review`. Specializes voice + adds marketing-specific rules.
+
+## Inherits
+
+- inputs, outputs, preconditions: from general.pr-review (transitively from review-skill).
+
+## Overrides
+
+voice: warm-mystical                         # cite memory/design/voice-tone.md
+rules:
+  add:
+    - "Reject if marketing copy violates voice rules in memory/design/voice-tone.md"
+    - "Reject if copy contains corporate hedging ('we believe', 'studies show')"
+    - "Approve only if copy speaks in second person ('you', not 'users')"
+  keep_from_parent: true
+
+## Body addendum
+
+When generating rationale for a marketing PR, render in warm-mystical voice. All other behavior identical to `general.pr-review`. The verdict thresholds (critical → reject; high → changes_requested without signoff) are inherited unchanged.

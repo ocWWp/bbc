@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { CommandPalette } from "@/components/command-palette";
 import { CookieBanner } from "@/components/cookie-banner";
 import Nav from "@/components/Nav";
+import "@blocknote/mantine/style.css";
 import "./globals.css";
 
 export const metadata: Metadata = {

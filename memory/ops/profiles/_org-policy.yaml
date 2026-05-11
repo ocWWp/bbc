@@ -1,0 +1,46 @@
+---
+id: profile_org-policy
+profile_id: _org-policy
+type: ranker-profile
+scope: org
+applies_to:
+  leaves: ["*"]
+  task_classes: ["*"]
+contract_version: 1
+status: accepted
+layer: main
+owning_layer: main
+created: 2026-05-08T00:00:00Z
+updated: 2026-05-08T00:00:00Z
+tags: [profile, org-policy, hard-constraints]
+---
+
+# Profile: _org-policy (organization-wide hard constraints)
+
+Inherited by every other profile. These constraints CANNOT be relaxed at a child profile.
+
+## Hard constraints (org-wide; non-negotiable)
+
+- max_cost_per_call_usd: null              # no org-wide ceiling; per-task profiles set this
+- min_content_filter: required-and-public  # any provider serving user-facing content must publish a content policy URL over HTTPS
+- data_residency_in: [us, eu]              # no providers hosting user PII outside US/EU
+- max_latency_p95_ms: 60000                # 60s ceiling — no provider that takes longer than a minute can win, period
+- banned_providers: []                     # populate as policy demands
+
+## Trust signal weights (default; profiles may rebalance)
+
+trust_weights:
+  alpha_stability: 0.35   # public statuspage signal + manual incident log
+  beta_outcome: 0.40      # internal success rate × usage count, windowed
+  gamma_external: 0.10    # third-party reviews, GitHub stars (most gameable)
+  delta_declared: 0.15    # vendor's own SLAs and metrics (sanity check)
+
+## Cold-start fallback
+
+When `outcome_signal` lacks data (insufficient calls in window), beta_outcome's weight redistributes to alpha_stability and delta_declared proportionally. Warning surfaced in pick_trace.
+
+## Notes
+
+- Child profiles inherit ALL hard constraints. They can only ADD constraints, never remove or relax org-wide ones.
+- Soft preferences (preferred_providers, region_preference, vibe_descriptors) are NOT inherited; each profile sets its own.
+- Ranker weights ARE inherited unless explicitly overridden.
