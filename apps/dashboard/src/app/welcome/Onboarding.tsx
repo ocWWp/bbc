@@ -17,7 +17,50 @@ type Phase = "dump" | "extracting" | "review" | "done";
 
 const phaseOrder: Phase[] = ["dump", "extracting", "review", "done"];
 
-export function Onboarding({ tenantSlug }: { tenantSlug: string }) {
+const MOCK_PROPOSALS: Proposal[] = [
+  {
+    type: "product",
+    title: "Developer tools for AI-native founders",
+    fields: { positioning: "Memory layer for AI agents", target_user: "Early-stage AI founders", competitors: ["Mem0", "Letta"], differentiators: ["Typed supertags", "Auditable proposal queue"] },
+    body: "We're building a shared brain for founders and the AI agents working on their product.",
+  },
+  {
+    type: "voice",
+    title: "Direct, lowercase, no jargon",
+    fields: { register: "casual", do_words: ["ship", "compound", "durable"], dont_words: ["leverage", "synergy", "seamless"], example_phrases: ["this is the shape", "what would 10x feel like"] },
+    body: "Our voice is direct and lowercase. We never use the word 'leverage' or 'synergy'.",
+  },
+  {
+    type: "decision",
+    title: "SaaS-only, no on-prem",
+    fields: { status: "accepted", date: "2026-05-01", context: "Repeated asks for self-hosted on-prem from enterprise prospects.", decision: "Stay SaaS-only for v1.0. Revisit at $1M ARR.", consequences: "Easier to ship, lose 2-3 enterprise leads. Acceptable cost for speed." },
+    body: "We decided to stay SaaS-only for v1.0 — easier to ship, acceptable cost on lost enterprise leads.",
+  },
+  {
+    type: "team",
+    title: "Sarah",
+    fields: { name: "Sarah", role: "Product", email: "" },
+    body: "Sarah owns the product roadmap and the design system.",
+  },
+  {
+    type: "vendor",
+    title: "Supabase",
+    fields: { vendor_name: "Supabase", role: "db-provider", status: "active", homepage: "https://supabase.com" },
+    body: "Supabase is our database. Picked it for Row-Level Security + auth in one product.",
+  },
+];
+
+async function mockExtract(): Promise<{ ok: true; proposals: Proposal[] } | { ok: false; error: string }> {
+  await new Promise((r) => setTimeout(r, 5800));
+  return { ok: true, proposals: MOCK_PROPOSALS };
+}
+
+async function mockBulkAccept(proposals: Proposal[]): Promise<{ ok: true; created: number; firstId: string | null } | { ok: false; error: string }> {
+  await new Promise((r) => setTimeout(r, 600));
+  return { ok: true, created: proposals.length, firstId: null };
+}
+
+export function Onboarding({ tenantSlug, previewMode = false }: { tenantSlug: string; previewMode?: boolean }) {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("dump");
   const [text, setText] = useState("");
@@ -37,7 +80,7 @@ export function Onboarding({ tenantSlug }: { tenantSlug: string }) {
     setError(null);
     setPhase("extracting");
     startTransition(async () => {
-      const res = await extractMemoryProposals(text);
+      const res = previewMode ? await mockExtract() : await extractMemoryProposals(text);
       if (!res.ok) {
         setError(res.error);
         setPhase("dump");
@@ -55,7 +98,7 @@ export function Onboarding({ tenantSlug }: { tenantSlug: string }) {
 
   async function onAcceptAll(final: Proposal[]) {
     setError(null);
-    const res = await bulkAcceptProposals(final);
+    const res = previewMode ? await mockBulkAccept(final) : await bulkAcceptProposals(final);
     if (!res.ok) {
       setError(res.error);
       return;
