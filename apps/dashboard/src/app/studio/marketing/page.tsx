@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireActor } from "@/lib/auth/require-user";
 import "@/lib/studio/templates"; // side-effect registration
+import { listClientTemplates } from "@/lib/studio/templates/registry";
 
 import StudioClient from "./StudioClient";
 
@@ -13,6 +14,12 @@ export default async function MarketingStudioPage() {
   if (!a.ok) {
     redirect(`/auth/sign-in?next=${encodeURIComponent("/studio/marketing")}`);
   }
+
+  const templates = listClientTemplates();
+  const authorHint = {
+    name: a.actor.identifier,
+    handle: a.actor.identifier.replace(/[^a-z0-9]+/gi, "").toLowerCase().slice(0, 16),
+  };
 
   return (
     <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-12">
@@ -30,7 +37,7 @@ export default async function MarketingStudioPage() {
         </p>
       </header>
 
-      <StudioClient />
+      <StudioClient templates={templates} authorHint={authorHint} />
     </main>
   );
 }

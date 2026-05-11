@@ -30,3 +30,24 @@ export function listTemplateSummaries(): Array<{
     kind: t.kind,
   }));
 }
+
+// Client-safe summary including the firstUseInputs spec. Used by the Studio
+// route to render the mini-onboarding form without shipping buildPrompt
+// (server-only logic) over the wire.
+export type ClientTemplate = {
+  id: string;
+  label: string;
+  hint: string;
+  kind: Template["kind"];
+  firstUseInputs: Template["firstUseInputs"];
+};
+
+export function listClientTemplates(): ClientTemplate[] {
+  return [...registry.values()].map((t) => ({
+    id: t.id,
+    label: t.label,
+    hint: t.hint,
+    kind: t.kind,
+    firstUseInputs: t.firstUseInputs,
+  }));
+}

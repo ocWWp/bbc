@@ -220,12 +220,19 @@ export async function proposeWorkflows(task: string): Promise<ProposeWorkflowsRe
 // runWorkflow -- executes one template against the user's task + inputs.
 // ----------------------------------------------------------------------------
 
+export type CitedMemoryRef = {
+  id: string;
+  title: string;
+  type: string | null;
+};
+
 export type RunWorkflowResult =
   | {
       ok: true;
       runId: string;
       blocks: OutputBlock[];
       citedMemoryIds: string[];
+      citedMemories: CitedMemoryRef[];
       droppedCitationCount: number;
     }
   | { ok: false; error: string };
@@ -399,11 +406,28 @@ export async function runWorkflow(
 
   revalidatePath("/studio/marketing");
 
+  // Hydrate cited memory titles for the citation strip. We already validated
+  // every id belongs to the tenant, so this query is bounded + safe.
+  let citedMemories: CitedMemoryRef[] = [];
+  if (validCitedIds.length > 0) {
+    const { data: titleRows } = await supabase
+      .from("memory_files")
+      .select("id, title, type")
+      .in("id", validCitedIds);
+    type TitleRow = { id: string; title: string | null; type: string | null };
+    citedMemories = ((titleRows ?? []) as TitleRow[]).map((r) => ({
+      id: r.id,
+      title: (r.title ?? "").trim() || "untitled",
+      type: r.type ?? null,
+    }));
+  }
+
   return {
     ok: true,
     runId: (inserted as { id: string }).id,
     blocks: cleanedBlocks,
     citedMemoryIds: validCitedIds,
+    citedMemories,
     droppedCitationCount: droppedCount + droppedIdsCount,
   };
 }
