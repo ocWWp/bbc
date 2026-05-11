@@ -18,14 +18,18 @@ import {
 } from "react";
 import { Button } from "@/components/ui/button";
 import { OutputBlocks, type CitedMemory } from "@/components/studio/OutputBlocks";
+import { EditWorkflowChat } from "@/components/studio/EditWorkflowChat";
 import type { OutputBlock } from "@/lib/studio/output-blocks";
 import type { ClientTemplate } from "@/lib/studio/templates/registry";
 import type { FirstUseInput } from "@/lib/studio/templates/types";
 import {
   acceptStudioRun,
+  deactivateStudioOverride,
+  listActiveOverrides,
   proposeWorkflows,
   rejectStudioRun,
   runWorkflow,
+  type ActiveOverrideSummary,
   type TemplateProposal,
 } from "./actions";
 
@@ -274,7 +278,9 @@ export default function StudioClient({ templates, authorHint, recentRuns = [] }:
             candidate={stage.candidate}
             template={templatesById.get(stage.candidate.templateId)}
             initialInputs={stage.inputs}
-            onBack={() => setStage({ kind: "picking", task: stage.task, candidates: [stage.candidate] })}
+            onBack={() =>
+              setStage({ kind: "picking", task: stage.task, candidates: [stage.candidate] })
+            }
             onRun={handleRun}
             disabled={isPending}
           />
@@ -294,6 +300,9 @@ export default function StudioClient({ templates, authorHint, recentRuns = [] }:
             onReject={handleReject}
             onStartOver={handleStartOver}
             disabled={isPending}
+            templateId={stage.candidate.templateId}
+            templateLabel={stage.candidate.label}
+            runId={stage.runId}
           />
         ) : null}
       </div>
@@ -488,12 +497,15 @@ function ConfigureStage({
 
   return (
     <section className="space-y-5">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-[11px] font-medium tracking-[0.16em] uppercase text-muted-foreground">
             Picked
           </div>
-          <div className="mt-1 text-xl font-semibold tracking-tight">{candidate.label}</div>
+          <div className="mt-1 flex items-center gap-2 flex-wrap">
+            <span className="text-xl font-semibold tracking-tight">{candidate.label}</span>
+            <ActiveOverridesPill templateId={candidate.templateId} />
+          </div>
         </div>
         <Button variant="ghost" size="sm" onClick={onBack}>
           ← Pick again
@@ -614,6 +626,9 @@ function ReviewStage({
   onReject,
   onStartOver,
   disabled,
+  templateId,
+  templateLabel,
+  runId,
 }: {
   blocks: OutputBlock[];
   citedMemories: CitedMemory[];
@@ -623,11 +638,21 @@ function ReviewStage({
   onReject: () => void;
   onStartOver: () => void;
   disabled: boolean;
+  templateId: string;
+  templateLabel: string;
+  runId: string;
 }) {
   return (
     <section>
-      <div className="text-xs font-semibold tracking-[0.16em] uppercase text-muted-foreground mb-4">
-        Output
+      <div className="flex items-center justify-between mb-4">
+        <div className="text-xs font-semibold tracking-[0.16em] uppercase text-muted-foreground">
+          Output
+        </div>
+        <EditWorkflowChat
+          templateId={templateId}
+          templateLabel={templateLabel}
+          sourceRunId={runId}
+        />
       </div>
       <OutputBlocks blocks={blocks} citedMemories={citedMemories} authorHint={authorHint} />
 
@@ -659,6 +684,78 @@ function ReviewStage({
         </div>
       </div>
     </section>
+  );
+}
+
+// ---------- Active overrides pill ----------
+
+function ActiveOverridesPill({ templateId }: { templateId: string }) {
+  const [overrides, setOverrides] = useState<ActiveOverrideSummary[] | null>(null);
+  const [open, setOpen] = useState(false);
+  const [, startTransition] = useTransition();
+
+  const load = useCallback(() => {
+    startTransition(async () => {
+      const res = await listActiveOverrides(templateId);
+      setOverrides(res.ok ? res.overrides : []);
+    });
+  }, [templateId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const handleDeactivate = useCallback(
+    (id: string) => {
+      startTransition(async () => {
+        const res = await deactivateStudioOverride(id);
+        if (res.ok) {
+          setOverrides((prev) => (prev ?? []).filter((o) => o.id !== id));
+        }
+      });
+    },
+    [],
+  );
+
+  if (!overrides || overrides.length === 0) return null;
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex items-center gap-1.5 rounded-full border border-studio-accent/40 bg-studio-accent/10 px-2.5 py-0.5 text-[11px] font-semibold text-studio-accent hover:bg-studio-accent/20 transition-colors"
+        aria-expanded={open}
+      >
+        <span className="size-1.5 rounded-full bg-studio-accent" />
+        {overrides.length} customization{overrides.length === 1 ? "" : "s"}
+      </button>
+      {open ? (
+        <div className="absolute z-20 mt-2 w-[320px] rounded-xl border bg-popover text-popover-foreground shadow-lg p-2 left-0">
+          <ul className="divide-y">
+            {overrides.map((o) => (
+              <li key={o.id} className="py-2 px-1 flex items-start gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                    {o.kind.replace(/_/g, " ")}
+                  </div>
+                  <div className="text-[13px] leading-snug">{o.summary}</div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => handleDeactivate(o.id)}
+                  aria-label="Deactivate customization"
+                  title="Deactivate"
+                >
+                  ✕
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
