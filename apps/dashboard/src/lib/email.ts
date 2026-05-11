@@ -108,3 +108,77 @@ export function invitationEmailText(a: InvitationEmailArgs): string {
     `BBC · github.com/ZethT/bbc`,
   ].join("\n");
 }
+
+// ---------- React Email template senders (Phase G) ----------
+
+import { render } from "@react-email/render";
+import { WelcomeEmail } from "@/emails/welcome";
+import { InviteEmail } from "@/emails/invite";
+import { QueueDigestEmail } from "@/emails/queue-digest";
+import { PaywallEmail } from "@/emails/paywall";
+
+const FROM = process.env.RESEND_FROM_EMAIL || process.env.RESEND_FROM || "BBC <hello@bbc.tools>";
+
+function getResend() {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return null;
+  return new Resend(key);
+}
+
+export async function sendWelcome(to: string, founderName: string | undefined, dashboardUrl: string) {
+  const resend = getResend();
+  if (!resend) {
+    console.warn("[email] RESEND_API_KEY missing — skipping welcome to", to);
+    return { skipped: true };
+  }
+  const html = await render(WelcomeEmail({ founderName, dashboardUrl }));
+  return resend.emails.send({ from: FROM, to, subject: "Welcome to BBC", html });
+}
+
+export async function sendInvite(to: string, inviterName: string, tenantName: string, role: string, acceptUrl: string) {
+  const resend = getResend();
+  if (!resend) {
+    console.warn("[email] RESEND_API_KEY missing — skipping invite to", to);
+    return { skipped: true };
+  }
+  const html = await render(InviteEmail({ inviterName, tenantName, role, acceptUrl }));
+  return resend.emails.send({ from: FROM, to, subject: `${inviterName} invited you to ${tenantName}`, html });
+}
+
+export async function sendQueueDigest(
+  to: string,
+  founderName: string | undefined,
+  pendingCount: number,
+  topItems: Array<{ title: string; type: string }>,
+  dashboardUrl: string,
+) {
+  const resend = getResend();
+  if (!resend) {
+    console.warn("[email] RESEND_API_KEY missing — skipping digest to", to);
+    return { skipped: true };
+  }
+  const html = await render(QueueDigestEmail({ founderName, pendingCount, topItems, dashboardUrl }));
+  const subject = `${pendingCount} ${pendingCount === 1 ? "proposal" : "proposals"} waiting in BBC`;
+  return resend.emails.send({ from: FROM, to, subject, html });
+}
+
+export async function sendPaywall(
+  to: string,
+  founderName: string | undefined,
+  reason: "credits_exhausted" | "brain_items_limit" | "mcp_write_needed" | "invite_needed",
+  upgradeUrl: string,
+) {
+  const resend = getResend();
+  if (!resend) {
+    console.warn("[email] RESEND_API_KEY missing — skipping paywall to", to);
+    return { skipped: true };
+  }
+  const html = await render(PaywallEmail({ founderName, reason, upgradeUrl }));
+  const SUBJECTS = {
+    credits_exhausted: "You're out of credits this month",
+    brain_items_limit: "Your brain is filling up",
+    mcp_write_needed: "MCP write is on Solo Founder",
+    invite_needed: "Inviting teammates needs Startup",
+  };
+  return resend.emails.send({ from: FROM, to, subject: SUBJECTS[reason], html });
+}
