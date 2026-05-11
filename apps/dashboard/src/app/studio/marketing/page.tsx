@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 export default async function MarketingStudioPage() {
   const a = await requireActor();
   if (!a.ok) {
-    redirect(`/auth/sign-in?next=${encodeURIComponent("/studio/marketing")}`);
+    redirect(`/auth/signin?callbackUrl=${encodeURIComponent("/studio/marketing")}`);
   }
 
   const templates = listClientTemplates();
