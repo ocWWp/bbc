@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Scratch() {
   return (
@@ -34,6 +35,34 @@ export default function Scratch() {
           <Label htmlFor="disabled-input">Disabled</Label>
           <Input id="disabled-input" disabled value="Can't edit this" readOnly />
         </div>
+      </div>
+
+      <h2 className="text-2xl font-bold mt-8">Card</h2>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Brain item</CardTitle>
+            <CardDescription>Type: Decision · Updated 2 days ago</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm">Use Postgres for primary database.</p>
+          </CardContent>
+          <CardFooter>
+            <Button variant="brain" size="sm">Open</Button>
+          </CardFooter>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Workflow proposal</CardTitle>
+            <CardDescription>Cross-platform campaign</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm">3 X posts + 1 LinkedIn + 1 Threads</p>
+          </CardContent>
+          <CardFooter>
+            <Button variant="studio" size="sm">Run →</Button>
+          </CardFooter>
+        </Card>
       </div>
     </div>
   );
