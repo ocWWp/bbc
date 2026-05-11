@@ -29,6 +29,8 @@ A lower-layer document can **specialize** an upper rule (add detail, scope to a 
 | `ingestion_sources` rows (DB-mode, `owning_layer: manager`) | Authenticated tenant member where `created_by = auth.uid()` (insert + status updates on own rows). Cross-row policy changes via Manager session. | Distribution via `propose_change()` SQL function; see ADR-0005. |
 | `memory_file_sources` join (DB-mode) | Inherits ownership from parent `memory_files` row; member-insert when both sides are owned by the member's tenant. | n/a |
 | `external_accounts` rows (DB-mode, Phase K placeholder) | Manager session (per-tenant OAuth credential records); table created in Phase K. | n/a |
+| `studio_runs` rows (DB-mode) | Authenticated tenant member where `created_by = auth.uid()` (insert + status updates on own rows). | n/a — Studio runs are generated content, not memory; no cross-tenant propose path. See ADR-0006. |
+| `studio_template_overrides` rows (DB-mode) | Authenticated tenant member where `created_by = auth.uid()` (insert + soft-delete via `active=false`). Conversational override creation is server-side only. | n/a |
 
 ## Non-negotiable principles
 
