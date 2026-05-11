@@ -40,15 +40,19 @@ Without Supabase configured, sign-in won't work — you'll just see redirects to
 
 ## Supabase setup (one-time)
 
+> **Coming soon:** `pnpm bbc setup` — an interactive bootstrap script that walks through these steps, opens browser tabs at the right pages, runs migrations, and writes `.env.local`. Until then, this is the manual sequence.
+
 1. Create a Supabase project (free tier is fine for dev).
-2. Apply migrations in order: `apps/dashboard/supabase/migrations/0001_*.sql` through `0013_api_keys.sql`. Easiest: `supabase db push` from the project root after `supabase link`.
+2. Apply migrations in order: every file under `apps/dashboard/supabase/migrations/` (currently 20 migrations: `0001_*.sql` through `0016_role_templates.sql`). Easiest: `supabase db push` from the project root after `supabase link`.
 3. Copy `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` from Project Settings → API into `apps/dashboard/.env.local`.
-4. Copy the `service_role` key into `apps/dashboard/.env.local` as `SUPABASE_SERVICE_ROLE_KEY`. Server-only — never expose to the client.
+4. Copy the `service_role` key (or new `sb_secret_…`) into `apps/dashboard/.env.local` as `SUPABASE_SERVICE_ROLE_KEY`. Server-only — never expose to the client.
 5. Configure Auth Providers (Authentication → Providers in Supabase dashboard):
    - **Email**: enable. Keep "Enable signups" ON so the invitation trigger can return clean errors.
-   - **GitHub OAuth** (optional): register an OAuth app with callback `https://<project-ref>.supabase.co/auth/v1/callback`, paste Client ID + Secret.
-   - **Google OAuth** (optional): same, in Google Cloud Console.
+   - **GitHub OAuth** (optional): register an OAuth app at https://github.com/settings/developers with callback `https://<project-ref>.supabase.co/auth/v1/callback`, paste Client ID + Secret. Then add `BBC_OAUTH_PROVIDERS=github` to `.env.local` so the button renders.
+   - **Google OAuth** (optional): same, in Google Cloud Console. Add `google` to `BBC_OAUTH_PROVIDERS`.
 6. URL Configuration → Site URL: `http://localhost:3000`. Add `http://localhost:3000/auth/callback` to additional redirect URLs.
+
+> **Note:** OAuth credentials live in *your* Supabase project, not in the BBC repo. Cloning BBC doesn't share login. Each self-hoster registers their own OAuth app pointing at their own Supabase callback. (The hosted bbc.tools service shares one central OAuth app on behalf of all hosted tenants.)
 
 You're now ready to bootstrap your first tenant.
 
@@ -192,9 +196,10 @@ The `dashboard` service builds from `apps/dashboard/Dockerfile` (multi-stage Nod
 
 ## What's still missing
 
+- **`pnpm bbc setup` interactive bootstrap** — automates the 6-step Supabase setup above (next on the build list).
+- **`/onboarding/services` cost calculator** — vendor picker per role with live pricing, sums total monthly cost. See [`docs/pricing-architecture.md`](./pricing-architecture.md) for the strategy.
 - **Welcome tour first-visit auto-redirect** — page exists but nothing routes new users there from `/`. Needs a `welcomed_at` profile column for server-side detection.
-- **Self-serve signup auto-confirm** — when running without SMTP, signup completes but user can't sign in until manually confirmed in Supabase Studio. Add a `BBC_SIGNUP_AUTOCONFIRM` toggle.
-- **Stripe billing UI** (Phase 8 of the productization roadmap).
-- **`bbc-cli` for self-host bootstrapping** (`bbc-cli init my-team` mentioned in `examples/example-tenant/README.md`).
+- **Stripe billing UI** for the hosted (DB-mode) deployment.
+- **`bbc-cli import`** — serializes a file-mode tenant repo into DB-mode tenant rows for users migrating self-host → hosted.
 
 If you find yourself doing something that *should* be in the dashboard but isn't yet, file an issue.

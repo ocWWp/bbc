@@ -11,6 +11,19 @@ owning_layer: main
 created: 2026-05-09T00:00:00Z
 updated: 2026-05-09T00:00:00Z
 tags: [adapter, example, llm]
+pricing:
+  source: "openrouter:anthropic/claude-sonnet-4.5"
+  units:
+    - { name: input_tokens,  per: 1000000, currency: usd }
+    - { name: output_tokens, per: 1000000, currency: usd }
+  refresh_interval_hours: 24
+  fallback_amount_usd:
+    input_tokens: 3.00
+    output_tokens: 15.00
+  last_verified_at: "2026-05-10"
+  sources:
+    - "https://openrouter.ai/anthropic/claude-sonnet-4.5"
+    - "https://www.anthropic.com/pricing"
 ---
 
 # Adapter: example-llm-provider

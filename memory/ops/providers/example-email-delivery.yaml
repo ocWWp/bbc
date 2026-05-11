@@ -11,6 +11,16 @@ owning_layer: main
 created: 2026-05-09T00:00:00Z
 updated: 2026-05-09T00:00:00Z
 tags: [adapter, example, email]
+pricing:
+  source: "manual"
+  units:
+    - { name: emails_sent,     per: 1000, amount_usd: 1.00, currency: usd }
+    - { name: monthly_minimum, amount_usd: 0.00, currency: usd }
+  refresh_interval_hours: 720
+  last_verified_at: "2026-05-10"
+  sources:
+    - "https://resend.com/pricing"
+    - "https://postmarkapp.com/pricing"
 ---
 
 # Adapter: example-email-delivery
