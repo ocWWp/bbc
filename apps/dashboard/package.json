@@ -8,7 +8,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "db:seed-example-tenant": "tsx scripts/seed-example-tenant.ts"
   },
   "dependencies": {
     "@bbc/store": "workspace:*",
@@ -52,6 +53,7 @@
     "postcss": "^8.5.14",
     "react-email": "^6.1.1",
     "tailwindcss": "^4.3.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.6.0"
   }
 }
