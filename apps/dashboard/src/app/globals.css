@@ -101,3 +101,46 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
+
+/* Ambient atmosphere — subtle aurora behind onboarding + auth surfaces.
+   Apply with className="ambient-bg" on a wrapping element. */
+.ambient-bg {
+  position: relative;
+  isolation: isolate;
+}
+.ambient-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, color-mix(in oklch, var(--brain-accent) 14%, transparent) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 90% 110%, color-mix(in oklch, var(--studio-accent) 9%, transparent) 0%, transparent 55%);
+  pointer-events: none;
+}
+.ambient-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: radial-gradient(circle at 1px 1px, color-mix(in oklch, var(--foreground) 6%, transparent) 1px, transparent 0);
+  background-size: 24px 24px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black 0%, transparent 70%);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Letter-wave loader keyframes (Phase I.18 extractor) */
+@keyframes bbc-letter-wave {
+  0%, 100% { opacity: 0.25; transform: translateY(0); }
+  20% { opacity: 1; transform: translateY(-2px); }
+  40% { opacity: 0.6; transform: translateY(0); }
+}
+@keyframes bbc-breath {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+@keyframes bbc-scan {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}

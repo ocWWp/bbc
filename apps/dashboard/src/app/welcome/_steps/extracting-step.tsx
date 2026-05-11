@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const PHASES = [
-  "Reading your brain…",
-  "Identifying patterns…",
-  "Almost there…",
+  "Reading your brain",
+  "Identifying patterns",
+  "Structuring memory",
 ];
+
+const WORD = "Structuring";
 
 export function ExtractingStep() {
   const [phase, setPhase] = useState(0);
@@ -23,42 +25,58 @@ export function ExtractingStep() {
   }, []);
 
   return (
-    <section className="flex flex-col items-center justify-center gap-6 py-24 text-center">
-      <Shimmer />
+    <section className="flex flex-col items-center justify-center gap-10 py-20 text-center">
+      <div className="relative">
+        {/* Breathing accent disc */}
+        <div
+          className="absolute left-1/2 top-1/2 -z-10 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-brain-accent/20 blur-3xl"
+          style={{ animation: "bbc-breath 2.4s ease-in-out infinite" }}
+        />
+        {/* Letter wave */}
+        <div className="flex select-none gap-[2px] font-medium text-3xl tracking-[-0.02em] text-foreground">
+          {WORD.split("").map((ch, i) => (
+            <span
+              key={`${ch}-${i}`}
+              className="inline-block"
+              style={{
+                animation: `bbc-letter-wave 1.6s ease-in-out infinite`,
+                animationDelay: `${i * 0.08}s`,
+              }}
+            >
+              {ch}
+            </span>
+          ))}
+          <span
+            className="inline-block"
+            style={{
+              animation: `bbc-letter-wave 1.6s ease-in-out infinite`,
+              animationDelay: `${WORD.length * 0.08}s`,
+            }}
+          >
+            …
+          </span>
+        </div>
+        {/* Subtle scanning underline */}
+        <div className="relative mt-4 h-px w-48 overflow-hidden rounded-full bg-border">
+          <div
+            className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-brain-accent to-transparent"
+            style={{ animation: "bbc-scan 1.8s ease-in-out infinite" }}
+          />
+        </div>
+      </div>
+
       <AnimatePresence mode="wait">
         <motion.p
           key={phase}
-          initial={{ opacity: 0, y: 4 }}
+          initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -4 }}
-          transition={{ duration: 0.35, ease: [0.2, 0, 0, 1] }}
-          className="text-base text-muted-foreground"
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.4, ease: [0.2, 0, 0, 1] }}
+          className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground"
         >
           {PHASES[phase]}
         </motion.p>
       </AnimatePresence>
     </section>
-  );
-}
-
-function Shimmer() {
-  return (
-    <div className="relative h-16 w-16">
-      <motion.div
-        className="absolute inset-0 rounded-full border-2 border-brain-accent/30"
-        animate={{ scale: [1, 1.25, 1], opacity: [0.6, 0, 0.6] }}
-        transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="absolute inset-2 rounded-full border-2 border-brain-accent/50"
-        animate={{ scale: [1, 1.15, 1], opacity: [0.8, 0, 0.8] }}
-        transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
-      />
-      <motion.div
-        className="absolute inset-5 rounded-full bg-brain-accent"
-        animate={{ scale: [1, 0.85, 1] }}
-        transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-      />
-    </div>
   );
 }

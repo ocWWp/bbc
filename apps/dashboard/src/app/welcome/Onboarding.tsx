@@ -111,16 +111,16 @@ export function Onboarding({ tenantSlug, previewMode = false }: { tenantSlug: st
   const segments = stepIndex >= 2 ? 3 : phase === "extracting" ? 1.5 : stepIndex + 1;
 
   return (
-    <main className="-mt-6 min-h-[calc(100vh-3rem)]">
-      <div className="mx-auto max-w-2xl px-6 pb-16 pt-8">
-        <header className="flex items-center justify-between gap-4 pb-10">
-          <Link href="/" className="text-sm font-medium tracking-tight text-foreground">
+    <main className="ambient-bg -mx-6 -mt-6 min-h-[calc(100vh-3rem)]">
+      <div className="mx-auto max-w-2xl px-6 pb-16 pt-10">
+        <header className="flex items-center justify-between gap-4 pb-12">
+          <Link href="/" className="text-sm font-semibold tracking-[-0.01em] text-foreground/90 hover:text-foreground transition-colors">
             bbc
           </Link>
           <button
             type="button"
             onClick={skip}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            className="text-xs text-muted-foreground/80 hover:text-foreground transition-colors"
           >
             Skip onboarding →
           </button>
@@ -196,16 +196,22 @@ export function Onboarding({ tenantSlug, previewMode = false }: { tenantSlug: st
 function ProgressBar({ value }: { value: number }) {
   const clamped = Math.max(0, Math.min(1, value));
   return (
-    <div className="flex gap-1.5">
+    <div className="flex gap-2">
       {[0, 1, 2].map((i) => {
         const segmentProgress = Math.max(0, Math.min(1, clamped * 3 - i));
+        const isActive = segmentProgress > 0 && segmentProgress < 1;
         return (
-          <div key={i} className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
+          <div key={i} className="h-[3px] flex-1 overflow-hidden rounded-full bg-muted/60">
             <motion.div
               initial={false}
               animate={{ width: `${segmentProgress * 100}%` }}
-              transition={{ duration: 0.45, ease: [0.2, 0, 0, 1] }}
+              transition={{ duration: 0.5, ease: [0.2, 0, 0, 1] }}
               className="h-full bg-brain-accent"
+              style={{
+                boxShadow: isActive
+                  ? "0 0 10px color-mix(in oklch, var(--brain-accent) 70%, transparent)"
+                  : "none",
+              }}
             />
           </div>
         );
