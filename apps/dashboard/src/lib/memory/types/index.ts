@@ -63,6 +63,23 @@ export const skillFieldsSchema = z.object({
   status: z.enum(["draft", "active", "deprecated"]).default("draft"),
 });
 
+// Phase I.20: source_artifact captures "this source itself is the memory" --
+// distinct from facts extracted from it. Example: "this README is our brand
+// guide." note is the escape valve for free-form prose that doesn't fit the
+// typed supertags; use sparingly.
+export const sourceArtifactFieldsSchema = z.object({
+  source_kind: z.enum(["text", "url", "file"]),
+  url: z.string().url().optional().or(z.literal("")),
+  filename: z.string().max(500).optional(),
+  snapshot_at: dateString.optional(),
+  summary: z.string().max(2000).default(""),
+});
+
+export const noteFieldsSchema = z.object({
+  body: z.string().max(4000).default(""),
+  topic: z.string().max(200).optional(),
+});
+
 export type VoiceFields = z.infer<typeof voiceFieldsSchema>;
 export type DecisionFields = z.infer<typeof decisionFieldsSchema>;
 export type GlossaryFields = z.infer<typeof glossaryFieldsSchema>;
@@ -70,6 +87,8 @@ export type VendorFields = z.infer<typeof vendorFieldsSchema>;
 export type ProductFields = z.infer<typeof productFieldsSchema>;
 export type TeamFields = z.infer<typeof teamFieldsSchema>;
 export type SkillFields = z.infer<typeof skillFieldsSchema>;
+export type SourceArtifactFields = z.infer<typeof sourceArtifactFieldsSchema>;
+export type NoteFields = z.infer<typeof noteFieldsSchema>;
 
 export const supertagSchemas = {
   voice: voiceFieldsSchema,
@@ -79,6 +98,8 @@ export const supertagSchemas = {
   product: productFieldsSchema,
   team: teamFieldsSchema,
   skill: skillFieldsSchema,
+  source_artifact: sourceArtifactFieldsSchema,
+  note: noteFieldsSchema,
 } as const;
 
 export type Supertag = keyof typeof supertagSchemas;
@@ -91,14 +112,18 @@ export const SUPERTAGS: readonly Supertag[] = [
   "product",
   "team",
   "skill",
+  "source_artifact",
+  "note",
 ] as const;
 
 export const supertagMeta: Record<Supertag, { label: string; hint: string; accent: string }> = {
-  voice:     { label: "Voice",     hint: "How your product sounds",       accent: "coral" },
-  decision:  { label: "Decision",  hint: "A locked architectural choice", accent: "lime" },
-  glossary:  { label: "Glossary",  hint: "A term + definition",           accent: "violet" },
-  vendor:    { label: "Vendor",    hint: "A tool or service you use",     accent: "amber" },
-  product:   { label: "Product",   hint: "Positioning + competitors",     accent: "sky" },
-  team:      { label: "Team",      hint: "A person on the team",          accent: "rose" },
-  skill:     { label: "Skill",     hint: "An agent skill",                accent: "emerald" },
+  voice:           { label: "Voice",     hint: "How your product sounds",       accent: "coral" },
+  decision:        { label: "Decision",  hint: "A locked architectural choice", accent: "lime" },
+  glossary:        { label: "Glossary",  hint: "A term + definition",           accent: "violet" },
+  vendor:          { label: "Vendor",    hint: "A tool or service you use",     accent: "amber" },
+  product:         { label: "Product",   hint: "Positioning + competitors",     accent: "sky" },
+  team:            { label: "Team",      hint: "A person on the team",          accent: "rose" },
+  skill:           { label: "Skill",     hint: "An agent skill",                accent: "emerald" },
+  source_artifact: { label: "Source",    hint: "A doc/page worth remembering",  accent: "slate" },
+  note:            { label: "Note",      hint: "Free-form, doesn't fit a tag",  accent: "stone" },
 };

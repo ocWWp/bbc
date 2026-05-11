@@ -9,6 +9,8 @@ const styles: Record<Supertag, string> = {
   product:  "bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300 ring-sky-200/60 dark:ring-sky-900/40",
   team:     "bg-pink-100 text-pink-800 dark:bg-pink-950/60 dark:text-pink-300 ring-pink-200/60 dark:ring-pink-900/40",
   skill:    "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 ring-emerald-200/60 dark:ring-emerald-900/40",
+  source_artifact: "bg-slate-100 text-slate-800 dark:bg-slate-900/60 dark:text-slate-300 ring-slate-200/60 dark:ring-slate-800/40",
+  note:     "bg-stone-100 text-stone-800 dark:bg-stone-900/60 dark:text-stone-300 ring-stone-200/60 dark:ring-stone-800/40",
 };
 
 const sizes = {
