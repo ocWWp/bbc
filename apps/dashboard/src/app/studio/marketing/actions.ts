@@ -443,6 +443,103 @@ async function loadActiveOverrides(
   }));
 }
 
+// ----------------------------------------------------------------------------
+// Accept / reject / edit -- queue-style review actions on a studio_run.
+// All three guard tenant_id + created_by (RLS would too, but defense in depth).
+// ----------------------------------------------------------------------------
+
+const RUN_ID_RE = /^[0-9a-fA-F-]{36}$/;
+
+export type ReviewResult = { ok: true } | { ok: false; error: string };
+
+async function authedRunOwnership(
+  runId: string,
+): Promise<
+  | { ok: true; supabase: SupabaseClient; userId: string; tenantId: string }
+  | { ok: false; error: string }
+> {
+  const a = await requireActor();
+  if (!a.ok) return { ok: false, error: a.output };
+  const r = requireRole(a.actor, "member");
+  if (!r.ok) return { ok: false, error: r.output };
+  if (!RUN_ID_RE.test(runId)) return { ok: false, error: "Invalid run id." };
+  const supabase = await getSupabaseServerClient();
+  return {
+    ok: true,
+    supabase,
+    userId: a.actor.user_id,
+    tenantId: a.actor.tenant_id,
+  };
+}
+
+export async function acceptStudioRun(runId: string): Promise<ReviewResult> {
+  const g = await authedRunOwnership(runId);
+  if (!g.ok) return g;
+  const { error } = await g.supabase
+    .from("studio_runs")
+    .update({ status: "accepted", completed_at: new Date().toISOString() })
+    .eq("id", runId)
+    .eq("tenant_id", g.tenantId)
+    .eq("created_by", g.userId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/studio/marketing");
+  return { ok: true };
+}
+
+export async function rejectStudioRun(runId: string): Promise<ReviewResult> {
+  const g = await authedRunOwnership(runId);
+  if (!g.ok) return g;
+  const { error } = await g.supabase
+    .from("studio_runs")
+    .update({ status: "rejected", completed_at: new Date().toISOString() })
+    .eq("id", runId)
+    .eq("tenant_id", g.tenantId)
+    .eq("created_by", g.userId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/studio/marketing");
+  return { ok: true };
+}
+
+// Edit is for small inline fixups in the canvas: the user retypes a sentence,
+// we persist the updated block array but leave the status untouched. The full
+// rewrite flow is "Edit this workflow" (J.14) which materializes an override
+// and reruns -- that is a separate action.
+export async function editStudioRun(
+  runId: string,
+  newBlocks: unknown,
+): Promise<ReviewResult> {
+  const g = await authedRunOwnership(runId);
+  if (!g.ok) return g;
+
+  const arr = z.array(z.unknown()).safeParse(newBlocks);
+  if (!arr.success || arr.data.length === 0 || arr.data.length > 8) {
+    return { ok: false, error: "Output must be a 1-8 block array." };
+  }
+  // Re-validate every block against the discriminated union. Server is the
+  // authority on shape -- the client can submit anything.
+  const validated: OutputBlock[] = [];
+  for (const raw of arr.data) {
+    const r = emitOutputResponseSchema.shape.blocks.element.safeParse(raw);
+    if (!r.success) {
+      return {
+        ok: false,
+        error: `Invalid block: ${r.error.issues[0]?.message ?? "unknown shape"}`,
+      };
+    }
+    validated.push(r.data);
+  }
+
+  const { error } = await g.supabase
+    .from("studio_runs")
+    .update({ output_blocks: validated })
+    .eq("id", runId)
+    .eq("tenant_id", g.tenantId)
+    .eq("created_by", g.userId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/studio/marketing");
+  return { ok: true };
+}
+
 async function insertErroredRun(
   supabase: SupabaseClient,
   args: {
