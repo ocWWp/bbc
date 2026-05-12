@@ -35,3 +35,9 @@ distribution/*/local/
 .idea/
 node_modules
 .playwright-mcp/
+
+# Playwright + dogfooding screenshots dropped at repo root during iteration
+/*.png
+
+# Claude Code scheduled-task runtime state
+.claude/scheduled_tasks.lock
