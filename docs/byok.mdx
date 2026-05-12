@@ -1,0 +1,32 @@
+---
+title: "Bring your own keys"
+description: "Wire your own model provider keys per tenant. BBC stores them encrypted; no central billing."
+---
+
+BBC is BYOK by design. There is no central credit metering and no managed billing — every LLM call uses keys the tenant provided.
+
+## Why BYOK
+
+- **No metering surprises.** You see your Anthropic console; we don't sit between you and your provider.
+- **No central liability.** BBC's host (yours, or the demo) never sees your keys after they're encrypted.
+- **Self-host friendly.** A single-person self-host puts the key in `.env.local` and never touches the per-tenant flow.
+
+## Per-tenant setup
+
+After signing in, go to `/settings/keys`.
+
+1. Paste your Anthropic API key (starts with `sk-ant-`).
+2. Click **Save**. The key is encrypted with AES-256-GCM using `BBC_SECRET_ENCRYPTION_KEY` and stored in the `tenant_keys` table.
+3. Studio runs from that tenant now bill against your account.
+
+## Fallback
+
+If a tenant has no key on file, BBC falls back to the host's `ANTHROPIC_API_KEY` env var. The demo deployment caps this fallback with a soft daily limit; self-host deployments don't.
+
+## Rotation
+
+Re-save a key at `/settings/keys` to overwrite the encrypted row. Old runs keep their cost attribution metadata; new runs use the new key.
+
+## Other providers
+
+The provider catalog is in `memory/ops/providers/*.yaml` (file-mode) and the `provider_adapters` table (DB-mode). Add a row, declare what role it `implements`, and `/bindings` lets you switch the active provider for that role. See [role-tool-bundle](/concepts/role-tool-bundle).

@@ -4,6 +4,7 @@ import { PostHogProvider } from "@/components/posthog-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { CommandPalette } from "@/components/command-palette";
 import { CookieBanner } from "@/components/cookie-banner";
+import { AppShell } from "@/components/AppShell";
 import Nav from "@/components/Nav";
 import "@blocknote/mantine/style.css";
 import "./globals.css";
@@ -19,10 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <PostHogProvider>
-            <div className="mx-auto max-w-7xl p-6">
-              <Nav />
-              <main>{children}</main>
-            </div>
+            <AppShell nav={<Nav />}>{children}</AppShell>
             <Toaster />
             <CommandPalette />
             <CookieBanner />

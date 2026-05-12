@@ -4,6 +4,34 @@ This is the **highest-priority** instruction file in BBC. It defines who decides
 
 If you are starting a session anywhere inside `bbc/`, read this first. If you are starting a session inside `bbc/manager/` or `bbc/distribution/<leaf>/`, read this first, then your layer's `CLAUDE.md`.
 
+## If you're a fresh session, read these in order
+
+1. This file (Main) — the rules.
+2. `.planning/ROADMAP.md` — what we're shipping, in what order.
+3. `memory/decisions/0008-three-loop-architecture.md` — current canonical product vision.
+4. `memory/_index.md` — pointer to everything else.
+
+A human's per-session handoff context lives outside the repo, at `~/.claude/projects/<workspace>/memory/` (auto-memory). That's "where the human is right now"; this file is "what the rules are."
+
+## Quick start
+
+```bash
+# Dashboard (Next.js app at apps/dashboard/ — 80% of runtime code)
+pnpm install
+pnpm --filter @bbc/dashboard dev              # local dev on :3000
+pnpm --filter @bbc/dashboard build            # production build
+pnpm --filter @bbc/dashboard cf:build         # Cloudflare worker bundle
+pnpm --filter @bbc/dashboard cf:deploy        # deploy to Cloudflare Workers
+pnpm --filter @bbc/dashboard type-check       # tsc --noEmit
+
+# Governance (file-mode memory)
+bash scripts/propose.sh --target <main|manager> --file <path> --kind <edit|add|supersede> --summary "<short>"
+bash scripts/accept.sh queue/<file>.md        # human at Main only
+bash scripts/reject.sh queue/<file>.md
+bash scripts/index-memory.sh                  # rebuild memory/_index.md
+bash scripts/bootstrap-leaf.sh <name>         # new distribution leaf
+```
+
 ## Precedence rule
 
 ```
@@ -60,9 +88,24 @@ Out of scope here (delegated to Manager or to follow-on phases F1–F4):
 
 ## Quick map
 
-- Memory: `memory/` (schema in `memory/_schema.md`, index in `memory/_index.md`)
-- Manager rules: `manager/CLAUDE.md`, `manager/rules/`
-- Leaves: `distribution/_template/` (start here when adding a leaf)
-- Queue: `queue/` + `queue/README.md` (file format)
-- Scripts: `scripts/{propose,accept,reject,bootstrap-leaf,index-memory}.sh`
-- Roadmap: `.planning/ROADMAP.md`
+**Code**
+- `apps/dashboard/` — Next.js dashboard (Studio, settings, auth, MCP server). Cloudflare-deployed via `wrangler.toml` + `open-next.config.ts`.
+
+**Governance**
+- `manager/CLAUDE.md` + `manager/rules/` — Manager layer
+- `distribution/_template/CLAUDE.md` — leaf template
+- `queue/` + `queue/README.md` — proposal format and lifecycle
+- `scripts/{propose,accept,reject,bootstrap-leaf,index-memory}.sh`
+
+**Memory (the contract)**
+- `memory/_schema.md` — canonical schema; `memory/_index.md` — generated index
+- `memory/decisions/` — ADRs (read 0007 for OSS/AGPL, 0008 for three-loop architecture)
+- `memory/design/voice-tone.md` — voice (canonical; cite, don't duplicate)
+- `memory/ops/vendors.md` — vendor-role registry (cite, don't duplicate)
+- `memory/ops/{providers,profiles,external-skills}/*.yaml` — **role-tool-bundle catalog** (per-role tool kits; see ADR-0008)
+- `memory/tech/{deployment-modes,stack,repo-structure}.md` — tech reference
+
+**Planning**
+- `.planning/ROADMAP.md` — current roadmap (Loop 1 / Loop 2 / Loop 3)
+- `.planning/phases/` — phase scaffolding (many drafts; not all canonical)
+- `docs/landing-page-brief.md` — Phase L brief

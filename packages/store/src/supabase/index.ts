@@ -3,6 +3,7 @@ import type { Store } from "../interfaces";
 import { SupabaseQueueStore } from "./queue";
 import { SupabaseLogStore } from "./log";
 import { SupabaseBindingsStore } from "./bindings";
+import { SupabaseToolsStore } from "./tools";
 
 /**
  * DB-mode store. Multi-tenant; relies on the caller passing an authenticated
@@ -13,14 +14,17 @@ export class SupabaseStore implements Store {
   readonly queue: SupabaseQueueStore;
   readonly log: SupabaseLogStore;
   readonly bindings: SupabaseBindingsStore;
+  readonly tools: SupabaseToolsStore;
 
   constructor(client: SupabaseClient) {
     this.queue = new SupabaseQueueStore(client);
     this.log = new SupabaseLogStore(client);
     this.bindings = new SupabaseBindingsStore(client);
+    this.tools = new SupabaseToolsStore(client);
   }
 }
 
 export { SupabaseQueueStore } from "./queue";
 export { SupabaseLogStore } from "./log";
 export { SupabaseBindingsStore } from "./bindings";
+export { SupabaseToolsStore } from "./tools";

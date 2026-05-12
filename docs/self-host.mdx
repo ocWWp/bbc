@@ -1,0 +1,55 @@
+---
+title: "Self-host"
+description: "Deploy BBC to Cloudflare Workers or run single-tenant in file-mode."
+---
+
+BBC ships two deployment modes. Pick based on whether you need multi-tenant.
+
+## File-mode (single-tenant)
+
+Best for solo founders, small teams running a private brain.
+
+The whole BBC repo is the brain. Memories live in `memory/*.md` files. Proposals live in `queue/*.md`. The dashboard reads from disk; the bash scripts (`accept.sh`, `reject.sh`) write to disk.
+
+```bash
+git clone https://github.com/ZethT/bbc.git
+cd bbc
+pnpm install
+pnpm --filter @bbc/dashboard dev
+```
+
+No Supabase needed. No database migrations. Set `BBC_REPO=/path/to/your/brain` to point at a brain that lives outside the BBC repo.
+
+## DB-mode (multi-tenant)
+
+Best for hosted demos, teams with several brains, anyone who needs RLS.
+
+```bash
+# 1. Create a Supabase project
+# 2. Apply migrations
+cd apps/dashboard
+pnpm supabase db push
+
+# 3. Deploy to Cloudflare Workers via OpenNext
+pnpm --filter @bbc/dashboard cf:build
+pnpm --filter @bbc/dashboard cf:deploy
+```
+
+Configure these env vars in the Cloudflare dashboard (mirrored in `wrangler.toml` comments):
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `BBC_SECRET_ENCRYPTION_KEY` (`openssl rand -base64 32`)
+- `BBC_SIGNUP_MODE` (`open` or `invite_only`)
+- `BBC_HOSTED_DEMO_MODE` (`true` only on the public demo)
+
+See [ADR-0004](https://github.com/ZethT/bbc/blob/main/memory/decisions/0004-deployment-modes.md) for the dual-mode design rationale.
+
+## Cloudflare Workers vs Vercel
+
+BBC defaulted to Cloudflare Workers (via the OpenNext adapter) for runtime cost reasons. Vercel works too — it's a Next.js 16 app. The `cf:*` scripts are Cloudflare-specific; `pnpm --filter @bbc/dashboard build` produces a Vercel-deployable bundle.
+
+## License
+
+BBC is AGPLv3. You can self-host, fork, and modify freely. If you offer a public BBC-derived service over a network, AGPL requires you to make your modified source available to those users. See [ADR-0007](https://github.com/ZethT/bbc/blob/main/memory/decisions/0007-oss-license-and-business-model.md).

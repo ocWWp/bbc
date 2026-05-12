@@ -48,6 +48,39 @@ export type Binding = {
   kind: "active" | "unbound" | "provisional";
 };
 
+/**
+ * A provider adapter declared under memory/ops/providers/<id>.yaml.
+ * Source of truth for "what tools can BBC bind to a role."
+ */
+export type Tool = {
+  provider_id: string;
+  /** Roles this adapter implements (e.g. ["llm-provider"]). From the YAML's `implements:` list. */
+  implements: string[];
+  /** Lifecycle state. From the YAML's `status:` field. */
+  status: "active" | "candidate" | "archived" | "unknown";
+  /** Free-text metadata block under "## Metadata" (e.g. model_id, access_method). Key-value strings only. */
+  metadata: Record<string, string>;
+  /** Raw tags from frontmatter, for filtering. */
+  tags: string[];
+};
+
+/**
+ * Read-only catalog of provider adapters + the role→provider binding resolution.
+ * The store is the source of truth; this interface lets role agents (Marketing
+ * Studio etc.) ask "what tool am I supposed to use for role X?"
+ *
+ * Phase L1 (this interface) is read-only. Write paths (proposing a new binding)
+ * still go through the queue, not this store.
+ */
+export interface ToolsStore {
+  /** List every provider adapter known to BBC. */
+  list(): Promise<Tool[]>;
+  /** Resolve the currently-bound provider for a role, if any. Returns null when unbound. */
+  resolveRole(role: string): Promise<Tool | null>;
+  /** Every provider that declares it `implements: [role]` — i.e. candidates to bind. */
+  candidatesFor(role: string): Promise<Tool[]>;
+}
+
 export type WriteResult = { ok: true; output: string } | { ok: false; output: string };
 
 export interface QueueStore {
@@ -87,4 +120,5 @@ export interface Store {
   queue: QueueStore;
   log: LogStore;
   bindings: BindingsStore;
+  tools: ToolsStore;
 }

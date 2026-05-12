@@ -1,0 +1,40 @@
+---
+title: "Three loops"
+description: "The architectural backbone. Ingest, Act, Improve — compounding on one typed memory schema."
+---
+
+Every BBC feature lives in one of three loops. The loops compound: Loop 1 feeds Loop 2; Loop 2 informs Loop 3; Loop 3 proposes back into Loop 1.
+
+```
+INGEST -> ACT -> IMPROVE
+   ^                |
+   |________________|
+```
+
+## Loop 1 — Ingest (shipped)
+
+You paste a brain-dump. The extractor classifies sentences into supertags (decision, voice, vendor, product, team, source_artifact, note, glossary, skill). Each extracted memory is shown to you side-by-side with the source text. You accept, reject, or edit before anything lands.
+
+The output is a typed, queryable, human-readable brain — not a vector store.
+
+## Loop 2 — Act (first instances shipped)
+
+Role-scoped agents have the brain pre-loaded:
+
+- **Marketing Studio** — drafts X posts, threads, LinkedIn announcements, blog drafts, reel scripts, in your voice with memory citations.
+- **Engineering Studio** — drafts ADRs, vendor swap proposals, tech-debt reviews from your decisions and vendors.
+- More agents (founder, designer) are designed but not built — they follow the same pattern.
+
+Each agent is a **role-tool-bundle**: the role declares what it does, the bundle declares what tools it brings (LLM provider, design tool, integration adapter). See [role-tool-bundle](/concepts/role-tool-bundle).
+
+## Loop 3 — Improve (designed, not built)
+
+BBC watches the team use the brain plus external signals (Sentry, Linear, the queue's own activity) and files improvement proposals back into the same queue. Proposals target the **company's** operations, not just BBC's code.
+
+Loop 3 is the long-term compounding mechanism. It cannot exist before there are users — the launch (Phase L) is its prerequisite.
+
+## Why three loops, not one
+
+Each loop has a different cost profile and a different review cadence. Ingest is cheap and fast (LLM extraction). Act is medium-cost and produces work artifacts. Improve is slow, opt-in, and produces governance proposals.
+
+Mixing them into one pipeline conflates fast feedback (ingest) with slow strategic review (improve). Keeping them separate lets each have the right UI, the right cost guardrails, and the right human-in-the-loop ratio.

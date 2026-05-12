@@ -1,0 +1,49 @@
+---
+id: provider_mobbin
+provider_id: mobbin
+type: provider-adapter
+implements: [pattern-reference]
+contract_version: 1
+status: archived
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-08T00:00:00Z
+updated: 2026-05-08T10:07:01Z
+tags: [adapter, design, reference, mcp]
+sunset_date: 2026-06-08T00:00:00Z
+decommission_reason: "F4-build-3 rehearsal: pattern-reference role retired (no production code path uses it)."
+replacement_provider_id: tbd
+provenance: [prop_2026-05-08T10-06-44Z_manager_f4-build-3-announce-mobbin-v2]
+---
+
+# Adapter: mobbin
+
+## Metadata
+
+- access_method: mcp
+- pattern_count_estimate: 250000                  # marketing claim, indicative
+- supports_text_search: true
+- supports_visual_search: true
+
+## Runtime
+
+- access: Mobbin MCP server (claude-code MCP integration)
+- auth: Mobbin account session
+- consumer-side: design phases of 8azi-web (Phase 0.5 onward)
+
+## bbc-provider-tag
+
+```
+bbc-provider:mobbin
+```
+
+## Stability signals
+
+- vendor_status_page: not published
+- last_incident_seen: <unknown>
+- declared_uptime_sla: not published
+
+## Notes
+
+Used for design inspiration during ideation, not as a runtime dependency. License terms for reference patterns: see Mobbin's terms of use; we DON'T copy verbatim.

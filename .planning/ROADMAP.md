@@ -63,36 +63,37 @@ Role-scoped agents that have the brain pre-loaded. Each agent serves a role (fou
 |---|---|---|
 | J — Marketing Studio | First Loop 2 agent: typed templates, cited output, accept/reject runs, conversational overrides | ✅ shipped (PR #1) |
 | K — OSS launch surface | BYOK at `/settings/keys`, `/marketplace` provider directory, Cloudflare deploy path, AGPLv3 README | ✅ shipped (PR #1) |
-| **L — Landing + Show HN** | Landing page, Mintlify docs, Show HN preparation. **Next.** | ⏭️ next |
-| L+ — Founder agent | Role-2 agent: reads the full brain, drafts strategic memos, prepares board updates | 🟡 designed-in-vision |
-| L+ — Engineering agent | Role-3 agent: reads tech-leaning memory + repo state, drafts ADRs, proposes vendor swaps | 🟡 designed-in-vision |
-| L+ — Designer agent | Role-4 agent: reads voice + design tokens + brand decisions, drafts visual specs | 🟡 designed-in-vision |
+| L — Landing + docs + MCP | Landing page at `/landing`, Mintlify docs scaffold (`docs/`), MCP server at `/api/mcp` + REST shim at `/api/v1/brain/*`, role-tool-bundle catalog (L1) wired into Studio model resolution | ✅ shipped (uncommitted) |
+| L+ — Engineering Studio | Role-3 agent: ADRs, vendor swap proposals, tech-debt reviews. 3 templates. Same unified run viewer as Marketing. | ✅ shipped (uncommitted) |
+| L+ — Founder Studio | Role-4 agent: strategic memos, board updates, weekly recaps. 3 templates. | ✅ shipped (uncommitted) |
+| L+ — Designer Studio | Role-5 agent: visual specs, brand guideline entries, UI copy passes. 3 templates. | ✅ shipped (uncommitted) |
 | L+ — Founders-of-founders agent | Cross-tenant template marketplace, shared playbooks (opt-in) | 🔮 long horizon |
 
 **Open Loop 2 work:**
-- One MCP server endpoint per role agent (already designed in Phase 6, needs per-role scopes wired)
+- Per-role API key scopes (today scopes are `read`/`write`/`admin`; per-role would let a marketing key only see marketing-relevant memory)
 - Per-role queue review UX (the marketing agent shouldn't see eng's proposals)
+- L1.1 — split `llm-provider` role into `llm-provider-fast` + `llm-provider-quality` so propose/run can resolve different adapters (still blocked on granularity decision)
 - Hermes Agent binding as a candidate runtime for any role agent ([memory/decisions/0008-three-loop-architecture.md](../memory/decisions/0008-three-loop-architecture.md))
 
 ---
 
-## Loop 3 — Improve **(not built)**
+## Loop 3 — Improve **(scoped via ADR-0009; not yet built)**
 
 BBC watches the team use the brain + external signals + benchmark data → files improvement proposals back into the same queue. **Proposals target the company's operations, not just BBC's code.**
 
-This loop is what makes BBC compound. It cannot exist before there are users; the launch (Phase L) is the prerequisite.
+This loop is what makes BBC compound. It cannot exist before there are users; the launch (Phase L) is the prerequisite. Scope is now pinned by [ADR-0009](../memory/decisions/0009-loop-3-scope.md): 5 observation classes, 5 proposal classes, per-tenant only in v1, daily-scan cadence, max 3 proposals per scan.
 
 | Phase | What | Status |
 |---|---|---|
-| M — Self-modifying core | BBC observes Sentry / Linear / its own queue activity → files BBC-on-BBC proposals (broken queries, schema drift, missing memories). Auto-fix bot opens PRs; humans accept via queue. | 🟡 designed-in-vision (ADR-0008) |
+| M — Self-modifying core | BBC observes Sentry / Linear / its own queue activity → files BBC-on-BBC proposals (broken queries, schema drift, missing memories). Auto-fix bot opens PRs; humans accept via queue. | 🟡 designed (ADR-0008, ADR-0009) |
 | M+ — Company improvement engine | BBC observes per-tenant brain usage + acceptance patterns → files proposals about the host company's operations (decision gaps, missing rubrics, vendor consolidation opportunities) | 🟡 designed-in-vision (ADR-0008) |
 | M+ — Skill marketplace | Daily pull of new agentic skills/patterns from OSS registries → proposes additions matched to tenant's role mix | 🟡 designed-in-vision |
 | M+ — Benchmark provider | Opt-in, aggregated cross-tenant operational signal ("companies your size typically have X documented") | 🟡 designed-in-vision; needs privacy ADR |
 
 **Hard prerequisites before any Loop 3 code:**
 - Phase L ship + at least 50 active self-hosters or hosted-demo tenants
-- ADR explicitly scoping which signals BBC may observe per-tenant
-- Privacy ADR for any cross-tenant benchmark feature
+- ✅ ADR explicitly scoping which signals BBC may observe per-tenant — done as [ADR-0009](../memory/decisions/0009-loop-3-scope.md)
+- Privacy ADR for any cross-tenant benchmark feature (still pending; not blocking Loop 3 v1 since it's per-tenant only)
 
 ---
 
@@ -121,7 +122,7 @@ These get done when the maintainer's own company needs them. Not on the v1 criti
 
 ## What's next, in order
 
-1. **Merge PR #1** (32 commits: Phases H, I.20, J, K, Cloudflare swap, smoke fixes)
+1. **Merge PR #1** (33 commits: Phases H, I.20, J, K, Cloudflare swap, smoke fixes, ADR-0008/roadmap)
 2. **Phase L — Landing + docs + Show HN** — most of the work is content (landing page + Mintlify), not code
 3. **Phase L+ — Second role agent** — pick founder or engineering, build it as the proof that Loop 2 is a pattern, not a special case
 4. **Phase M scope ADR** — formalize Loop 3 architecture before any code

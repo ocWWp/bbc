@@ -10,7 +10,10 @@ export async function middleware(request: NextRequest) {
   const isAuthRoute =
     nextUrl.pathname.startsWith("/auth") ||
     nextUrl.pathname.startsWith("/api/auth") ||
-    nextUrl.pathname.startsWith("/invite");  // invitation landing pages must be reachable without a session
+    nextUrl.pathname.startsWith("/api/mcp") ||  // MCP server: authenticates via Bearer api-key, not session
+    nextUrl.pathname.startsWith("/api/v1") ||   // REST brain API: same Bearer api-key auth
+    nextUrl.pathname.startsWith("/invite") ||  // invitation landing pages must be reachable without a session
+    nextUrl.pathname.startsWith("/landing");   // public marketing page
 
   const { response, user } = await updateSession(request);
 

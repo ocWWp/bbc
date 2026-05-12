@@ -1,7 +1,16 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { requireActor } from "@/lib/auth/require-user";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { createApiKey, revokeApiKey } from "./actions";
+import MCPTester from "./MCPTester";
+
+async function mcpEndpoint(): Promise<string> {
+  const h = await headers();
+  const host = h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}/api/mcp`;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -39,15 +48,34 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Sear
   const all = (keys ?? []) as KeyRow[];
   const active = all.filter((k) => !k.revoked_at);
   const revoked = all.filter((k) => k.revoked_at);
+  const endpoint = await mcpEndpoint();
 
   return (
     <main style={{ maxWidth: 880, margin: "32px auto", padding: 24 }}>
       <h1>API keys</h1>
       <p className="muted" style={{ marginBottom: 16 }}>
         Tenant: <strong>{a.actor.tenant_slug}</strong>. Your role: <strong>{a.actor.role}</strong>.
-        Tokens authenticate the BBC MCP server (`apps/mcp-server/`) and any custom agent integrations.
+        Tokens authenticate the BBC MCP server (<code>/api/mcp</code>) and the REST shim (<code>/api/v1/brain/*</code>).
         {!isAdmin && " Only admins can create or revoke keys."}
       </p>
+
+      <section
+        style={{
+          marginBottom: 24,
+          padding: 12,
+          border: "1px solid var(--border, #ddd)",
+          borderRadius: 6,
+        }}
+      >
+        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+          MCP endpoint
+        </div>
+        <code style={{ userSelect: "all", fontSize: 13 }}>{endpoint}</code>
+        <div className="mono-sm muted" style={{ marginTop: 6 }}>
+          Pass <code>Authorization: Bearer &lt;token&gt;</code>. Read-scope keys can call
+          all <em>list/get/search</em> tools; write-scope keys can also call <code>submit_memory</code>.
+        </div>
+      </section>
 
       {error && (
         <div className="banner warn" style={{ marginBottom: 16 }}>
@@ -91,6 +119,7 @@ export default async function ApiKeysPage({ searchParams }: { searchParams: Sear
           <p className="mono-sm muted" style={{ marginTop: 8 }}>
             Use as: <code>Authorization: Bearer {token.slice(0, 16)}…</code>
           </p>
+          <MCPTester token={token} endpoint={endpoint} />
         </div>
       )}
 

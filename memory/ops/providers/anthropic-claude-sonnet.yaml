@@ -1,0 +1,58 @@
+---
+id: provider_anthropic-claude-sonnet
+provider_id: anthropic-claude-sonnet
+type: provider-adapter
+implements: [llm-provider]
+contract_version: 1
+status: active
+scope: org
+layer: main
+owning_layer: main
+created: 2026-05-08T00:00:00Z
+updated: 2026-05-08T00:00:00Z
+tags: [adapter, llm, anthropic]
+---
+
+# Adapter: anthropic-claude-sonnet
+
+## Metadata
+
+- model_id: claude-sonnet-4-6
+- context_window_tokens: 1000000
+- max_output_tokens: 64000
+- input_cost_per_million_tokens_usd: 3.00       # ASSUMED — verify against pricing page
+- output_cost_per_million_tokens_usd: 15.00     # ASSUMED — verify against pricing page
+- latency_p95_first_token_ms: 800               # ASSUMED — measure under typical 8azi load
+- supports_tool_use: true
+- supports_structured_output: true
+
+## Runtime
+
+- endpoint: https://api.anthropic.com/v1/messages
+- auth: bearer-token (env: ANTHROPIC_API_KEY)
+- consumer-side SDK:
+  - 8azi-api/app/shared/llm/  (Python SDK)
+  - 8azi-web/  (none direct; backend-mediated only)
+- official sdk: anthropic (npm) / anthropic (pypi)
+
+## bbc-provider-tag
+
+Tag to use in consumer-repo code/config to mark vendor-specific artifacts:
+
+```
+bbc-provider:anthropic-claude-sonnet
+```
+
+## Stability signals
+
+- vendor_status_page: https://status.anthropic.com/
+- last_incident_seen: <unknown — start tracking 2026-05-08>
+- declared_uptime_sla: not published as of 2026-05-08
+
+## External signals
+
+- N/A (vendor is the model author; no third-party review aggregate is meaningful)
+
+## Notes
+
+8azi V1 uses Claude Sonnet for chart readings and party flows. The model_id is pinned (no auto-upgrade). Adapter MUST handle 429 by surfacing — never silently retry.

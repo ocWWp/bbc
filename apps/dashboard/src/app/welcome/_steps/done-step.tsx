@@ -141,6 +141,74 @@ export function DoneStep({ count, firstId, tenantSlug, proposals }: Props) {
           </Link>
         )}
       </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 1.0, ease: [0.2, 0, 0, 1] }}
+        className="mt-4 w-full max-w-xl text-left"
+      >
+        <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/80 text-center">
+          What you can do with this brain
+        </p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <NextStep
+            href="/studio/marketing"
+            label="Marketing Studio"
+            description="Draft X posts, threads, blog posts — in your voice with citations."
+          />
+          <NextStep
+            href="/studio/engineering"
+            label="Engineering Studio"
+            description="Draft ADRs, vendor swap proposals, tech-debt reviews."
+          />
+          <NextStep
+            href="/studio/founder"
+            label="Founder Studio"
+            description="Strategic memos, board updates, weekly recaps."
+          />
+          <NextStep
+            href="/studio/designer"
+            label="Designer Studio"
+            description="Visual specs, brand guideline entries, UI copy passes."
+          />
+          <NextStep
+            href="/api-keys"
+            label="Wire your agents"
+            description="MCP server + REST shim. Bearer-auth from /api-keys."
+          />
+          <NextStep
+            href="/studio"
+            label="Browse all studios"
+            description="One index for every role agent, with recent runs."
+          />
+        </div>
+      </motion.div>
     </section>
+  );
+}
+
+function NextStep({
+  href,
+  label,
+  description,
+}: {
+  href: string;
+  label: string;
+  description: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group/step rounded-xl border border-border/70 bg-card/40 backdrop-blur-md dark:bg-card/30 px-4 py-3 transition-colors hover:bg-card/70 dark:hover:bg-card/50"
+    >
+      <div className="text-[13.5px] font-medium text-foreground">
+        {label}
+        <span className="ml-1 text-muted-foreground/70 transition-transform inline-block group-hover/step:translate-x-0.5">→</span>
+      </div>
+      <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
+        {description}
+      </p>
+    </Link>
   );
 }

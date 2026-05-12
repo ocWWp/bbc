@@ -13,6 +13,7 @@ import {
   listTemplateSummaries,
 } from "@/lib/studio/templates/registry";
 import type { OverrideRule } from "@/lib/studio/templates/types";
+import { resolveLlmModel } from "@/lib/studio/resolve-model";
 import {
   cleanBlockCitations,
   EMIT_OUTPUT_TOOL_INPUT_SCHEMA,
@@ -38,7 +39,7 @@ import {
  */
 
 const PROPOSE_MODEL = "claude-haiku-4-5-20251001";
-const RUN_MODEL = "claude-sonnet-4-6";
+const RUN_MODEL_FALLBACK = "claude-sonnet-4-6";
 const MAX_TASK_LEN = 500;
 const MIN_TASK_LEN = 8;
 const MAX_ACTIVE_OVERRIDES = 10;
@@ -323,14 +324,15 @@ export async function runWorkflow(
   const system =
     "You are BBC's marketing copy generator. Generate content that is in the founder's voice (per the prompt) and grounded in the brain (cite real memory ids only). Never invent facts. Return via the emit_output_blocks tool only.";
 
+  const resolvedModel = await resolveLlmModel(RUN_MODEL_FALLBACK);
   console.info(
-    `studio.runWorkflow: tenant=${tenantId} template=${templateId} cost=${costAttribution}`,
+    `studio.runWorkflow: tenant=${tenantId} template=${templateId} cost=${costAttribution} model=${resolvedModel.model_id} (${resolvedModel.source})`,
   );
 
   let resp: Anthropic.Messages.Message;
   try {
     resp = await client.messages.create({
-      model: RUN_MODEL,
+      model: resolvedModel.model_id,
       max_tokens: 4096,
       system,
       tools: [EMIT_OUTPUT_TOOL],

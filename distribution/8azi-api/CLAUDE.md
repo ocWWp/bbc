@@ -15,12 +15,13 @@ A lower-layer document can **specialize** an upper rule (add detail, scope to a 
 
 ## Non-negotiable principles
 
-1. **Memory is the contract.** All durable knowledge lives in `memory/` as Markdown + YAML frontmatter (schema in `memory/_schema.md`). If a fact isn't in memory, it isn't real.
+1. **Memory is the contract.** All durable knowledge is captured by the schema in `memory/_schema.md` — that schema is the contract; storage is a binding. In **file-mode** (single-tenant self-host), memory is materialized as Markdown + YAML frontmatter under `memory/`. In **DB-mode** (multi-tenant SaaS), it is materialized as RLS-gated rows in `memory_files` and related tables. Both modes coexist. See ADR-0004 and `memory/tech/deployment-modes.md`. If a fact isn't in memory (whichever mode), it isn't real.
 2. **Direct writes are scoped to your `owning_layer`.** Anything else goes through the queue.
 3. **Proposals are append-only; resolutions move (not delete).** Accepted proposals land in `queue/_accepted/`, rejected in `queue/_rejected/`. Both stay forever — they are the audit trail.
 4. **Vendor names are not architecture.** Roles (`llm-provider`, `db-provider`, `email-delivery`) live in `memory/ops/vendors.md`. Any other file that needs to mention a vendor cites that file. This protects us from vendor churn.
 5. **Voice is single-source.** `memory/design/voice-tone.md` is canonical. The cross-repo voice anchors (`pillar-interactions.ts`, `prompts.py`) are downstream consumers.
 6. **No silent autonomy.** V1 has no daemons, no background agents, no auto-accept. Every state change is either a human edit at the layer that owns the file, or a queued proposal that passes through `accept.sh` / `reject.sh`.
+7. **BBC is AGPLv3, free, and OSS-first.** See `LICENSE` at the repo root + ADR-0007. The project takes no revenue in v1: no Stripe, no paywall, no credit metering, no commercial license clauses. Users self-host (or use a hosted demo paid for as a marketing expense) and bring their own provider keys (BYOK). Commercial relicensing is **deferred**, not foreclosed — AGPL is chosen precisely so that the maintainer retains the option to sell a hosted/enterprise license later (the Cal.com / Plausible playbook). Any change to this principle requires a new ADR superseding ADR-0007.
 
 # How to act as a Distribution leaf
 

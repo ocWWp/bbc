@@ -1,0 +1,57 @@
+---
+title: "Quickstart"
+description: "Run BBC locally in five minutes."
+---
+
+## Prerequisites
+
+- Node 20+ and pnpm 9+
+- A Supabase project (free tier is fine) — or skip and use file-mode for single-tenant self-host
+- An Anthropic API key for the LLM-powered features
+
+## 1. Clone and install
+
+```bash
+git clone https://github.com/ZethT/bbc.git
+cd bbc
+pnpm install
+```
+
+## 2. Configure environment
+
+Copy `apps/dashboard/.env.example` to `apps/dashboard/.env.local` and fill in:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+BBC_SECRET_ENCRYPTION_KEY=$(openssl rand -base64 32)
+ANTHROPIC_API_KEY=sk-ant-...
+BBC_SIGNUP_MODE=open
+BBC_HOSTED_DEMO_MODE=false
+```
+
+Tenants can override `ANTHROPIC_API_KEY` per-tenant at `/settings/keys` once running — see [BYOK](/byok).
+
+## 3. Apply migrations
+
+Push the schema to your Supabase project:
+
+```bash
+cd apps/dashboard
+pnpm supabase db push
+```
+
+## 4. Run the dev server
+
+```bash
+pnpm --filter @bbc/dashboard dev
+```
+
+Open [http://localhost:3000](http://localhost:3000). Sign in with GitHub, Google, or email. You'll land on `/welcome` which seeds your first tenant.
+
+## 5. Try the loops
+
+- **Ingest.** Go to `/memory` and paste a brain-dump. Review the extracted memories.
+- **Act.** Go to `/studio/marketing` or `/studio/engineering`. Describe a task. Generate.
+- **Inspect.** Every Studio output cites the exact memories that shaped it. Click a citation to open the source.

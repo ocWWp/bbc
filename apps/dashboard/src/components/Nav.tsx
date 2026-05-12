@@ -28,6 +28,8 @@ export default async function Nav() {
       <Link href="/graph">graph</Link>
       <Link href="/log">log</Link>
       <Link href="/bindings">bindings</Link>
+      <Link href="/tools">tools</Link>
+      <Link href="/studio">studio</Link>
       <Link href="/team">team</Link>
       <Link href="/api-keys">api-keys</Link>
 

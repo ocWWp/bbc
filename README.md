@@ -70,17 +70,29 @@ BBC_REPO=path/to/your-tenant pnpm --filter @bbc/dashboard dev
 
 ## What's in v1
 
-The hero feature is the **Marketing Studio** at `/studio/marketing`. Type one sentence ("draft a launch tweet for v1.0"), pick a workflow from 2-4 BBC suggests, fill 1-2 inputs, get a live X / Threads / LinkedIn / Blog / Script preview that cites the memories that shaped it.
+The hero capability is **role-scoped Studios** at `/studio`. Pick a role agent — each reads your brain and produces work in the shape that role makes:
+
+- **Marketing Studio** (`/studio/marketing`) — X posts, threads, LinkedIn announcements, blog drafts, reel scripts. Cites the memories that shaped each sentence.
+- **Engineering Studio** (`/studio/engineering`) — ADRs, vendor swap proposals, tech-debt reviews. Grounded in your prior decisions and active vendors.
+- **Founder Studio** (`/studio/founder`) — strategic memos, board updates, weekly recaps. Drafted from product positioning, decisions, and team.
+- **Designer Studio** (`/studio/designer`) — visual specs, brand guideline entries, UI copy passes. Grounded in your voice memory and product positioning.
+
+The brain itself is reachable two ways for your own agents and scripts:
+
+- **MCP server** at `/api/mcp` — Bearer-authenticated, JSON-RPC. Configure Claude Desktop or Claude Code once; your agent has typed access to the brain.
+- **REST shim** at `/api/v1/brain/*` — same auth, plain HTTP. Curl-friendly.
 
 Other surfaces:
 - `/welcome` — paste a brain dump or any URL; BBC extracts typed memories (voice, product, decisions, team, vendors)
 - `/memory` — Notion-style editor for every memory
-- `/marketplace` — provider directory; which adapter is active for which role
+- `/tools` — provider catalog (role-tool-bundle); which adapter is active for which role
+- `/marketplace` — vendor directory
 - `/settings/keys` — BYOK manager (encrypted server-side, never sent back to the browser)
+- `/api-keys` — MCP API keys per tenant (with one-click test connection)
 - `/queue` — every change to memory goes through proposal + accept; full audit trail
 - `/graph` — relations between memories
 
-Full design: [docs/plans/2026-05-10-bbc-user-facing-product-design.md](docs/plans/2026-05-10-bbc-user-facing-product-design.md). Architecture decisions: [memory/decisions/](memory/decisions/).
+Full architecture: [ADR-0008](memory/decisions/0008-three-loop-architecture.md). All ADRs: [memory/decisions/](memory/decisions/).
 
 ## Status
 
@@ -125,8 +137,9 @@ bbc/
 ├── CLAUDE.md                       Main precedence + lock matrix
 ├── AGENTS.md                       LLM agent cheat-sheet
 ├── apps/
-│   ├── dashboard/                  Next.js dashboard (@bbc/dashboard)
-│   └── mcp-server/                 MCP bridge
+│   └── dashboard/                  Next.js dashboard (@bbc/dashboard).
+│                                   Hosts the studios, the MCP server (/api/mcp),
+│                                   and the REST shim (/api/v1/brain/*).
 ├── packages/store/                 typed storage interface
 ├── memory/
 │   ├── _schema.md                  frontmatter contract
@@ -148,7 +161,7 @@ bbc/
 - [`docs/tenant-repo-architecture.md`](docs/tenant-repo-architecture.md) — fork the tenant template
 - [`AGENTS.md`](AGENTS.md) — what an LLM agent should know when it opens a session here
 - [`apps/dashboard/README.md`](apps/dashboard/README.md) — dashboard dev notes
-- [`apps/mcp-server/README.md`](apps/mcp-server/README.md) — MCP server dev notes
+- [`docs/integrate/mcp.mdx`](docs/integrate/mcp.mdx) — MCP server: config, tools, scope rules
 
 ## Slash commands (Claude Code)
 

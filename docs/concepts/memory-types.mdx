@@ -1,0 +1,166 @@
+---
+title: "Memory types"
+description: "The nine supertags BBC's brain uses, with field shapes and one example each."
+---
+
+Every memory record has a `type` (a supertag) plus type-specific `fields`. Adding a new supertag is a schema change, not a tag — it costs a migration. Here's the canonical set as of v1.
+
+## Quick reference
+
+| Type | Fields (key ones) |
+|---|---|
+| [`decision`](#decision) | `decision`, `rationale`, `consequences` |
+| [`voice`](#voice) | `register`, `do_words`, `dont_words`, `example_phrases` |
+| [`glossary`](#glossary) | `definition`, `aliases` |
+| [`vendor`](#vendor) | `vendor_name`, `role`, `status` |
+| [`product`](#product) | `positioning`, `target_user`, `differentiators` |
+| [`team`](#team) | `name`, `role`, `responsibilities` |
+| [`skill`](#skill) | `purpose`, `inputs`, `outputs`, `extends?` |
+| [`source_artifact`](#source-artifact) | `source_type`, `source_url`, `excerpt` |
+| [`note`](#note) | free-form (no required fields) |
+
+## decision
+
+A choice the team has made, with the rationale and consequences.
+
+```yaml
+type: decision
+title: "Two deployment modes: file + DB"
+fields:
+  decision: "BBC supports file-mode (single-tenant self-host) and DB-mode (multi-tenant SaaS) from one codebase."
+  rationale: "Solo founders want zero infra; hosted demo + future SaaS need multi-tenant. One schema serves both."
+  consequences:
+    - "Stores have two implementations (LocalStore, SupabaseStore) behind one Store interface."
+    - "Tenant-scoping is RLS in DB-mode, single-tenant assumed in file-mode."
+```
+
+Drafted via the [Engineering Studio](/concepts/three-loops) → "Draft an ADR".
+
+## voice
+
+How the team writes. Used by Marketing Studio to keep generated content in voice.
+
+```yaml
+type: voice
+title: "Mr. 8aZi voice"
+fields:
+  register: "warm, precise, slightly mystical, never sycophantic"
+  do_words: ["plainly", "your Day Master", "second person"]
+  dont_words: ["users", "we believe", "studies show"]
+  example_phrases:
+    - "your Day Master is Yang Water"
+    - "BaZi sees you, plainly"
+```
+
+## glossary
+
+Words this team uses with specific meaning. Disambiguates internal jargon for both humans and agents.
+
+```yaml
+type: glossary
+title: "leaf"
+fields:
+  definition: "A distribution-layer workspace (e.g. apps/dashboard, distribution/8azi-web) that consumes Manager + Main rules without owning them."
+  aliases: ["distribution leaf"]
+```
+
+## vendor
+
+An external service the team depends on. Captures what BBC role it fills so vendor swaps become binding flips rather than rewrites.
+
+```yaml
+type: vendor
+title: "Supabase"
+fields:
+  vendor_name: "Supabase"
+  role: "db-provider"
+  status: "active"
+  notes: "Postgres + Auth + RLS. Free tier sufficient for self-host."
+```
+
+## product
+
+Positioning, target user, and differentiators. The Marketing + Founder studios use this to keep messaging consistent across outputs.
+
+```yaml
+type: product
+title: "BBC positioning"
+fields:
+  positioning: "The company brain. Three loops on one typed memory schema."
+  target_user: "Solo / early-stage founders who waste half a day re-pasting context into AI tools."
+  differentiators:
+    - "Typed memory, not vector blob — every output cites the source"
+    - "AGPLv3 self-host, no telemetry"
+    - "Bring your own API keys"
+```
+
+## team
+
+A person on the team and the role they own. Founder Studio cites team members when drafting recaps and updates.
+
+```yaml
+type: team
+title: "Oscar Chow"
+fields:
+  name: "Oscar Chow"
+  role: "founder + engineering"
+  responsibilities: "Sets product direction; owns BBC core."
+```
+
+## skill
+
+A capability the team has internalized — used by the F2 OOP-skill-inheritance system (designed, not yet built). For now mostly informational.
+
+```yaml
+type: skill
+title: "PR review (BBC)"
+fields:
+  purpose: "Review a pull request against BBC voice + decision criteria."
+  inputs: ["PR diff", "BBC voice memory", "relevant decision memories"]
+  outputs: ["block / comment / approve verdict"]
+  extends: "skill_pr-review"
+```
+
+## source_artifact
+
+A PDF, URL, transcript, or file the brain references. Stores the canonical link, not the body (the body is for extraction during Loop 1).
+
+```yaml
+type: source_artifact
+title: "BBC pitch deck v3"
+fields:
+  source_type: "pdf"
+  source_url: "https://example.com/bbc-deck-v3.pdf"
+  excerpt: "BBC turns every founder's company knowledge into a queryable brain..."
+```
+
+## note
+
+Anything that doesn't fit elsewhere. Don't reach for `note` first — see if a typed slot exists. But sometimes you just have a fact you want to remember without committing it to a schema.
+
+```yaml
+type: note
+title: "First HN comment we should answer"
+fields: {}
+content: "User asked whether BBC supports Ollama for self-hosted LLMs. Answer: not yet, but the provider catalog supports it — bind your own."
+```
+
+## Submitting via MCP / REST
+
+The [MCP server](/integrate/mcp) and the REST shim (`/api/v1/brain/memories`) both accept `submit_memory` with a `type` and `title`. `fields` is the structured slot above; `content` is the freeform body.
+
+```bash
+curl -X POST https://your-bbc-deployment.example.com/api/v1/brain/memories \
+  -H "Authorization: Bearer YOUR_BBC_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "decision",
+    "title": "Switch to Anthropic Sonnet for Marketing Studio",
+    "content": "Sonnet 4.6 gave better voice adherence than Haiku in our last 20 runs.",
+    "fields": {
+      "decision": "Marketing Studio defaults to Sonnet 4.6.",
+      "rationale": "Voice adherence wins out over cost at our volume.",
+      "consequences": ["~3x cost per draft", "fewer rejected drafts"]
+    }
+  }'
+```

@@ -1,0 +1,57 @@
+---
+id: profile_designer-default
+profile_id: designer-default
+type: ranker-profile
+scope: org
+applies_to:
+  leaves: [dashboard]
+  task_classes: [visual-spec, brand-guideline-entry, ui-copy-pass]
+contract_version: 1
+status: accepted
+layer: main
+owning_layer: main
+created: 2026-05-12T00:00:00Z
+updated: 2026-05-12T00:00:00Z
+tags: [profile, designer]
+inherits: _org-policy
+---
+
+# Profile: designer-default
+
+Used by Designer Studio for visual specs, brand guideline entries, and UI copy
+passes. These outputs combine taste with constraint adherence — quality wins
+over cost, but speed of iteration matters because design happens in
+cycles.
+
+## Hard constraints
+
+- max_cost_per_call_usd: 1.00         # spec docs can be long but rarely massive
+- max_latency_p95_ms: 45000           # 45s — interactive enough for iteration
+- min_uptime_sla_pct: 99.0            # not customer-facing; tolerant of brief outages
+
+## Soft preferences
+
+preferred_providers: []
+region_preference: us-east-1
+vibe_descriptors: [brand-voice, opinionated, specific]
+
+## Ranker weights
+
+weights:
+  cost: 0.15
+  latency: 0.20                        # iteration speed matters more than for founder docs
+  trust: 0.40                          # bad design output wastes more cycles than it saves
+  outcome_history: 0.20                # we learn which models match the brand voice best
+  preference_match: 0.05
+
+## Outcome attribution window
+
+outcome_window_days: 14                # design feedback cycles tend to close within sprints
+
+## Notes
+
+Designer Studio runs are bursty — usually 3-5 in a row during an iteration
+session, then nothing for days. The cost ceiling is lower than founder docs
+(which can pull more context) but higher than marketing (which is high-volume).
+The voice memory is the load-bearing context input; if voice quality drops,
+swap providers before lowering the trust weight.

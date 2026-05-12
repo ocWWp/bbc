@@ -3,10 +3,12 @@ export type {
   ProposalStatus,
   LogEntry,
   Binding,
+  Tool,
   Store,
   QueueStore,
   LogStore,
   BindingsStore,
+  ToolsStore,
   WriteResult,
 } from "./interfaces";
 

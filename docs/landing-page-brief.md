@@ -30,7 +30,7 @@ Most "agent memory" products are vector stores — they retrieve fuzzy approxima
 2. **Spin up the Marketing Studio.** Type *"announce our seed round"*. It generates an X post + LinkedIn post + Threads post, all in your brand voice, all citing the memories that shaped them.
 3. **Wire a Claude or GPT agent** to your BBC instance via the MCP server. The agent answers *"what's our voice on Twitter?"* deterministically instead of hallucinating.
 
-That's v1. The next chapter (already designed, building soon) is the role-agent expansion — your founder agent, eng agent, designer agent — each with the brain pre-loaded. The chapter after that is BBC proposing changes to your company's operations.
+That's v1. The next chapter (already designed, building soon) is the role-agent expansion — your founder agent, eng agent, designer agent — each with the brain pre-loaded AND a role-optimal tool kit pre-wired (marketing gets Higgsfield + n8n + posting integrations; eng gets GitHub + Sentry + Linear; design gets Figma). The agent doesn't just *know* your company — it has *hands shaped for its job*. The chapter after that is BBC proposing changes to your company's operations.
 
 ### Vibe of the customer
 
