@@ -6,6 +6,7 @@
 // state via the existing client component).
 
 import "./customer-reply";
+import "./churn-save";
 
 export {
   getSupportTemplate,
