@@ -5,6 +5,8 @@
 // ship; an empty registry is valid (the page renders a "no workflows yet"
 // state via the existing client component).
 
+import "./customer-reply";
+
 export {
   getSupportTemplate,
   listSupportTemplates,
