@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
+import type { MemoryType } from "@/lib/api-auth";
 
 /**
  * Brain query API. Tenant-scoped read functions over memory_files plus a few
@@ -12,10 +13,17 @@ import type { Database } from "@/lib/supabase/database.types";
  * before calling. These functions use the service-role client and filter by
  * tenant_id explicitly. RLS would catch leakage anyway, but the explicit
  * filter is defense in depth.
+ *
+ * Role filtering: read functions accept an optional `allowedTypes` set. When
+ * provided, the query is constrained to that type allowlist (per-role MCP
+ * scope, see ROLE_MEMORY_TYPES in api-auth.ts). When omitted, all types are
+ * visible (the pre-0031 behavior).
  */
 
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 200;
+
+type TypeFilter = ReadonlySet<MemoryType> | null | undefined;
 
 export type MemorySummary = {
   id: string;
@@ -39,11 +47,38 @@ function clampLimit(raw: number | undefined): number {
   return Math.min(MAX_LIMIT, Math.floor(raw));
 }
 
+/**
+ * Returns the effective type filter for a query. Precedence:
+ *   1. If a caller specifies `opts.type`, only that type is allowed -- but
+ *      ONLY if it also passes the role allowlist. If the role disallows it,
+ *      the query is forced empty (returns null sentinel meaning "no rows").
+ *   2. Otherwise, the role allowlist (if any) is used as the .in() filter.
+ *   3. With neither, no type filter is applied.
+ */
+function effectiveTypeFilter(
+  explicitType: string | undefined,
+  allowedTypes: TypeFilter,
+): { kind: "all" } | { kind: "single"; value: string } | { kind: "in"; values: string[] } | { kind: "empty" } {
+  if (explicitType) {
+    if (allowedTypes && !allowedTypes.has(explicitType as MemoryType)) {
+      return { kind: "empty" };
+    }
+    return { kind: "single", value: explicitType };
+  }
+  if (allowedTypes) {
+    return { kind: "in", values: Array.from(allowedTypes) };
+  }
+  return { kind: "all" };
+}
+
 export async function listMemories(
   supabase: Client,
   tenantId: string,
-  opts: { type?: string; limit?: number } = {},
+  opts: { type?: string; limit?: number; allowedTypes?: TypeFilter } = {},
 ): Promise<MemorySummary[]> {
+  const filter = effectiveTypeFilter(opts.type, opts.allowedTypes);
+  if (filter.kind === "empty") return [];
+
   let q = supabase
     .from("memory_files")
     .select("id, type, title, updated_at")
@@ -52,8 +87,10 @@ export async function listMemories(
     .order("updated_at", { ascending: false })
     .limit(clampLimit(opts.limit));
 
-  if (opts.type) {
-    q = q.eq("type", opts.type as Database["public"]["Enums"]["memory_type"]);
+  if (filter.kind === "single") {
+    q = q.eq("type", filter.value as Database["public"]["Enums"]["memory_type"]);
+  } else if (filter.kind === "in") {
+    q = q.in("type", filter.values as Database["public"]["Enums"]["memory_type"][]);
   }
 
   const { data, error } = await q;
@@ -71,6 +108,7 @@ export async function getMemory(
   supabase: Client,
   tenantId: string,
   memoryId: string,
+  opts: { allowedTypes?: TypeFilter } = {},
 ): Promise<MemoryFull | null> {
   const { data, error } = await supabase
     .from("memory_files")
@@ -81,6 +119,13 @@ export async function getMemory(
 
   if (error) throw new Error(`getMemory: ${error.message}`);
   if (!data) return null;
+  // Role filter: if the row's type isn't in the allowlist, hide it. This
+  // matters because get_memory accepts a direct uuid -- without the post-
+  // filter a marketing key could fetch an engineering decision by id.
+  if (opts.allowedTypes) {
+    const rowType = (data as { type: string | null }).type;
+    if (rowType && !opts.allowedTypes.has(rowType as MemoryType)) return null;
+  }
 
   type Row = {
     id: string;
@@ -110,7 +155,7 @@ export async function getMemory(
 export async function searchMemories(
   supabase: Client,
   tenantId: string,
-  opts: { query: string; limit?: number },
+  opts: { query: string; limit?: number; allowedTypes?: TypeFilter },
 ): Promise<MemorySummary[]> {
   const q = (opts.query ?? "").trim();
   if (q.length < 2) return [];
@@ -119,7 +164,7 @@ export async function searchMemories(
   const escaped = q.replace(/[\\%_]/g, (c) => `\\${c}`);
   const pattern = `%${escaped}%`;
 
-  const { data, error } = await supabase
+  let qb = supabase
     .from("memory_files")
     .select("id, type, title, updated_at")
     .eq("tenant_id", tenantId)
@@ -128,6 +173,14 @@ export async function searchMemories(
     .order("updated_at", { ascending: false })
     .limit(clampLimit(opts.limit));
 
+  if (opts.allowedTypes) {
+    qb = qb.in(
+      "type",
+      Array.from(opts.allowedTypes) as Database["public"]["Enums"]["memory_type"][],
+    );
+  }
+
+  const { data, error } = await qb;
   if (error) throw new Error(`searchMemories: ${error.message}`);
   type Row = { id: string; type: string | null; title: string | null; updated_at: string };
   return ((data ?? []) as Row[]).map((r) => ({
@@ -141,16 +194,25 @@ export async function searchMemories(
 export async function listDecisions(
   supabase: Client,
   tenantId: string,
-  opts: { limit?: number } = {},
+  opts: { limit?: number; allowedTypes?: TypeFilter } = {},
 ): Promise<MemorySummary[]> {
-  return listMemories(supabase, tenantId, { type: "decision", limit: opts.limit });
+  return listMemories(supabase, tenantId, {
+    type: "decision",
+    limit: opts.limit,
+    allowedTypes: opts.allowedTypes,
+  });
 }
 
 export async function listVendors(
   supabase: Client,
   tenantId: string,
+  opts: { allowedTypes?: TypeFilter } = {},
 ): Promise<MemorySummary[]> {
-  return listMemories(supabase, tenantId, { type: "vendor", limit: MAX_LIMIT });
+  return listMemories(supabase, tenantId, {
+    type: "vendor",
+    limit: MAX_LIMIT,
+    allowedTypes: opts.allowedTypes,
+  });
 }
 
 // --- Queue (proposals) ---
@@ -287,9 +349,16 @@ export async function submitMemory(
   supabase: Client,
   tenantId: string,
   input: SubmitMemoryInput,
+  opts: { allowedTypes?: TypeFilter } = {},
 ): Promise<SubmitMemoryResult> {
   if (!KNOWN_MEMORY_TYPES.has(input.type)) {
     return { ok: false, error: `Unknown memory type: ${input.type}` };
+  }
+  if (opts.allowedTypes && !opts.allowedTypes.has(input.type as MemoryType)) {
+    return {
+      ok: false,
+      error: `Role not permitted to write memory type '${input.type}'.`,
+    };
   }
   const title = (input.title ?? "").trim();
   if (!title) return { ok: false, error: "title is required" };

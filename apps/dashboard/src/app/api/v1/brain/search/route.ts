@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { adminClient } from "@/lib/api-auth";
+import { adminClient, allowedTypesForRole } from "@/lib/api-auth";
 import { authedRoute, parseLimit } from "@/lib/api-rest-helpers";
 import { searchMemories } from "@/lib/brain-api";
 
@@ -13,6 +13,11 @@ export const GET = authedRoute("read", async (req, resolved) => {
       { status: 400 },
     );
   }
-  const rows = await searchMemories(adminClient(), resolved.tenant_id, { query: q, limit });
+  const allowedTypes = allowedTypesForRole(resolved.role);
+  const rows = await searchMemories(adminClient(), resolved.tenant_id, {
+    query: q,
+    limit,
+    allowedTypes,
+  });
   return NextResponse.json({ memories: rows });
 });

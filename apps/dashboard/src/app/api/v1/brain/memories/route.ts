@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { adminClient } from "@/lib/api-auth";
+import { adminClient, allowedTypesForRole } from "@/lib/api-auth";
 import { authedRoute, parseLimit } from "@/lib/api-rest-helpers";
 import { listMemories, submitMemory } from "@/lib/brain-api";
 
@@ -7,7 +7,12 @@ import { listMemories, submitMemory } from "@/lib/brain-api";
 export const GET = authedRoute("read", async (req, resolved) => {
   const type = req.nextUrl.searchParams.get("type") ?? undefined;
   const limit = parseLimit(req);
-  const rows = await listMemories(adminClient(), resolved.tenant_id, { type, limit });
+  const allowedTypes = allowedTypesForRole(resolved.role);
+  const rows = await listMemories(adminClient(), resolved.tenant_id, {
+    type,
+    limit,
+    allowedTypes,
+  });
   return NextResponse.json({ memories: rows });
 });
 
@@ -33,12 +38,13 @@ export const POST = authedRoute("write", async (req, resolved) => {
       ? (b.fields as Record<string, unknown>)
       : undefined;
 
-  const res = await submitMemory(adminClient(), resolved.tenant_id, {
-    type,
-    title,
-    content,
-    fields,
-  });
+  const allowedTypes = allowedTypesForRole(resolved.role);
+  const res = await submitMemory(
+    adminClient(),
+    resolved.tenant_id,
+    { type, title, content, fields },
+    { allowedTypes },
+  );
   if (!res.ok) {
     return NextResponse.json({ error: "bad_request", message: res.error }, { status: 400 });
   }

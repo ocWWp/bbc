@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { adminClient } from "@/lib/api-auth";
-import { resolveBearer } from "@/lib/api-auth";
+import { adminClient, allowedTypesForRole, resolveBearer } from "@/lib/api-auth";
 import { getMemory } from "@/lib/brain-api";
 
 // GET /api/v1/brain/memories/[id]
@@ -25,7 +24,8 @@ export async function GET(
   }
 
   try {
-    const row = await getMemory(adminClient(), resolved.tenant_id, id);
+    const allowedTypes = allowedTypesForRole(resolved.role);
+    const row = await getMemory(adminClient(), resolved.tenant_id, id, { allowedTypes });
     if (!row) {
       return NextResponse.json({ error: "not_found" }, { status: 404 });
     }

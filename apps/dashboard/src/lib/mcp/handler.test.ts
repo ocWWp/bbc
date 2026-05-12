@@ -22,8 +22,18 @@ import { handleRequest, TOOLS, type JsonRpcRequest } from "./handler";
 import type { ResolvedKey } from "@/lib/api-auth";
 import * as brainApi from "@/lib/brain-api";
 
-const READ_KEY: ResolvedKey = { tenant_id: "tenant-abc", scope: "read" };
-const WRITE_KEY: ResolvedKey = { tenant_id: "tenant-abc", scope: "write" };
+const READ_KEY: ResolvedKey = { tenant_id: "tenant-abc", scope: "read", role: null };
+const WRITE_KEY: ResolvedKey = { tenant_id: "tenant-abc", scope: "write", role: null };
+const MARKETING_READ_KEY: ResolvedKey = {
+  tenant_id: "tenant-abc",
+  scope: "read",
+  role: "marketing-writer",
+};
+const MARKETING_WRITE_KEY: ResolvedKey = {
+  tenant_id: "tenant-abc",
+  scope: "write",
+  role: "marketing-writer",
+};
 
 function rpcCall(method: string, params?: unknown, id: string | number = 1): JsonRpcRequest {
   return { jsonrpc: "2.0", id, method, params };
@@ -122,7 +132,7 @@ describe("tools/call — dispatch", () => {
     const res = await handleRequest(
       rpcCall("tools/call", { name: "no_such_tool", arguments: {} }),
       // Use admin scope so the scope guard doesn't fire first.
-      { tenant_id: "tenant-abc", scope: "admin" },
+      { tenant_id: "tenant-abc", scope: "admin", role: null },
     );
     expect(res.result).toMatchObject({ isError: true });
   });
@@ -141,7 +151,7 @@ describe("tools/call — dispatch", () => {
     expect(brainApi.listMemories).toHaveBeenCalledWith(
       expect.anything(),
       "tenant-abc",
-      { type: "decision", limit: 10 },
+      { type: "decision", limit: 10, allowedTypes: null },
     );
     const result = res.result as { content: Array<{ text: string }>; isError: boolean };
     expect(result.isError).toBe(false);
@@ -187,6 +197,7 @@ describe("tools/call — dispatch", () => {
       }),
       READ_KEY,
     );
+    // list_proposals isn't role-filtered (proposals aren't memory types).
     expect(brainApi.listProposals).toHaveBeenCalledWith(
       expect.anything(),
       "tenant-abc",
@@ -214,5 +225,75 @@ describe("tools/call — dispatch", () => {
     );
     expect(res.error?.code).toBe(-32603);
     expect(res.error?.message).toMatch(/Tool execution failed/);
+  });
+});
+
+describe("tools/call — per-role memory-type filtering", () => {
+  it("marketing-writer key passes allowedTypes to list_memories", async () => {
+    vi.mocked(brainApi.listMemories).mockResolvedValue([]);
+    await handleRequest(
+      rpcCall("tools/call", { name: "list_memories", arguments: {} }),
+      MARKETING_READ_KEY,
+    );
+    const call = vi.mocked(brainApi.listMemories).mock.calls[0];
+    const opts = call[2] as { allowedTypes?: ReadonlySet<string> };
+    expect(opts.allowedTypes).toBeDefined();
+    // marketing-writer allowlist: voice, glossary, product, vendor, note
+    expect(opts.allowedTypes?.has("voice")).toBe(true);
+    expect(opts.allowedTypes?.has("product")).toBe(true);
+    expect(opts.allowedTypes?.has("decision")).toBe(false);
+    expect(opts.allowedTypes?.has("skill")).toBe(false);
+  });
+
+  it("null-role key passes allowedTypes=null (unrestricted)", async () => {
+    vi.mocked(brainApi.listMemories).mockResolvedValue([]);
+    await handleRequest(
+      rpcCall("tools/call", { name: "list_memories", arguments: {} }),
+      READ_KEY,
+    );
+    const call = vi.mocked(brainApi.listMemories).mock.calls[0];
+    const opts = call[2] as { allowedTypes?: ReadonlySet<string> | null };
+    expect(opts.allowedTypes).toBeNull();
+  });
+
+  it("unknown role falls back to null (permissive)", async () => {
+    vi.mocked(brainApi.listMemories).mockResolvedValue([]);
+    await handleRequest(
+      rpcCall("tools/call", { name: "list_memories", arguments: {} }),
+      { tenant_id: "tenant-abc", scope: "read", role: "no-such-role" },
+    );
+    const call = vi.mocked(brainApi.listMemories).mock.calls[0];
+    const opts = call[2] as { allowedTypes?: ReadonlySet<string> | null };
+    expect(opts.allowedTypes).toBeNull();
+  });
+
+  it("marketing-writer key passes allowedTypes to get_memory", async () => {
+    vi.mocked(brainApi.getMemory).mockResolvedValue(null);
+    await handleRequest(
+      rpcCall("tools/call", {
+        name: "get_memory",
+        arguments: { id: "11111111-2222-3333-4444-555555555555" },
+      }),
+      MARKETING_READ_KEY,
+    );
+    const call = vi.mocked(brainApi.getMemory).mock.calls[0];
+    const opts = call[3] as { allowedTypes?: ReadonlySet<string> };
+    expect(opts.allowedTypes?.has("voice")).toBe(true);
+    expect(opts.allowedTypes?.has("decision")).toBe(false);
+  });
+
+  it("marketing-writer key passes allowedTypes to submit_memory", async () => {
+    vi.mocked(brainApi.submitMemory).mockResolvedValue({ ok: true, id: "mem-1" });
+    await handleRequest(
+      rpcCall("tools/call", {
+        name: "submit_memory",
+        arguments: { type: "voice", title: "x" },
+      }),
+      MARKETING_WRITE_KEY,
+    );
+    const call = vi.mocked(brainApi.submitMemory).mock.calls[0];
+    const opts = call[3] as { allowedTypes?: ReadonlySet<string> };
+    expect(opts.allowedTypes?.has("voice")).toBe(true);
+    expect(opts.allowedTypes?.has("decision")).toBe(false);
   });
 });

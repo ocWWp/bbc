@@ -8,7 +8,12 @@ import {
   getProposal,
   submitMemory,
 } from "@/lib/brain-api";
-import { adminClient, scopeAllows, type ResolvedKey } from "@/lib/api-auth";
+import {
+  adminClient,
+  allowedTypesForRole,
+  scopeAllows,
+  type ResolvedKey,
+} from "@/lib/api-auth";
 
 /**
  * BBC MCP JSON-RPC handler. Pure dispatch logic: takes a parsed request +
@@ -178,13 +183,15 @@ export async function dispatchTool(
   tenantId: string,
   toolName: string,
   args: Record<string, unknown>,
+  role: string | null = null,
 ): Promise<unknown> {
   const supabase = adminClient();
+  const allowedTypes = allowedTypesForRole(role);
   switch (toolName) {
     case "list_memories": {
       const type = typeof args.type === "string" ? args.type : undefined;
       const limit = typeof args.limit === "number" ? args.limit : undefined;
-      const rows = await listMemories(supabase, tenantId, { type, limit });
+      const rows = await listMemories(supabase, tenantId, { type, limit, allowedTypes });
       return textContent(rows);
     }
     case "get_memory": {
@@ -192,23 +199,23 @@ export async function dispatchTool(
       if (!/^[0-9a-fA-F-]{36}$/.test(id)) {
         return { content: [{ type: "text", text: "Invalid memory id (must be uuid)." }], isError: true };
       }
-      const row = await getMemory(supabase, tenantId, id);
+      const row = await getMemory(supabase, tenantId, id, { allowedTypes });
       if (!row) return { content: [{ type: "text", text: "Not found." }], isError: true };
       return textContent(row);
     }
     case "search_memories": {
       const query = typeof args.query === "string" ? args.query : "";
       const limit = typeof args.limit === "number" ? args.limit : undefined;
-      const rows = await searchMemories(supabase, tenantId, { query, limit });
+      const rows = await searchMemories(supabase, tenantId, { query, limit, allowedTypes });
       return textContent(rows);
     }
     case "list_decisions": {
       const limit = typeof args.limit === "number" ? args.limit : undefined;
-      const rows = await listDecisions(supabase, tenantId, { limit });
+      const rows = await listDecisions(supabase, tenantId, { limit, allowedTypes });
       return textContent(rows);
     }
     case "list_vendors": {
-      const rows = await listVendors(supabase, tenantId);
+      const rows = await listVendors(supabase, tenantId, { allowedTypes });
       return textContent(rows);
     }
     case "list_proposals": {
@@ -236,7 +243,12 @@ export async function dispatchTool(
         args.fields && typeof args.fields === "object" && !Array.isArray(args.fields)
           ? (args.fields as Record<string, unknown>)
           : undefined;
-      const res = await submitMemory(supabase, tenantId, { type, title, content, fields });
+      const res = await submitMemory(
+        supabase,
+        tenantId,
+        { type, title, content, fields },
+        { allowedTypes },
+      );
       if (!res.ok) {
         return { content: [{ type: "text", text: res.error }], isError: true };
       }
@@ -290,7 +302,7 @@ export async function handleRequest(
       }
 
       try {
-        const result = await dispatchTool(resolved.tenant_id, name, args);
+        const result = await dispatchTool(resolved.tenant_id, name, args, resolved.role);
         return rpcOk(id, result);
       } catch (e) {
         const msg = e instanceof Error ? e.message : "unknown";

@@ -68,7 +68,12 @@ describe("resolveBearer — token shape validation", () => {
     // Replace the createClient mock to capture the rpc call.
     const rpc = vi.fn().mockResolvedValue({
       data: [
-        { out_tenant_id: "tenant-uuid-1", out_scope: "read", out_key_id: "abc123" },
+        {
+          out_tenant_id: "tenant-uuid-1",
+          out_scope: "read",
+          out_key_id: "abc123",
+          out_role: null,
+        },
       ],
       error: null,
     });
@@ -79,6 +84,7 @@ describe("resolveBearer — token shape validation", () => {
     expect(result).toEqual<ResolvedKey>({
       tenant_id: "tenant-uuid-1",
       scope: "read",
+      role: null,
     });
     expect(rpc).toHaveBeenCalledWith("resolve_api_key", {
       p_token: "bbc_abc123.deadbeef01234567",
