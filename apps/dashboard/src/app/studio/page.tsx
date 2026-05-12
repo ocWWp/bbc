@@ -6,10 +6,12 @@ import "@/lib/studio/templates";
 import "@/lib/studio/eng-templates";
 import "@/lib/studio/founder-templates";
 import "@/lib/studio/designer-templates";
+import "@/lib/studio/support-templates";
 import { listClientTemplates } from "@/lib/studio/templates/registry";
 import { listClientEngTemplates } from "@/lib/studio/eng-templates/registry";
 import { listClientFounderTemplates } from "@/lib/studio/founder-templates/registry";
 import { listClientDesignerTemplates } from "@/lib/studio/designer-templates/registry";
+import { listClientSupportTemplates } from "@/lib/studio/support-templates/registry";
 
 export const metadata = {
   title: "Studio · BBC",
@@ -49,6 +51,14 @@ const STUDIOS = [
       "Visual specs, brand guideline entries, UI copy passes — grounded in your voice and product positioning.",
     templates: () => listClientDesignerTemplates(),
     templateMatcher: (id: string) => id.startsWith("design:"),
+  },
+  {
+    slug: "support",
+    label: "Support",
+    description:
+      "Customer replies, churn-save, incident posts, bug acks, feature-request triage — voice-grounded, decisions-aware, never auto-sent.",
+    templates: () => listClientSupportTemplates(),
+    templateMatcher: (id: string) => id.startsWith("support:"),
   },
 ] as const;
 

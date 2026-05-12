@@ -34,6 +34,11 @@ const MARKETING_WRITE_KEY: ResolvedKey = {
   scope: "write",
   role: "marketing-writer",
 };
+const SUPPORT_READ_KEY: ResolvedKey = {
+  tenant_id: "tenant-abc",
+  scope: "read",
+  role: "support-writer",
+};
 
 function rpcCall(method: string, params?: unknown, id: string | number = 1): JsonRpcRequest {
   return { jsonrpc: "2.0", id, method, params };
@@ -295,5 +300,28 @@ describe("tools/call — per-role memory-type filtering", () => {
     const opts = call[3] as { allowedTypes?: ReadonlySet<string> };
     expect(opts.allowedTypes?.has("voice")).toBe(true);
     expect(opts.allowedTypes?.has("decision")).toBe(false);
+  });
+
+  it("support-writer key sees voice + product + glossary + vendor + decision + note", async () => {
+    vi.mocked(brainApi.listMemories).mockResolvedValue([]);
+    await handleRequest(
+      rpcCall("tools/call", { name: "list_memories", arguments: {} }),
+      SUPPORT_READ_KEY,
+    );
+    const call = vi.mocked(brainApi.listMemories).mock.calls[0];
+    const opts = call[2] as { allowedTypes?: ReadonlySet<string> };
+    expect(opts.allowedTypes).toBeDefined();
+    // support-writer allowlist matches the support consumption matrix in the
+    // research SUMMARY: voice + product + glossary + vendor + decision + note.
+    expect(opts.allowedTypes?.has("voice")).toBe(true);
+    expect(opts.allowedTypes?.has("product")).toBe(true);
+    expect(opts.allowedTypes?.has("glossary")).toBe(true);
+    expect(opts.allowedTypes?.has("vendor")).toBe(true);
+    expect(opts.allowedTypes?.has("decision")).toBe(true);
+    expect(opts.allowedTypes?.has("note")).toBe(true);
+    // Not in the support consumption matrix:
+    expect(opts.allowedTypes?.has("team")).toBe(false);
+    expect(opts.allowedTypes?.has("skill")).toBe(false);
+    expect(opts.allowedTypes?.has("source_artifact")).toBe(false);
   });
 });
