@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 export function SelfServeForm() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [tenantName, setTenantName] = useState("");
@@ -21,6 +24,15 @@ export function SelfServeForm() {
       const json = (await res.json()) as { ok?: boolean; error?: string; message?: string };
       if (!res.ok || !json.ok) {
         setMessage({ kind: "err", text: json.error ?? "Signup failed." });
+        return;
+      }
+      // Try to sign in immediately. Succeeds when BBC_SIGNUP_AUTOCONFIRM=true
+      // (no email-confirm gate); fails harmlessly otherwise — surface the
+      // "check your email" message in that case.
+      const sb = getSupabaseBrowserClient();
+      const { error: signInErr } = await sb.auth.signInWithPassword({ email, password });
+      if (!signInErr) {
+        router.push("/");
         return;
       }
       setMessage({
