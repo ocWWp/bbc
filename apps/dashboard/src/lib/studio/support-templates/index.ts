@@ -9,6 +9,7 @@ import "./customer-reply";
 import "./churn-save";
 import "./feature-request-triage";
 import "./bug-ack";
+import "./incident-status";
 
 export {
   getSupportTemplate,
