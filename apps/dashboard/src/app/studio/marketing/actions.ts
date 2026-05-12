@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireActor, requireRole } from "@/lib/auth/require-user";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getAnthropicClient } from "@/lib/secrets/anthropic-client";
 import { loadBrainSummary, loadTenantMemoryIds } from "@/lib/studio/brain-summary";
 import "@/lib/studio/templates"; // registers the 10 templates on the shared registry
 import {
@@ -129,13 +130,11 @@ export async function proposeWorkflows(task: string): Promise<ProposeWorkflowsRe
     return { ok: false, error: `Task too long -- keep it under ${MAX_TASK_LEN} characters.` };
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return { ok: false, error: "Server missing ANTHROPIC_API_KEY. Ask your admin." };
-  }
-
   const supabase = await getSupabaseServerClient();
   const brain = await loadBrainSummary(supabase, a.actor.tenant_id);
+  const clientRes = await getAnthropicClient(supabase, a.actor.tenant_id);
+  if (!clientRes.ok) return { ok: false, error: clientRes.error };
+  const { client, costAttribution } = clientRes;
 
   const templates = listTemplateSummaries();
   const templateLines = templates.map((t) => `- ${t.id} (${t.label}): ${t.hint}`).join("\n");
@@ -166,7 +165,9 @@ export async function proposeWorkflows(task: string): Promise<ProposeWorkflowsRe
     "Return 2-4 candidates via the propose_templates tool.",
   ].join("\n");
 
-  const client = new Anthropic({ apiKey });
+  console.info(
+    `studio.proposeWorkflows: tenant=${a.actor.tenant_id} cost=${costAttribution}`,
+  );
 
   let resp: Anthropic.Messages.Message;
   try {
@@ -299,13 +300,12 @@ export async function runWorkflow(
     }
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return { ok: false, error: "Server missing ANTHROPIC_API_KEY. Ask your admin." };
-  }
-
   const supabase = await getSupabaseServerClient();
   const tenantId = a.actor.tenant_id;
+
+  const clientRes = await getAnthropicClient(supabase, tenantId);
+  if (!clientRes.ok) return { ok: false, error: clientRes.error };
+  const { client, costAttribution } = clientRes;
 
   const [brain, knownMemoryIds, overrides] = await Promise.all([
     loadBrainSummary(supabase, tenantId),
@@ -323,7 +323,9 @@ export async function runWorkflow(
   const system =
     "You are BBC's marketing copy generator. Generate content that is in the founder's voice (per the prompt) and grounded in the brain (cite real memory ids only). Never invent facts. Return via the emit_output_blocks tool only.";
 
-  const client = new Anthropic({ apiKey });
+  console.info(
+    `studio.runWorkflow: tenant=${tenantId} template=${templateId} cost=${costAttribution}`,
+  );
 
   let resp: Anthropic.Messages.Message;
   try {
@@ -696,10 +698,11 @@ export async function proposeOverride(
     return { ok: false, error: `Message too long -- keep it under ${MAX_OVERRIDE_MESSAGE_LEN} characters.` };
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return { ok: false, error: "Server missing ANTHROPIC_API_KEY." };
-
   const supabase = await getSupabaseServerClient();
+  const clientRes = await getAnthropicClient(supabase, a.actor.tenant_id);
+  if (!clientRes.ok) return { ok: false, error: clientRes.error };
+  const { client, costAttribution } = clientRes;
+
   const existing = await loadActiveOverrides(supabase, a.actor.tenant_id, templateId);
 
   const existingBlurb = existing.length
@@ -721,7 +724,9 @@ export async function proposeOverride(
     "Return one override via the propose_override tool.",
   ].join("\n");
 
-  const client = new Anthropic({ apiKey });
+  console.info(
+    `studio.proposeOverride: tenant=${a.actor.tenant_id} template=${templateId} cost=${costAttribution}`,
+  );
   let resp: Anthropic.Messages.Message;
   try {
     resp = await client.messages.create({

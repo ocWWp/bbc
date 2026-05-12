@@ -4,6 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { revalidatePath } from "next/cache";
 import { requireActor, requireRole } from "@/lib/auth/require-user";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getAnthropicClient } from "@/lib/secrets/anthropic-client";
 import {
   proposalsResponseSchema,
   type Proposal,
@@ -97,12 +98,13 @@ export async function extractMemoryProposals(
   const truncated = trimmed.length > MAX_INPUT_CHARS ? trimmed.slice(0, MAX_INPUT_CHARS) : trimmed;
   const taggedInput = sourceTag(source) + truncated;
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return { ok: false, error: "Server missing ANTHROPIC_API_KEY. Ask your admin." };
-  }
-
-  const client = new Anthropic({ apiKey });
+  const supabaseForClient = await getSupabaseServerClient();
+  const clientRes = await getAnthropicClient(supabaseForClient, a.actor.tenant_id);
+  if (!clientRes.ok) return { ok: false, error: clientRes.error };
+  const { client, costAttribution } = clientRes;
+  console.info(
+    `welcome.extract: tenant=${a.actor.tenant_id} cost=${costAttribution}`,
+  );
 
   let resp;
   try {
