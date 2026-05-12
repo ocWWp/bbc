@@ -56,7 +56,7 @@ async function LayersView() {
     <div className="card">
       <p className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
         Main → Manager → leaves. Each leaf&apos;s meta shows agent and pinned-skill counts;
-        for the actual list see <Link href="/skills">/skills</Link>.
+        for the actual list see <Link href="/settings/skills">/settings/skills</Link>.
       </p>
       <SvgTree layout={layout} />
     </div>

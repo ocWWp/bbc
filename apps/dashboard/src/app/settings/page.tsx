@@ -112,7 +112,7 @@ export default async function SettingsGeneral() {
           <div className="row">
             <span className="k">skills</span>
             <span className="v">Composable skills role agents can invoke mid-run</span>
-            <Link href="/skills" className="btn btn-ghost">
+            <Link href="/settings/skills" className="btn btn-ghost">
               browse
             </Link>
           </div>

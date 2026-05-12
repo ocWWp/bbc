@@ -29,7 +29,7 @@ const GROUPS: ReadonlyArray<{
     items: [
       { key: "bindings", label: "Bindings", href: "/settings/bindings" },
       { key: "tools", label: "Tools", href: "/settings/tools" },
-      { key: "skills", label: "Skills", href: "/skills" },
+      { key: "skills", label: "Skills", href: "/settings/skills" },
     ],
   },
   {
