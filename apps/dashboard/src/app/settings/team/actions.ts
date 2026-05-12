@@ -11,14 +11,14 @@ import { sendEmail, invitationEmailHtml, invitationEmailText } from "@/lib/email
 /**
  * Server actions for the /team page. They return void (Next.js requirement
  * for inline form actions in server components) and surface errors via
- * `redirect("/team?error=<msg>")`. Successes also land back on /team
+ * `redirect("/settings/team?error=<msg>")`. Successes also land back on /team
  * implicitly via revalidatePath; an `?ok=<msg>` query param surfaces
  * the success message to the page.
  */
 
 function bounce(qs: Record<string, string>): never {
   const params = new URLSearchParams(qs);
-  redirect(`/team?${params.toString()}`);
+  redirect(`/settings/team?${params.toString()}`);
 }
 
 export async function inviteMember(formData: FormData): Promise<void> {
@@ -88,8 +88,8 @@ export async function inviteMember(formData: FormData): Promise<void> {
     emailNote = result.ok ? ` · email: ${result.output}` : ` · email FAILED: ${result.output}`;
   }
 
-  revalidatePath("/team");
-  revalidatePath("/log");
+  revalidatePath("/settings/team");
+  revalidatePath("/settings/log");
   bounce({ ok: `Invited ${provider}:${identifier} as ${templateSlug}${emailNote}` });
 }
 
@@ -106,8 +106,8 @@ export async function revokeInvitation(formData: FormData): Promise<void> {
   const { error } = await sb.rpc("revoke_invitation", { p_invitation_id: id });
   if (error) bounce({ error: error.message });
 
-  revalidatePath("/team");
-  revalidatePath("/log");
+  revalidatePath("/settings/team");
+  revalidatePath("/settings/log");
   bounce({ ok: "Invitation revoked" });
 }
 
@@ -132,8 +132,8 @@ export async function changeMemberRole(formData: FormData): Promise<void> {
   });
   if (error) bounce({ error: error.message });
 
-  revalidatePath("/team");
-  revalidatePath("/log");
+  revalidatePath("/settings/team");
+  revalidatePath("/settings/log");
   bounce({ ok: `Role changed to ${newRole}` });
 }
 
@@ -150,7 +150,7 @@ export async function removeMember(formData: FormData): Promise<void> {
   const { error } = await sb.rpc("remove_member", { p_user_id: userId });
   if (error) bounce({ error: error.message });
 
-  revalidatePath("/team");
-  revalidatePath("/log");
+  revalidatePath("/settings/team");
+  revalidatePath("/settings/log");
   bounce({ ok: "Member removed" });
 }

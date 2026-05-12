@@ -40,7 +40,7 @@ export async function acceptProposal(formData: FormData): Promise<Result> {
     revalidatePath("/");
     revalidatePath("/queue");
     revalidatePath(`/queue/${id}`);
-    revalidatePath("/log");
+    revalidatePath("/settings/log");
   }
   return result;
 }
@@ -67,7 +67,7 @@ export async function rejectProposal(formData: FormData): Promise<Result> {
     revalidatePath("/");
     revalidatePath("/queue");
     revalidatePath(`/queue/${id}`);
-    revalidatePath("/log");
+    revalidatePath("/settings/log");
   }
   return result;
 }

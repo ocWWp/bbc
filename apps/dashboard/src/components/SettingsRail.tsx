@@ -19,7 +19,7 @@ const GROUPS: ReadonlyArray<{
     lab: "workspace",
     items: [
       { key: "general", label: "General", href: "/settings" },
-      { key: "team", label: "Team", href: "/team" },
+      { key: "team", label: "Team", href: "/settings/team" },
       { key: "api-keys", label: "BBC API keys", href: "/settings/api-keys" },
       { key: "keys", label: "Provider keys", href: "/settings/keys" },
     ],
@@ -27,15 +27,15 @@ const GROUPS: ReadonlyArray<{
   {
     lab: "agents",
     items: [
-      { key: "bindings", label: "Bindings", href: "/bindings" },
-      { key: "tools", label: "Tools", href: "/tools" },
+      { key: "bindings", label: "Bindings", href: "/settings/bindings" },
+      { key: "tools", label: "Tools", href: "/settings/tools" },
       { key: "skills", label: "Skills", href: "/skills" },
     ],
   },
   {
     lab: "audit",
     items: [
-      { key: "log", label: "Activity log", href: "/log" },
+      { key: "log", label: "Activity log", href: "/settings/log" },
     ],
   },
 ];

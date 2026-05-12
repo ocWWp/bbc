@@ -56,7 +56,7 @@ export default async function SettingsGeneral() {
             <span className="k">members</span>
             <span className="v">
               {memberCount ?? 0} member{memberCount === 1 ? "" : "s"} —{" "}
-              <Link href="/team" style={{ color: "var(--paper-accent)" }}>
+              <Link href="/settings/team" style={{ color: "var(--paper-accent)" }}>
                 manage
               </Link>
             </span>
@@ -98,14 +98,14 @@ export default async function SettingsGeneral() {
           <div className="row">
             <span className="k">bindings</span>
             <span className="v">Which memory types each studio can read &amp; write</span>
-            <Link href="/bindings" className="btn btn-ghost">
+            <Link href="/settings/bindings" className="btn btn-ghost">
               edit
             </Link>
           </div>
           <div className="row">
             <span className="k">tools</span>
             <span className="v">Full F1 provider catalog — what each adapter does</span>
-            <Link href="/tools" className="btn btn-ghost">
+            <Link href="/settings/tools" className="btn btn-ghost">
               browse
             </Link>
           </div>
@@ -130,7 +130,7 @@ export default async function SettingsGeneral() {
           <div className="row">
             <span className="k">activity log</span>
             <span className="v">All writes, accepts, rejects, key rotations</span>
-            <Link href="/log" className="btn btn-ghost">
+            <Link href="/settings/log" className="btn btn-ghost">
               view
             </Link>
           </div>
