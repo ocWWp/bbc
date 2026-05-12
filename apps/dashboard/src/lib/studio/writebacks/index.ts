@@ -7,6 +7,7 @@
 // support templates' writebacks follow the same pattern in follow-up phases.
 
 import "./feature-request-triage";
+import "./eng-adr-draft";
 
 export {
   getWritebackEmitter,

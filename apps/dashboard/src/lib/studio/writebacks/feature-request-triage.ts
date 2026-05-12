@@ -1,17 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { tokenize } from "@/lib/studio/support-templates/retrieval";
+import { registerWritebackEmitter } from "./registry";
 import {
   blocksToMarkdown,
   proposalId,
-  registerWritebackEmitter,
   slugify,
   type FiledArtifact,
   type FiledProposal,
   type WritebackContext,
   type WritebackEmitter,
   type WritebackResult,
-} from "./index";
+} from "./types";
 
 // feature-request-triage writeback. THE BBC three-loop flywheel demo.
 //

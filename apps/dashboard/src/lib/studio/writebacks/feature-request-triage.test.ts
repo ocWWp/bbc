@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import "./feature-request-triage"; // side-effect: register emitter
-import { getWritebackEmitter, type WritebackContext } from "./registry";
+import { getWritebackEmitter } from "./registry";
+import type { WritebackContext } from "./types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import type { OutputBlock } from "@/lib/studio/output-blocks";
