@@ -113,6 +113,19 @@ const ALL_MEMORY_TYPES = [
 
 export type MemoryType = (typeof ALL_MEMORY_TYPES)[number];
 
+// Display order for the /api-keys create form. Keep alphabetical so the
+// dropdown is predictable. The values must match the keys in
+// ROLE_MEMORY_TYPES below.
+export const KNOWN_API_KEY_ROLES = [
+  "designer",
+  "engineering-reviewer",
+  "founder",
+  "marketing-writer",
+  "support-writer",
+] as const;
+
+export type KnownApiKeyRole = (typeof KNOWN_API_KEY_ROLES)[number];
+
 export const ROLE_MEMORY_TYPES: Record<string, ReadonlySet<MemoryType>> = {
   "marketing-writer": new Set<MemoryType>(["voice", "glossary", "product", "vendor", "note"]),
   "engineering-reviewer": new Set<MemoryType>([
