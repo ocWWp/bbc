@@ -31,41 +31,61 @@ export function SelfServeForm() {
   }
 
   return (
-    <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <input
-        type="text"
-        required
-        placeholder="Tenant name (e.g., Acme Co)"
-        value={tenantName}
-        onChange={(e) => setTenantName(e.target.value)}
-        minLength={2}
-      />
-      <input
-        type="email"
-        required
-        placeholder="you@yourdomain.com"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        autoComplete="email"
-      />
-      <input
-        type="password"
-        required
-        minLength={8}
-        placeholder="password (min 8)"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        autoComplete="new-password"
-      />
-      <button className="btn primary" type="submit" disabled={pending}>
-        {pending ? "Creating tenant…" : "Create tenant + sign up"}
+    <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div className="field">
+        <label className="field-label"><span>workspace name</span></label>
+        <input
+          className="field-input"
+          type="text" required minLength={2}
+          placeholder="Acme Co"
+          value={tenantName}
+          onChange={(e) => setTenantName(e.target.value)}
+        />
+      </div>
+
+      <div className="field">
+        <label className="field-label"><span>email</span></label>
+        <input
+          className={"field-input mono" + (message?.kind === "err" ? " is-error" : "")}
+          type="email" required
+          placeholder="you@yourdomain.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          autoComplete="email"
+        />
+      </div>
+
+      <div className="field">
+        <label className="field-label">
+          <span>password</span>
+          <span className="helper">8+ chars · we never log it</span>
+        </label>
+        <input
+          className={"field-input mono" + (message?.kind === "err" ? " is-error" : "")}
+          type="password" required minLength={8}
+          placeholder="••••••••"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="new-password"
+        />
+      </div>
+
+      <button className="btn-submit" type="submit" disabled={pending}>
+        {pending ? "creating tenant…" : "create workspace"}
+        {!pending && (
+          <svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="2.5" y1="7" x2="11.5" y2="7" />
+            <polyline points="8,3.5 11.5,7 8,10.5" />
+          </svg>
+        )}
       </button>
+
       {message && (
-        <div
-          className={message.kind === "ok" ? "banner ok" : "banner warn"}
-          style={{ marginTop: 8 }}
-        >
-          {message.text}
+        <div className={`auth-banner ${message.kind === "ok" ? "is-ok" : "is-invalid-credentials"}`}>
+          <span className="gap" />
+          <div className="auth-banner-body">
+            <span className="auth-banner-msg">{message.text}</span>
+          </div>
         </div>
       )}
     </form>
