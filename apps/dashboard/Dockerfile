@@ -47,17 +47,13 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Bring built artifacts + the install tree
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/apps/dashboard/node_modules ./apps/dashboard/node_modules
-COPY --from=builder /app/apps/dashboard/.next ./apps/dashboard/.next
-COPY --from=builder /app/apps/dashboard/package.json ./apps/dashboard/
-COPY --from=builder /app/apps/dashboard/next.config.ts ./apps/dashboard/
-COPY --from=builder /app/packages/store ./packages/store
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/pnpm-workspace.yaml ./
+# Standalone output bundles a minimal server.js + only the deps the app
+# actually imports. The monorepo's outputFileTracingRoot is set to the
+# repo root, so the standalone tree mirrors that layout under /app.
+COPY --from=builder /app/apps/dashboard/.next/standalone ./
+COPY --from=builder /app/apps/dashboard/.next/static ./apps/dashboard/.next/static
 
 EXPOSE 3000
 
-WORKDIR /app/apps/dashboard
-CMD ["node_modules/.bin/next", "start", "-p", "3000"]
+# server.js is emitted by the standalone build at the app's own folder.
+CMD ["node", "apps/dashboard/server.js"]
