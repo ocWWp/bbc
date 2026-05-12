@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { SourceItem } from "./source-types";
+import { SeedDemoBrainButton } from "./seed-demo-button";
 
 const PLACEHOLDERS = [
   "We're a developer-tools startup helping early-stage founders ship product faster. Our voice is direct and lowercase — we never use the word 'leverage' or 'synergy'. The team is Sarah (PM), Alex (eng), Mei (design)...",
@@ -167,6 +168,13 @@ export function DumpStep({
           >
             Voice, team, decisions, vendors — anything that should live in your shared brain. Don't overthink it.
           </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.16, ease: [0.2, 0, 0, 1] }}
+          >
+            <SeedDemoBrainButton />
+          </motion.div>
         </div>
 
         {sources.length > 0 && (

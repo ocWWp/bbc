@@ -13,6 +13,7 @@ import { EXTRACT_PROPOSALS_TOOL, SYSTEM_PROMPT } from "@/lib/memory/extractor/pr
 import { supertagSchemas, type Supertag } from "@/lib/memory/types";
 import "@/lib/ingestion"; // registers text/url/file adapters on the shared registry
 import { getAdapter, type IngestionSourceKind } from "@/lib/ingestion/adapter";
+import { insertDemoBrain } from "@/lib/welcome/demo-brain";
 
 // PII pre-scrub: strip the most common high-severity leaks before the raw text
 // reaches the LLM extractor or the database. Patterns are intentionally tight to
@@ -327,4 +328,47 @@ export async function ingestSource(input: IngestSourceInput): Promise<IngestResu
     redactions,
     reused: false,
   };
+}
+
+// ----------------------------------------------------------------------------
+// Demo brain seed -- the "Try the demo brain" button on /welcome.
+// Inserts 11 starter memories (product, voice, decisions, vendors, team) so
+// a fresh tenant can exercise Studios + MCP without going through the
+// brain-dump flow. Same content as scripts/seed-demo-memories.sh; both call
+// into lib/welcome/demo-brain.ts to avoid drift.
+// ----------------------------------------------------------------------------
+
+export type SeedDemoBrainResult =
+  | { ok: true; inserted: number }
+  | { ok: false; error: string };
+
+export async function seedDemoBrain(): Promise<SeedDemoBrainResult> {
+  const a = await requireActor();
+  if (!a.ok) return { ok: false, error: a.output };
+  const r = requireRole(a.actor, "member");
+  if (!r.ok) return { ok: false, error: r.output };
+
+  const supabase = await getSupabaseServerClient();
+
+  // Idempotency: don't re-seed if the tenant already has memories. The button
+  // is gated by the same check on the client, but enforce server-side too.
+  const { count } = await supabase
+    .from("memory_files")
+    .select("id", { count: "exact", head: true })
+    .eq("tenant_id", a.actor.tenant_id);
+
+  if ((count ?? 0) > 0) {
+    return {
+      ok: false,
+      error:
+        "Demo brain seed only runs into an empty tenant. Your brain already has memories.",
+    };
+  }
+
+  const result = await insertDemoBrain(supabase, a.actor.tenant_id);
+  if (!result.ok) return result;
+
+  revalidatePath("/memory");
+  revalidatePath("/welcome");
+  return result;
 }
