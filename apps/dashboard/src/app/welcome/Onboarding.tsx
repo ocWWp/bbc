@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { extractMemoryProposals, bulkAcceptProposals, ingestSource } from "./actions";
 import type { Proposal } from "@/lib/memory/extractor/types";
 import { DumpStep } from "./_steps/dump-step";
+import { ByokBanner } from "./_steps/byok-banner";
 import { ExtractingStep } from "./_steps/extracting-step";
 import { ReviewStep } from "./_steps/review-step";
 import { DoneStep } from "./_steps/done-step";
@@ -70,7 +71,20 @@ function labelForUrl(url: string): string {
   }
 }
 
-export function Onboarding({ tenantSlug, previewMode = false }: { tenantSlug: string; previewMode?: boolean }) {
+export type ByokState = {
+  hasAnthropicKey: boolean;
+  isHostedDemo: boolean;
+};
+
+export function Onboarding({
+  tenantSlug,
+  previewMode = false,
+  byokState,
+}: {
+  tenantSlug: string;
+  previewMode?: boolean;
+  byokState?: ByokState;
+}) {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("dump");
   const [text, setText] = useState("");
@@ -284,6 +298,9 @@ export function Onboarding({ tenantSlug, previewMode = false }: { tenantSlug: st
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.25, ease: [0.2, 0, 0, 1] }}
               >
+                {byokState && !byokState.hasAnthropicKey ? (
+                  <ByokBanner isHostedDemo={byokState.isHostedDemo} />
+                ) : null}
                 <DumpStep
                   value={text}
                   onChange={setText}

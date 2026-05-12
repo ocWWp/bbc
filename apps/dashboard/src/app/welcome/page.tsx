@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireActor } from "@/lib/auth/require-user";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { hasTenantProviderKey, isHostedDemoMode } from "@/lib/secrets/tenant-keys";
 import { Onboarding } from "./Onboarding";
 
 export const metadata = { title: "Welcome — BBC" };
@@ -18,5 +20,21 @@ export default async function WelcomePage({ searchParams }: { searchParams: Sear
 
   const a = await requireActor();
   if (!a.ok) redirect("/auth/signin?callbackUrl=/welcome");
-  return <Onboarding tenantSlug={a.actor.tenant_slug} />;
+
+  const supabase = await getSupabaseServerClient();
+  const hasAnthropicKey = await hasTenantProviderKey(
+    supabase,
+    a.actor.tenant_id,
+    "anthropic",
+  );
+
+  return (
+    <Onboarding
+      tenantSlug={a.actor.tenant_slug}
+      byokState={{
+        hasAnthropicKey,
+        isHostedDemo: isHostedDemoMode(),
+      }}
+    />
+  );
 }
