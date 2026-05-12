@@ -13,6 +13,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import type { OutputBlock } from "@/lib/studio/output-blocks";
 
+type SupabaseDb = SupabaseClient<Database>;
+
 export type WritebackContext = {
   runId: string;
   templateId: string;
@@ -75,4 +77,44 @@ export function blocksToMarkdown(blocks: OutputBlock[]): string {
       return JSON.stringify(b);
     })
     .join("\n\n");
+}
+
+// Shared audit-row insert. Every support-template writeback writes one of
+// these "what happened" rows to memory_files (type=source_artifact) so the
+// founder can search/replay past runs. Returns FiledArtifact on success or
+// null on insert error -- emitters surface the error in their own return
+// shape (artifacts list stays empty).
+export async function insertAuditArtifact(
+  supabase: SupabaseDb,
+  ctx: WritebackContext,
+  args: {
+    title: string;
+    content: string;
+    summary: string;
+    pathPrefix?: string;
+  },
+): Promise<FiledArtifact | null> {
+  const path = `${args.pathPrefix ?? "studio-runs"}/${ctx.runId}.md`;
+  const { data, error } = await supabase
+    .from("memory_files")
+    .insert({
+      tenant_id: ctx.tenantId,
+      type: "source_artifact" as Database["public"]["Enums"]["memory_type"],
+      title: args.title.slice(0, 200),
+      content: args.content.slice(0, 50_000),
+      fields: {
+        source_kind: "text",
+        summary: args.summary.slice(0, 2000),
+      } as Database["public"]["Tables"]["memory_files"]["Insert"]["fields"],
+      status: "active" as Database["public"]["Enums"]["memory_status"],
+      path,
+    })
+    .select("id")
+    .single();
+  if (error || !data) return null;
+  return {
+    memory_id: (data as { id: string }).id,
+    type: "source_artifact",
+    title: args.title,
+  };
 }

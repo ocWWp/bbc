@@ -8,6 +8,10 @@
 
 import "./feature-request-triage";
 import "./eng-adr-draft";
+import "./customer-reply";
+import "./churn-save";
+import "./bug-ack";
+import "./incident-status";
 
 export {
   getWritebackEmitter,
@@ -15,7 +19,7 @@ export {
   registerWritebackEmitter,
 } from "./registry";
 
-export { blocksToMarkdown, proposalId, slugify } from "./types";
+export { blocksToMarkdown, insertAuditArtifact, proposalId, slugify } from "./types";
 
 export type {
   WritebackContext,
