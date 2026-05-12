@@ -89,6 +89,12 @@ export function scopeAllows(
  *   designer            Voice + product + glossary. Designer needs brand
  *                       and product context but not engineering decisions.
  *
+ *   support-writer      Customer-reply drafting: voice + product + glossary
+ *                       grounds the reply; decisions cover "we don't do X"
+ *                       rules; vendor lets the studio recognize integration
+ *                       reports ("Stripe webhook isn't firing"). Does NOT
+ *                       need team/skill/source_artifact.
+ *
  * Unknown roles fall back to "all types" (same as role=null) — we'd rather
  * be permissive than break a key. The DB column is intentionally free-form
  * so new role names can ship without a migration.
@@ -119,6 +125,14 @@ export const ROLE_MEMORY_TYPES: Record<string, ReadonlySet<MemoryType>> = {
   ]),
   "founder": new Set<MemoryType>([...ALL_MEMORY_TYPES]),
   "designer": new Set<MemoryType>(["voice", "product", "glossary", "note"]),
+  "support-writer": new Set<MemoryType>([
+    "voice",
+    "product",
+    "glossary",
+    "vendor",
+    "decision",
+    "note",
+  ]),
 };
 
 /**

@@ -34,6 +34,11 @@ export type BrainSummary = {
   recent_decisions: Array<{ id: string; title: string; decision: string }>;
   vendors: Array<{ id: string; name: string; role: string }>;
   team: Array<{ id: string; name: string; role: string }>;
+  // Canonical product vocabulary. Surfaced explicitly (instead of folding into
+  // voice) so support templates can pin terms as "use exactly this word" while
+  // marketing templates keep the looser voice contract. Optional -- a tenant
+  // with no glossary memories gets `undefined` here, not an empty terms list.
+  glossary?: { terms: Array<{ id: string; term: string; definition: string }> };
 };
 
 // One active override row, shaped for prompt merging. The server action

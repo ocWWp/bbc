@@ -13,11 +13,13 @@ import {
   decisionFieldsSchema,
   vendorFieldsSchema,
   teamFieldsSchema,
+  glossaryFieldsSchema,
 } from "@/lib/memory/types";
 
 const MAX_DECISIONS = 5;
 const MAX_VENDORS = 8;
 const MAX_TEAM = 8;
+const MAX_GLOSSARY = 12;
 
 type MemRow = {
   id: string;
@@ -83,6 +85,18 @@ export async function loadBrainSummary(
     })
     .filter((m) => m.name);
 
+  const glossaryTerms = byType("glossary")
+    .slice(0, MAX_GLOSSARY)
+    .map((r) => {
+      const f = safeParse(glossaryFieldsSchema, r.fields);
+      return {
+        id: r.id,
+        term: (f?.term ?? r.title ?? "").slice(0, 100),
+        definition: (f?.definition ?? "").slice(0, 300),
+      };
+    })
+    .filter((g) => g.term && g.definition);
+
   return {
     voice: voice
       ? {
@@ -102,6 +116,7 @@ export async function loadBrainSummary(
     recent_decisions: decisions,
     vendors,
     team,
+    glossary: glossaryTerms.length > 0 ? { terms: glossaryTerms } : undefined,
   };
 }
 
