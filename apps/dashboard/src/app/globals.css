@@ -2211,7 +2211,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 }
 .auth-form {
   width: 100%; max-width: 380px;
-  margin: 0 auto 0 0;
+  margin: 0 auto;
   display: flex; flex-direction: column; gap: 22px;
 }
 .auth-eyebrow {
