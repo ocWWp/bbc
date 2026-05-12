@@ -65,7 +65,7 @@ function brainSurface(u: number, v: number, jitter = 0) {
   return { x, y, z };
 }
 
-export function BrainView({ nodes }: { nodes: BrainNode[] }) {
+export function BrainView({ nodes, embedded = false }: { nodes: BrainNode[]; embedded?: boolean }) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState({ w: 900, h: 520 });
   const [rotY, setRotY] = useState(0.6);
@@ -106,12 +106,19 @@ export function BrainView({ nodes }: { nodes: BrainNode[] }) {
     const ro = new ResizeObserver((entries) => {
       for (const e of entries) {
         const cr = e.contentRect;
-        setSize({ w: cr.width, h: Math.max(420, Math.min(640, cr.width * 0.55)) });
+        if (embedded) {
+          // Fill the host. Square-ish hosts (welcome brain-host) want
+          // height to match container, not a fixed 420 min.
+          const h = cr.height > 0 ? cr.height : cr.width;
+          setSize({ w: cr.width, h });
+        } else {
+          setSize({ w: cr.width, h: Math.max(420, Math.min(640, cr.width * 0.55)) });
+        }
       }
     });
     ro.observe(wrapRef.current);
     return () => ro.disconnect();
-  }, []);
+  }, [embedded]);
 
   useEffect(() => {
     let raf: number;
@@ -185,37 +192,48 @@ export function BrainView({ nodes }: { nodes: BrainNode[] }) {
   return (
     <div
       ref={wrapRef}
-      style={{
-        border: "1px solid var(--paper-rule)",
-        borderRadius: 12,
-        background: "var(--paper)",
-        overflow: "hidden",
-        position: "relative",
-        minHeight: 520,
-      }}
+      style={
+        embedded
+          ? {
+              position: "relative",
+              width: "100%",
+              height: "100%",
+              overflow: "hidden",
+            }
+          : {
+              border: "1px solid var(--paper-rule)",
+              borderRadius: 12,
+              background: "var(--paper)",
+              overflow: "hidden",
+              position: "relative",
+              minHeight: 520,
+            }
+      }
     >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          padding: "12px 16px",
-          borderBottom: "1px solid var(--paper-rule)",
-          background: "var(--paper-bg-2)",
-          fontFamily: "var(--font-geist-mono), monospace",
-          fontSize: 11.5,
-          color: "var(--paper-muted)",
-        }}
-      >
-        <span>
-          <strong style={{ color: "var(--paper-ink)", fontWeight: 500 }}>{anchors.length}</strong>{" "}
-          nodes ·{" "}
-          <strong style={{ color: "var(--paper-ink)", fontWeight: 500 }}>{EDGES.length}</strong>{" "}
-          edges ·{" "}
-          <strong style={{ color: "var(--paper-ink)", fontWeight: 500 }}>{cloud.length}</strong>{" "}
-          cortex points
-        </span>
-        <span>drag to rotate · scroll to zoom · click node to open</span>
-      </div>
+      {!embedded && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            padding: "12px 16px",
+            borderBottom: "1px solid var(--paper-rule)",
+            background: "var(--paper-bg-2)",
+            fontFamily: "var(--font-geist-mono), monospace",
+            fontSize: 11.5,
+            color: "var(--paper-muted)",
+          }}
+        >
+          <span>
+            <strong style={{ color: "var(--paper-ink)", fontWeight: 500 }}>{anchors.length}</strong>{" "}
+            nodes ·{" "}
+            <strong style={{ color: "var(--paper-ink)", fontWeight: 500 }}>{EDGES.length}</strong>{" "}
+            edges ·{" "}
+            <strong style={{ color: "var(--paper-ink)", fontWeight: 500 }}>{cloud.length}</strong>{" "}
+            cortex points
+          </span>
+          <span>drag to rotate · scroll to zoom · click node to open</span>
+        </div>
+      )}
 
       <svg
         width={size.w}
@@ -318,53 +336,57 @@ export function BrainView({ nodes }: { nodes: BrainNode[] }) {
         })}
       </svg>
 
-      <div
-        style={{
-          position: "absolute",
-          left: 14,
-          bottom: 14,
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 5,
-          maxWidth: "calc(100% - 28px)",
-        }}
-      >
-        {SUPERTAGS_ORDER.map((t) => (
-          <Link
-            key={t}
-            href={`/memory?type=${t}`}
-            className="px-chip"
+      {!embedded && (
+        <>
+          <div
             style={{
-              ["--tag-color" as string]: `var(--t-${t})`,
-              background: "color-mix(in oklab, var(--paper), transparent 12%)",
-              backdropFilter: "blur(8px)",
-              textDecoration: "none",
+              position: "absolute",
+              left: 14,
+              bottom: 14,
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 5,
+              maxWidth: "calc(100% - 28px)",
             }}
           >
-            <span className="px-chip-dot" />
-            {t}
-          </Link>
-        ))}
-      </div>
+            {SUPERTAGS_ORDER.map((t) => (
+              <Link
+                key={t}
+                href={`/memory?type=${t}`}
+                className="px-chip"
+                style={{
+                  ["--tag-color" as string]: `var(--t-${t})`,
+                  background: "color-mix(in oklab, var(--paper), transparent 12%)",
+                  backdropFilter: "blur(8px)",
+                  textDecoration: "none",
+                }}
+              >
+                <span className="px-chip-dot" />
+                {t}
+              </Link>
+            ))}
+          </div>
 
-      <div
-        style={{
-          position: "absolute",
-          right: 14,
-          bottom: 14,
-          fontFamily: "var(--font-geist-mono), monospace",
-          fontSize: 10.5,
-          color: "var(--paper-muted)",
-          background: "color-mix(in oklab, var(--paper), transparent 12%)",
-          backdropFilter: "blur(8px)",
-          padding: "4px 8px",
-          borderRadius: 999,
-          border: "1px solid var(--paper-rule)",
-        }}
-      >
-        rotY {(rotY % (Math.PI * 2)).toFixed(2)} · rotX {rotX.toFixed(2)} · zoom{" "}
-        {zoom.toFixed(2)}×
-      </div>
+          <div
+            style={{
+              position: "absolute",
+              right: 14,
+              bottom: 14,
+              fontFamily: "var(--font-geist-mono), monospace",
+              fontSize: 10.5,
+              color: "var(--paper-muted)",
+              background: "color-mix(in oklab, var(--paper), transparent 12%)",
+              backdropFilter: "blur(8px)",
+              padding: "4px 8px",
+              borderRadius: 999,
+              border: "1px solid var(--paper-rule)",
+            }}
+          >
+            rotY {(rotY % (Math.PI * 2)).toFixed(2)} · rotX {rotX.toFixed(2)} · zoom{" "}
+            {zoom.toFixed(2)}×
+          </div>
+        </>
+      )}
     </div>
   );
 }

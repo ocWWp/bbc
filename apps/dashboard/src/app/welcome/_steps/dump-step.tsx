@@ -1,27 +1,56 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useRef, useState } from "react";
 import type { SourceItem } from "./source-types";
 import { SeedDemoBrainButton } from "./seed-demo-button";
-
-const PLACEHOLDERS = [
-  "We're a developer-tools startup helping early-stage founders ship product faster. Our voice is direct and lowercase — we never use the word 'leverage' or 'synergy'. The team is Sarah (PM), Alex (eng), Mei (design)...",
-  "Our product is a memory layer for AI agents. We picked Supabase for the database because of Row-Level Security. Competitors are Mem0 and Letta. Founders are our target user, not enterprises...",
-  "We sound casual and curious. The team uses Slack, GitHub, and Linear. Our key decision last month: stop pretending we'll ever support self-hosted on-prem — we're SaaS-only.",
-];
+import { BrainView } from "@/components/memory/BrainView";
 
 const MIN = 80;
-const SWEET = 700;
 const MAX = 8000;
 
-const EXAMPLE_BRAIN: { type: string; items: string[] }[] = [
-  { type: "product", items: ["Memory layer for AI agents"] },
-  { type: "voice", items: ["Lowercase, no jargon"] },
-  { type: "team", items: ["Sarah · PM", "Alex · Eng"] },
-  { type: "vendor", items: ["Supabase · Database"] },
-  { type: "decision", items: ["SaaS-only, no on-prem"] },
+const SUPERTAG_TALLY: ReadonlyArray<{ key: string; n: number }> = [
+  { key: "voice", n: 0 },
+  { key: "decision", n: 0 },
+  { key: "vendor", n: 0 },
+  { key: "team", n: 0 },
+  { key: "product", n: 0 },
+  { key: "glossary", n: 0 },
+  { key: "skill", n: 0 },
+  { key: "source_artifact", n: 0 },
+  { key: "note", n: 0 },
 ];
+
+const SAMPLE_MEMORIES = [
+  {
+    tag: "decision",
+    id: "mem_???_01",
+    body: <><strong>Announce on May 5 · 8am ET.</strong> Lead with the wedge, not the dollar amount.</>,
+    fields: [
+      ["context", "Seed-round call · investor preference"],
+      ["consequence", "Avoid $-amount in the headline"],
+    ],
+  },
+  {
+    tag: "voice",
+    id: "mem_???_02",
+    body: "Lowercase. Matter-of-fact. Say what we built and what it does.",
+    fields: [
+      ["do", <span key="d"><em>&quot;open-source&quot;</em>, <em>&quot;typed memory&quot;</em></span>],
+      ["don't", <span key="dt"><em>&quot;thrilled&quot;</em>, <em>&quot;leverage&quot;</em></span>],
+    ],
+  },
+  {
+    tag: "team",
+    id: "mem_???_03",
+    body: <><strong>Priya Sridhar</strong> — CTO, IST timezone, owns infra.</>,
+    fields: [
+      ["role", "internal · cto"],
+      ["tz", "asia/kolkata"],
+    ],
+  },
+] as const;
+
+type Mode = "paste" | "drop" | "url";
 
 type Props = {
   value: string;
@@ -46,476 +75,282 @@ export function DumpStep({
   onRemoveSource,
   busy,
 }: Props) {
-  const [idx, setIdx] = useState(0);
-  const [urlPopoverOpen, setUrlPopoverOpen] = useState(false);
+  const [mode, setMode] = useState<Mode>("paste");
   const [urlInput, setUrlInput] = useState("");
   const [urlBusy, setUrlBusy] = useState(false);
   const [urlError, setUrlError] = useState<string | null>(null);
-  const [fileBusy, setFileBusy] = useState(false);
-  const [fileError, setFileError] = useState<string | null>(null);
-  const [dragging, setDragging] = useState(false);
-  const [detectedUrl, setDetectedUrl] = useState<{ url: string; range: [number, number] } | null>(null);
-  const [detectBusy, setDetectBusy] = useState(false);
-  const ref = useRef<HTMLTextAreaElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    ref.current?.focus();
-  }, []);
+  const totalChars = value.length + sources.reduce((acc, s) => acc + s.rawText.length, 0);
+  const enough = totalChars >= MIN;
+  const tooMuch = value.length > MAX;
+  const estimate = Math.max(0, Math.round(totalChars / 700));
 
-  useEffect(() => {
-    if (value) return;
-    const t = setInterval(() => setIdx((i) => (i + 1) % PLACEHOLDERS.length), 5500);
-    return () => clearInterval(t);
-  }, [value]);
-
-  const len = value.length;
-  const hasContent = len >= MIN || sources.length > 0;
-  const canSubmit = hasContent && len <= MAX && !busy;
-  const progress = Math.min(1, Math.max(len / SWEET, sources.length > 0 ? 1 : 0));
-
-  async function handleUrlFetch() {
+  async function handleUrl(e: React.FormEvent) {
+    e.preventDefault();
     const url = urlInput.trim();
-    if (!url) {
-      setUrlError("Paste a URL first.");
-      return;
-    }
-    setUrlError(null);
+    if (!url) return;
     setUrlBusy(true);
-    const res = await onAddUrl(url);
+    setUrlError(null);
+    const full = url.startsWith("http") ? url : `https://${url}`;
+    const res = await onAddUrl(full);
     setUrlBusy(false);
-    if (res.ok) {
-      setUrlInput("");
-      setUrlPopoverOpen(false);
-    } else {
-      setUrlError(res.error);
-    }
-  }
-
-  function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
-    const pasted = e.clipboardData.getData("text").trim();
-    // Only react when the entire pasted blob is a single bare URL. Long
-    // copy-pastes that happen to contain a URL stay as text (the user clearly
-    // wanted prose, not a fetch).
-    if (pasted.length < 8 || pasted.length > 500) return;
-    if (!/^https?:\/\/\S+$/i.test(pasted)) return;
-    if (/\s/.test(pasted)) return;
-    // Capture where it will land so we can excise it later if user chooses Fetch.
-    const target = e.currentTarget;
-    const start = target.selectionStart;
-    const end = start + pasted.length;
-    // Defer so React's onChange has already applied the paste.
-    setTimeout(() => setDetectedUrl({ url: pasted, range: [start, end] }), 0);
-  }
-
-  async function fetchDetectedUrl() {
-    if (!detectedUrl) return;
-    setDetectBusy(true);
-    const res = await onAddUrl(detectedUrl.url);
-    setDetectBusy(false);
     if (!res.ok) {
-      // Surface in the same place as the popover error, then keep the chip
-      // so the user can retry or dismiss.
       setUrlError(res.error);
       return;
     }
-    // Excise the URL from the textarea (and the surrounding whitespace it
-    // probably landed in).
-    const [s, e] = detectedUrl.range;
-    const before = value.slice(0, s);
-    const after = value.slice(e);
-    onChange((before + after).replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim());
-    setDetectedUrl(null);
+    setUrlInput("");
   }
 
-  async function handleFiles(fileList: FileList | null) {
-    if (!fileList || fileList.length === 0) return;
-    setFileError(null);
-    setFileBusy(true);
-    for (const file of Array.from(fileList)) {
-      const res = await onAddFile(file);
-      if (!res.ok) {
-        setFileError(res.error);
-        break;
-      }
-    }
-    setFileBusy(false);
-    if (fileRef.current) fileRef.current.value = "";
+  async function handleFile(file: File) {
+    const res = await onAddFile(file);
+    if (!res.ok) setUrlError(res.error);
   }
 
-  const submitLabel =
-    sources.length > 0
-      ? `Structure my brain + ${sources.length} source${sources.length === 1 ? "" : "s"}`
-      : "Structure my brain";
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) void handleFile(file);
+  }
 
   return (
-    <section className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-12">
-      <div className="space-y-7">
-        <div className="space-y-3">
-          <motion.h1
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: [0.2, 0, 0, 1] }}
-            className="text-4xl font-semibold tracking-[-0.025em] text-foreground sm:text-[2.75rem] sm:leading-[1.05]"
+    <div className="dump">
+      {/* Left: input */}
+      <section>
+        <div className="dump-eyebrow">
+          <span className="dot" />
+          <span>step 01 · brain dump</span>
+        </div>
+        <h1 className="dump-title">
+          what should your brain <span className="serif">know first</span>?
+        </h1>
+        <p className="dump-blurb">
+          paste anything that describes your team, voice, decisions, or product —
+          a slack thread, a readme, a doc, raw notes. we&apos;ll structure it into typed
+          memory you can review before anything is saved.
+        </p>
+
+        <div className="dump-modes" role="tablist">
+          <button
+            type="button"
+            className={mode === "paste" ? "is-active" : ""}
+            onClick={() => setMode("paste")}
           >
-            Tell us about your product.
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.08, ease: [0.2, 0, 0, 1] }}
-            className="max-w-xl text-[15px] leading-relaxed text-muted-foreground"
+            <span>paste</span>
+            <span className="kbd">⌘V</span>
+          </button>
+          <button
+            type="button"
+            className={mode === "drop" ? "is-active" : ""}
+            onClick={() => setMode("drop")}
           >
-            Voice, team, decisions, vendors — anything that should live in your shared brain. Don't overthink it.
-          </motion.p>
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.16, ease: [0.2, 0, 0, 1] }}
+            <span>drop a file</span>
+          </button>
+          <button
+            type="button"
+            className={mode === "url" ? "is-active" : ""}
+            onClick={() => setMode("url")}
           >
-            <SeedDemoBrainButton />
-          </motion.div>
+            <span>paste a url</span>
+          </button>
+        </div>
+
+        <div className="dump-input">
+          {mode === "paste" && (
+            <>
+              <textarea
+                className="dump-area"
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder="we're a developer-tools startup. our voice is direct and lowercase — we never say 'leverage' or 'synergy'. the team is sarah (pm), alex (eng), mei (design). we picked supabase because of row-level security. competitors are mem0 and letta..."
+                disabled={busy}
+              />
+              <div className="dump-meta">
+                <span>{value.length.toLocaleString()} chars · {sources.length === 0 ? "1 source" : `${sources.length + (value ? 1 : 0)} sources`}</span>
+                {enough && !tooMuch && (
+                  <span className="est">≈ {estimate || 1} memory items</span>
+                )}
+                {tooMuch && <span style={{ color: "var(--err)" }}>too long · {MAX.toLocaleString()} max</span>}
+              </div>
+            </>
+          )}
+
+          {mode === "drop" && (
+            <div
+              className={`dump-drop ${dragOver ? "is-drag" : ""}`}
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={onDrop}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".md,.txt,.json,.csv,.html,text/markdown,text/plain,application/json,text/csv,text/html"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void handleFile(f);
+                }}
+              />
+              <div className="icon">
+                <svg viewBox="0 0 22 22" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 14V4" /><polyline points="6.5,8.5 11,4 15.5,8.5" />
+                  <path d="M4 16v2a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2" />
+                </svg>
+              </div>
+              <div className="h">drop a file here, or click to browse</div>
+              <div className="s">we read text and frontmatter, never images of text.</div>
+              <div className="types">
+                <span>.md</span><span>.txt</span><span>.json</span>
+                <span>.csv</span><span>.html</span><span>≤ 2 mb</span>
+              </div>
+            </div>
+          )}
+
+          {mode === "url" && (
+            <>
+              <form onSubmit={handleUrl}>
+                <div className="dump-url">
+                  <span className="prefix">https://</span>
+                  <input
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value.replace(/^https?:\/\//, ""))}
+                    placeholder="github.com/acme/handbook/blob/main/voice.md"
+                    autoFocus
+                  />
+                  <button
+                    type="submit"
+                    disabled={!urlInput || urlBusy}
+                    className="btn-go"
+                    style={{ height: 32, padding: "0 12px", fontSize: 12 }}
+                  >
+                    {urlBusy ? "fetching…" : "fetch"}
+                  </button>
+                </div>
+              </form>
+              <div style={{ padding: "40px 20px", textAlign: "center", fontFamily: "var(--font-geist-mono), monospace", fontSize: 12, color: "var(--paper-muted)" }}>
+                we fetch the raw text on extract — no rendering, no js execution.
+              </div>
+            </>
+          )}
         </div>
 
         {sources.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-wrap gap-2"
-            aria-label="Attached sources"
-          >
+          <div className="dump-sources">
             {sources.map((s) => (
-              <SourceChip key={s.sourceId} source={s} onRemove={() => onRemoveSource(s.sourceId)} />
+              <span key={s.sourceId} className="dump-source-chip">
+                <span className="kind">{s.kind}</span>
+                <span>{s.label}</span>
+                <button
+                  type="button"
+                  onClick={() => onRemoveSource(s.sourceId)}
+                  aria-label="remove source"
+                >×</button>
+              </span>
             ))}
-          </motion.div>
-        )}
-
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, delay: 0.14, ease: [0.2, 0, 0, 1] }}
-          className="relative group"
-        >
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -inset-px rounded-xl bg-gradient-to-br from-brain-accent/0 via-brain-accent/0 to-brain-accent/0 opacity-0 transition-opacity duration-500 group-focus-within:from-brain-accent/15 group-focus-within:to-brain-accent/5 group-focus-within:opacity-100 blur-sm"
-          />
-          <textarea
-            ref={ref}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onPaste={handlePaste}
-            rows={11}
-            className="relative w-full resize-none rounded-xl border border-border/80 bg-card/60 px-5 py-4 text-[15px] leading-relaxed shadow-[0_0_0_1px_rgba(0,0,0,0.04),0_2px_4px_-2px_rgba(0,0,0,0.08)] backdrop-blur-sm transition-all duration-300 placeholder:text-muted-foreground/50 focus:outline-none focus:border-brain-accent/40 focus:bg-card/80 focus:shadow-[0_0_0_1px_color-mix(in_oklch,var(--brain-accent)_30%,transparent),0_8px_28px_-12px_color-mix(in_oklch,var(--brain-accent)_25%,transparent)] dark:bg-card/40 dark:focus:bg-card/60"
-            aria-label="Brain dump"
-          />
-          {!value && (
-            <div className="pointer-events-none absolute inset-x-5 top-4 select-none">
-              <AnimatePresence mode="wait">
-                <motion.p
-                  key={idx}
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.45, ease: [0.2, 0, 0, 1] }}
-                  className="text-[15px] leading-relaxed text-muted-foreground/70 dark:text-muted-foreground/60"
-                >
-                  {PLACEHOLDERS[idx]}
-                </motion.p>
-              </AnimatePresence>
-            </div>
-          )}
-        </motion.div>
-
-        {detectedUrl && (
-          <motion.div
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center justify-between gap-3 rounded-lg border border-brain-accent/30 bg-brain-accent/[0.04] px-3 py-2 text-xs"
-          >
-            <p className="min-w-0 flex-1 truncate text-foreground">
-              <span className="text-muted-foreground">Looks like a URL — </span>
-              fetch <span className="font-medium" title={detectedUrl.url}>{labelForDetectedUrl(detectedUrl.url)}</span> as a separate source?
-            </p>
-            <div className="flex shrink-0 items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setDetectedUrl(null)}
-                className="rounded-md px-2 py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                Keep as text
-              </button>
-              <button
-                type="button"
-                onClick={fetchDetectedUrl}
-                disabled={detectBusy}
-                className="rounded-md bg-brain-accent px-2.5 py-1 font-medium text-brain-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-              >
-                {detectBusy ? "Fetching…" : "Fetch"}
-              </button>
-            </div>
-          </motion.div>
-        )}
-
-        <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
-          className="grid grid-cols-1 gap-2 sm:grid-cols-3"
-        >
-          <label
-            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragging(false);
-              handleFiles(e.dataTransfer.files);
-            }}
-            className={`group/tile relative flex cursor-pointer items-center gap-3 rounded-xl border bg-card/40 px-4 py-3 text-left transition-all duration-200 hover:bg-card/70 ${
-              dragging
-                ? "border-brain-accent/60 bg-brain-accent/5 shadow-[0_0_0_1px_color-mix(in_oklch,var(--brain-accent)_30%,transparent)]"
-                : "border-border/70"
-            }`}
-          >
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".md,.markdown,.txt"
-              multiple
-              className="sr-only"
-              onChange={(e) => handleFiles(e.target.files)}
-            />
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground group-hover/tile:text-foreground transition-colors">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">Drop files</p>
-              <p className="truncate text-[11px] text-muted-foreground">
-                {fileBusy ? "Reading…" : ".md or .txt, up to 1 MB"}
-              </p>
-            </div>
-          </label>
-
-          <button
-            type="button"
-            onClick={() => setUrlPopoverOpen((o) => !o)}
-            className="group/tile relative flex items-center gap-3 rounded-xl border border-border/70 bg-card/40 px-4 py-3 text-left transition-all duration-200 hover:bg-card/70"
-          >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground group-hover/tile:text-foreground transition-colors">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-              </svg>
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">Paste a URL</p>
-              <p className="truncate text-[11px] text-muted-foreground">README, blog post, deck</p>
-            </div>
-          </button>
-
-          <a
-            href="/sources"
-            className="group/tile relative flex items-center gap-3 rounded-xl border border-dashed border-border/60 bg-transparent px-4 py-3 text-left transition-all duration-200 hover:border-border/90 hover:bg-card/40"
-          >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/40 text-muted-foreground group-hover/tile:text-foreground transition-colors">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <circle cx="12" cy="12" r="9" />
-                <line x1="12" y1="8" x2="12" y2="16" />
-                <line x1="8" y1="12" x2="16" y2="12" />
-              </svg>
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">More sources</p>
-              <p className="truncate text-[11px] text-muted-foreground">GitHub, Notion, Linear · soon</p>
-            </div>
-          </a>
-        </motion.div>
-
-        {(fileError || urlError) && (
-          <p className="text-xs text-rose-600 dark:text-rose-400">{fileError ?? urlError}</p>
-        )}
-
-        {urlPopoverOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col gap-2 rounded-xl border border-border/70 bg-card/80 px-4 py-3 backdrop-blur-sm sm:flex-row sm:items-center"
-          >
-            <input
-              type="url"
-              value={urlInput}
-              onChange={(e) => setUrlInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleUrlFetch(); } }}
-              placeholder="https://acme.com/handbook"
-              className="flex-1 rounded-lg border border-border/60 bg-background/70 px-3 py-1.5 text-sm focus:border-brain-accent/40 focus:outline-none"
-              aria-label="URL to fetch"
-              autoFocus
-            />
-            <button
-              type="button"
-              onClick={handleUrlFetch}
-              disabled={urlBusy || !urlInput.trim()}
-              className="rounded-lg bg-foreground px-3 py-1.5 text-sm font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
-            >
-              {urlBusy ? "Fetching…" : "Fetch"}
-            </button>
-            <button
-              type="button"
-              onClick={() => { setUrlPopoverOpen(false); setUrlError(null); setUrlInput(""); }}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Cancel
-            </button>
-          </motion.div>
-        )}
-
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3, delay: 0.26 }}
-          className="flex items-center justify-between gap-4"
-        >
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <div className="relative h-1 w-32 overflow-hidden rounded-full bg-muted">
-              <motion.div
-                initial={false}
-                animate={{ width: `${progress * 100}%` }}
-                transition={{ duration: 0.35, ease: [0.2, 0, 0, 1] }}
-                className={canSubmit
-                  ? "h-full bg-brain-accent shadow-[0_0_12px_color-mix(in_oklch,var(--brain-accent)_60%,transparent)]"
-                  : "h-full bg-muted-foreground/40"}
-              />
-            </div>
-            <span className="tabular-nums font-medium">
-              <span className={canSubmit ? "text-foreground" : ""}>{len}</span>
-              <span className="text-muted-foreground/60"> / {MAX}</span>
-            </span>
-            {len > 0 && len < MIN && sources.length === 0 && (
-              <span className="text-muted-foreground/60">— need {MIN - len} more</span>
-            )}
           </div>
+        )}
 
+        {(error || urlError) && (
+          <div className="dump-error">{error || urlError}</div>
+        )}
+
+        <div className="dump-cta">
           <button
             type="button"
+            className="btn-go"
             onClick={onSubmit}
-            disabled={!canSubmit}
-            className="group/btn relative inline-flex items-center gap-2 rounded-full bg-brain-accent px-5 py-2.5 text-sm font-medium text-brain-accent-foreground shadow-[0_2px_12px_-2px_color-mix(in_oklch,var(--brain-accent)_50%,transparent),0_0_32px_-12px_color-mix(in_oklch,var(--brain-accent)_70%,transparent)] transition-all duration-200 hover:shadow-[0_4px_20px_-2px_color-mix(in_oklch,var(--brain-accent)_60%,transparent),0_0_44px_-8px_color-mix(in_oklch,var(--brain-accent)_80%,transparent)] hover:-translate-y-[1px] active:translate-y-0 disabled:opacity-40 disabled:shadow-none disabled:cursor-not-allowed disabled:hover:translate-y-0"
+            disabled={!enough || tooMuch || busy}
           >
-            {submitLabel}
-            <span className="transition-transform duration-200 group-hover/btn:translate-x-0.5">→</span>
+            extract memories
+            <svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="2.5" y1="7" x2="11.5" y2="7" />
+              <polyline points="8,3.5 11.5,7 8,10.5" />
+            </svg>
           </button>
-        </motion.div>
+          <SeedDemoBrainButton />
+        </div>
+      </section>
 
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300"
-          >
-            {error}
-          </motion.div>
-        )}
-      </div>
-
-      <SidebarPreview />
-    </section>
-  );
-}
-
-function labelForDetectedUrl(url: string): string {
-  try {
-    const u = new URL(url);
-    const path = u.pathname.length > 1 ? u.pathname.replace(/\/$/, "") : "";
-    return `${u.hostname}${path}`;
-  } catch {
-    return url.length > 40 ? `${url.slice(0, 40)}…` : url;
-  }
-}
-
-function SourceChip({ source, onRemove }: { source: SourceItem; onRemove: () => void }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/60 py-1 pl-2 pr-1 text-xs text-foreground">
-      <span className="font-mono uppercase tracking-wider text-[9px] text-muted-foreground">
-        {source.kind}
-      </span>
-      <span className="max-w-[14rem] truncate" title={source.label}>
-        {source.label}
-      </span>
-      {source.reused && (
-        <span className="rounded-full bg-amber-100 px-1.5 text-[9px] text-amber-800 dark:bg-amber-950/60 dark:text-amber-300" title="Same content as a previous ingest">
-          dup
-        </span>
-      )}
-      <button
-        type="button"
-        onClick={onRemove}
-        aria-label={`Remove ${source.kind} source`}
-        className="ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
-      >
-        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden>
-          <line x1="6" y1="6" x2="18" y2="18" />
-          <line x1="6" y1="18" x2="18" y2="6" />
-        </svg>
-      </button>
-    </span>
-  );
-}
-
-function SidebarPreview() {
-  return (
-    <motion.aside
-      initial={{ opacity: 0, x: 8 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.5, delay: 0.22, ease: [0.2, 0, 0, 1] }}
-      className="hidden lg:block"
-    >
-      <div className="sticky top-10 space-y-4">
-        <p className="px-1 text-[12px] leading-relaxed text-muted-foreground">
-          BBC turns your dump into typed, queryable memory. Here's what a finished brain looks like:
-        </p>
-
-        <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/40 backdrop-blur-md dark:bg-card/30">
-          <div className="flex items-baseline justify-between border-b border-border/40 px-5 pt-4 pb-3">
-            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/80">
-              Example brain
-            </p>
-            <p className="text-[11px] tabular-nums text-muted-foreground/70">6 items</p>
-          </div>
-          <ul className="divide-y divide-border/40">
-            {EXAMPLE_BRAIN.map((g, gi) => (
-              <motion.li
-                key={g.type}
-                initial={{ opacity: 0, y: 3 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, delay: 0.32 + gi * 0.05, ease: [0.2, 0, 0, 1] }}
-                className="px-4 py-2.5"
-              >
-                <p className="mb-1 font-mono text-[10px] uppercase tracking-wider text-brain-accent/90">
-                  {g.type} · {g.items.length}
-                </p>
-                <ul className="space-y-0.5">
-                  {g.items.map((it) => (
-                    <li
-                      key={it}
-                      className="truncate text-[12.5px] leading-relaxed text-foreground/80"
-                    >
-                      {it}
-                    </li>
-                  ))}
-                </ul>
-              </motion.li>
-            ))}
-          </ul>
+      {/* Right: preview */}
+      <aside className="preview">
+        <div className="preview-head">
+          <span className="lab">
+            <span className="arrow">↳</span>
+            <span>preview of the brain you&apos;ll get</span>
+          </span>
+          <span className="ttl">
+            bbc structures raw text into <em>nine supertags</em>, each a typed shape
+            with required fields. nothing is saved until you review.
+          </span>
         </div>
 
-        <p className="px-1 text-[11px] leading-relaxed text-muted-foreground/60">
-          You'll review every item. Nothing is auto-accepted.
-        </p>
-      </div>
-    </motion.aside>
+        <div className="brain-host is-dim">
+          <span className="brain-host-label">
+            <span className="dot" />
+            <span>your brain · empty</span>
+          </span>
+          <div className="brain-embed">
+            <BrainView nodes={[]} embedded />
+          </div>
+          <div className="brain-host-foot">
+            <span className="l">0 / ∞ memories</span>
+            <span>drag · scroll</span>
+          </div>
+        </div>
+
+        <div className="tally">
+          <div className="tally-head">
+            <span>supertags · projected tally</span>
+            <span className="total">9 types</span>
+          </div>
+          <div className="tally-grid">
+            {SUPERTAG_TALLY.map(({ key, n }) => (
+              <div className="tally-cell" key={key} style={{ ["--tag-color" as string]: `var(--t-${key})` }}>
+                <span className="name"><span className="dot" />{key}</span>
+                <span className="n">{n}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="samples">
+          <div className="samples-head">example memories — your dump → this shape</div>
+          {SAMPLE_MEMORIES.map((m) => (
+            <article className="sample" key={m.id}>
+              <div className="sample-head">
+                <span
+                  className="pill"
+                  style={{
+                    ["--tag-color" as string]: `var(--t-${m.tag})`,
+                    background: "color-mix(in oklab, var(--tag-color), transparent 88%)",
+                    color: "var(--tag-color)",
+                    borderColor: "color-mix(in oklab, var(--tag-color), transparent 70%)",
+                    fontSize: 10,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  {m.tag}
+                </span>
+                <span className="id">{m.id}</span>
+              </div>
+              <div className="sample-body">{m.body}</div>
+              <div className="sample-fields">
+                {m.fields.map(([k, v], i) => (
+                  <React.Fragment key={i}>
+                    <span className="k">{k}</span>
+                    <span className="v">{v}</span>
+                  </React.Fragment>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      </aside>
+    </div>
   );
 }

@@ -1,95 +1,141 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useEffect, useState } from "react";
 
-const PHASES = [
-  "Reading your brain",
-  "Identifying patterns",
-  "Structuring memory",
+/**
+ * Extracting transitional state. Center: a mock dump text with supertag-
+ * colored highlights revealing as the parser "finds" them. Right: a live
+ * counter climbing as supertags get hit. No spinner — this is the parse
+ * becoming visible.
+ */
+
+type Hit = { tag: string };
+
+const STAGED_HITS: ReadonlyArray<Hit> = [
+  { tag: "vendor" },
+  { tag: "team" },
+  { tag: "voice" },
+  { tag: "decision" },
+  { tag: "team" },
 ];
 
+const SUPERTAGS = [
+  "voice", "decision", "vendor", "team", "product",
+  "glossary", "skill", "source_artifact", "note",
+] as const;
+
+const MOCK_TEXT = `# notes from the seed-round call · 04/28
+
+ok so we're announcing $2.4M in 10 days. lead is %vendor%Hardin Ventures%/vendor% (%team%Maya Hardin%/team%). also: Ridgeline, plus angels.
+
+— %voice%voice on this: matter-of-fact, no "thrilled to announce". lowercase. say what we built and what it does.%/voice%
+— %decision%don't put the dollar amount in the headline. lead with the wedge: typed memory for agents.%/decision%
+
+people on the call: %team%priya (cto, IST)%/team%, me, devon (eng), and maya.`;
+
+function renderHighlighted(text: string, revealCount: number): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  let cursor = 0;
+  let revealsSeen = 0;
+  const re = /%([a-z_]+)%([\s\S]*?)%\/\1%/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > cursor) parts.push(text.slice(cursor, m.index));
+    if (revealsSeen < revealCount) {
+      parts.push(<mark key={m.index} className={`mark-${m[1]}`}>{m[2]}</mark>);
+    } else {
+      parts.push(m[2]);
+    }
+    revealsSeen += 1;
+    cursor = m.index + m[0].length;
+  }
+  if (cursor < text.length) parts.push(text.slice(cursor));
+  return parts;
+}
+
 export function ExtractingStep() {
-  const [phase, setPhase] = useState(0);
+  const [revealed, setRevealed] = useState(0);
 
   useEffect(() => {
-    const phaseMs = 2300;
-    const t1 = setTimeout(() => setPhase(1), phaseMs);
-    const t2 = setTimeout(() => setPhase(2), phaseMs * 2);
+    const total = STAGED_HITS.length;
+    let i = 0;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      if (cancelled) return;
+      i += 1;
+      setRevealed(Math.min(i, total));
+      if (i < total) {
+        timer = setTimeout(tick, 700 + Math.random() * 400);
+      }
+    };
+    timer = setTimeout(tick, 350);
     return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
+      cancelled = true;
+      clearTimeout(timer);
     };
   }, []);
 
+  const counts: Record<string, number> = {
+    voice: 0, decision: 0, vendor: 0, team: 0,
+    product: 0, glossary: 0, skill: 0, source_artifact: 0, note: 0,
+  };
+  for (let i = 0; i < revealed; i++) {
+    const tag = STAGED_HITS[i].tag;
+    counts[tag] = (counts[tag] ?? 0) + 1;
+  }
+
   return (
-    <section className="flex flex-col items-center justify-center gap-8 py-24 text-center">
-      <div className="relative">
-        <div
-          aria-hidden
-          className="absolute left-1/2 top-1/2 -z-10 h-32 w-32 -translate-x-1/2 -translate-y-1/2 rounded-full bg-brain-accent/15 blur-3xl"
-          style={{ animation: "bbc-breath 2.6s ease-in-out infinite" }}
-        />
-        <Spinner />
-      </div>
+    <div className="extract">
+      <section className="extract-stream">
+        <header className="extract-stream-head">
+          <span className="scan">
+            <span className="dot" />
+            <span>structuring · pass 1 of 1</span>
+          </span>
+          <span className="right">
+            <span>parser · <strong>claude</strong></span>
+            <span style={{ color: "var(--paper-rule-2)" }}>·</span>
+            <span><strong>{revealed}</strong> / {STAGED_HITS.length} hits</span>
+          </span>
+        </header>
+        <div className="extract-text">
+          {renderHighlighted(MOCK_TEXT, revealed)}
+          <span className="extract-cursor" />
+        </div>
+      </section>
 
-      <div className="space-y-2.5">
-        <AnimatePresence mode="wait">
-          <motion.p
-            key={phase}
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.4, ease: [0.2, 0, 0, 1] }}
-            className="font-mono text-[11px] uppercase tracking-[0.22em] text-foreground"
-          >
-            {PHASES[phase]}
-          </motion.p>
-        </AnimatePresence>
-        <p className="text-[12px] text-muted-foreground/70">
-          This can take up to 10 seconds
-        </p>
-      </div>
+      <aside className="counters">
+        <div className="counters-head">
+          <span className="lab">live tally · climbing</span>
+          <span className="ttl">
+            <em>structuring</em> your dump into typed memory.
+          </span>
+        </div>
 
-      <div className="mt-1 flex items-center gap-1.5">
-        {PHASES.map((_, i) => (
-          <span
-            key={i}
-            className={`h-px w-6 transition-all duration-500 ${
-              i <= phase ? "bg-brain-accent" : "bg-border"
-            }`}
-          />
-        ))}
-      </div>
-    </section>
-  );
-}
+        <div className="counters-list">
+          {SUPERTAGS.map((k) => {
+            const n = counts[k] ?? 0;
+            const hit = n > 0;
+            return (
+              <div
+                key={k}
+                className={"counter-row " + (hit ? "is-hit" : "")}
+                style={{ ["--tag-color" as string]: `var(--t-${k})` }}
+              >
+                <span className="pre"><span className="dot" /></span>
+                <span className="tag-name">{k}</span>
+                <span className="n">{n}</span>
+              </div>
+            );
+          })}
+        </div>
 
-function Spinner() {
-  return (
-    <svg
-      width="28"
-      height="28"
-      viewBox="0 0 28 28"
-      fill="none"
-      className="text-foreground"
-      style={{ animation: "bbc-spinner-rotate 1.2s linear infinite" }}
-    >
-      <circle
-        cx="14"
-        cy="14"
-        r="10"
-        stroke="currentColor"
-        strokeOpacity="0.12"
-        strokeWidth="1.5"
-      />
-      <path
-        d="M14 4 a10 10 0 0 1 9.4 6.6"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        fill="none"
-      />
-    </svg>
+        <div className="counters-foot">
+          everything you see will land in the <strong>review queue</strong>, not your brain.
+          you'll accept items one-by-one or as a batch.
+        </div>
+      </aside>
+    </div>
   );
 }
