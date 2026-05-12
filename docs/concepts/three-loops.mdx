@@ -17,15 +17,19 @@ You paste a brain-dump. The extractor classifies sentences into supertags (decis
 
 The output is a typed, queryable, human-readable brain — not a vector store.
 
-## Loop 2 — Act (first instances shipped)
+## Loop 2 — Act (5 studios shipped)
 
 Role-scoped agents have the brain pre-loaded:
 
-- **Marketing Studio** — drafts X posts, threads, LinkedIn announcements, blog drafts, reel scripts, in your voice with memory citations.
-- **Engineering Studio** — drafts ADRs, vendor swap proposals, tech-debt reviews from your decisions and vendors.
-- More agents (founder, designer) are designed but not built — they follow the same pattern.
+- **Marketing Studio** — drafts X posts, threads, LinkedIn announcements, blog drafts, reel scripts in your voice with memory citations.
+- **Engineering Studio** — drafts ADRs, vendor swap proposals, tech-debt reviews from your decisions and vendors. Accepting an ADR files it into `/queue` as a pending memory proposal.
+- **Founder Studio** — strategic memos, board updates, weekly recaps drafted from product + decisions + team memory.
+- **Designer Studio** — visual specs, brand guideline entries, UI copy passes grounded in voice + product positioning.
+- **Support Studio** — customer replies, churn-save responses, incident posts, bug acks, feature-request triage. Voice-grounded, decisions-aware, never auto-sent.
 
-Each agent is a **role-tool-bundle**: the role declares what it does, the bundle declares what tools it brings (LLM provider, design tool, integration adapter). See [role-tool-bundle](/concepts/role-tool-bundle).
+Each agent is a **role-tool-bundle**: the role declares what it does, the bundle declares what tools it brings (LLM provider, design tool, integration adapter). See [role-tool-bundle](/concepts/role-tool-bundle) and the [studios concept](/concepts/studios).
+
+When you accept a studio run, the studio's writeback emitter may file proposals back to your brain (a new ADR proposal, a feature-request log entry, a roadmap-status correction). The brain compounds run-by-run — see [writeback flywheel](/concepts/writeback-flywheel).
 
 ## Loop 3 — Improve (designed, not built)
 

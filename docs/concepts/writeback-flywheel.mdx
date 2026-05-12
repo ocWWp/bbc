@@ -1,0 +1,54 @@
+---
+title: "Writeback flywheel"
+description: "When you accept a studio run, the studio may file follow-up proposals back to your brain. The brain compounds run-by-run."
+---
+
+The writeback flywheel is what makes a studio more than an AI-Drafts clone. Every accepted run can produce two kinds of follow-up:
+
+1. **Audit rows** — direct inserts into `memory_files` of `type='source_artifact'`. Searchable history of what the studio drafted and what you accepted. Not facts about the brain; just records.
+2. **Memory proposals** — `queue_items` rows in `status='pending'`. Reviewed and accepted from `/queue`. Accepting writes (or updates) a memory row.
+
+The proposals are the compounding move. The audit rows are the substrate that future consolidator passes will read.
+
+## Why proposals, not direct writes
+
+CLAUDE.md principle #6: *"no silent autonomy."* Every state change is either a human edit at the owning layer, or a queued proposal that passes through accept. Studios never write `decision` or `glossary` rows directly; they propose them, and you accept from `/queue`.
+
+Audit rows (`source_artifact`) are the exception, and intentionally so: they're not facts about the brain, they're records of what happened. The audit trail is non-negotiable.
+
+## What each studio writes back today
+
+### Engineering Studio
+
+- **`eng:adr-draft`** — the drafted ADR markdown becomes a `queue_items` proposal targeting `memory/decisions/NNNN-<slug>.md`. Accepting from `/queue` writes a `decision` memory row. Draft → memory in two clicks.
+
+### Support Studio
+
+- **`support:customer-reply`** — audit row only (phrase-mining across runs is a v1.1 consolidator).
+- **`support:churn-save`** — audit row functioning as a cancellation-reason ledger (reason, plan, tenure, outcome=pending placeholder).
+- **`support:feature-request-triage`** — the headline three-way writeback:
+  1. ALWAYS: audit row.
+  2. ALWAYS: propose appending the request to `memory/product/feature-request-log.md`.
+  3. CONDITIONAL (`verdict=wont-build` AND no covering decision exists): propose a new ADR with reasoning extracted from the reply.
+  4. CONDITIONAL (`verdict=already-shipped` AND product memory exists): propose a `roadmap_status` correction.
+- **`support:bug-ack`** — audit row with cited memory ids preserved (a future known-bugs consolidator reads them).
+- **`support:incident-status`** — audit row always; CONDITIONAL (`current_status=resolved`): propose a `memory/support/known-incidents.md` glossary entry.
+
+## What's deferred
+
+Templates that need **multi-run aggregation** (e.g. "after 5 cancellations citing the same objection, propose updating the objection-pattern memory") are deferred to a v1.1 consolidator job that reads accepted `source_artifact` rows. The shape is unblocked because the audit rows carry the needed fields — the consolidator just hasn't been built.
+
+Marketing, Founder, and Designer studios have no writeback emitters yet. The pattern is identical to engineering's `adr-draft`; adding them is additive.
+
+## Where to look in code
+
+- Infrastructure: `apps/dashboard/src/lib/studio/writebacks/{types,registry,index}.ts`
+- Per-template emitters: `apps/dashboard/src/lib/studio/writebacks/<template-slug>.ts`
+- Wiring into accept: `apps/dashboard/src/app/studio/runs/[id]/actions.ts`
+- UI: `apps/dashboard/src/app/studio/runs/[id]/RunActions.tsx` — post-accept state surfaces "N proposals filed — review in /queue"
+
+## Future: Loop 3 ties in here
+
+Loop 3 ("Improve") is the long-term mechanism that watches your brain usage and files improvement proposals. Writeback emitters are Loop 2's hand-rolled version of that pattern: a studio knows what its accept event implies for the brain and files the right proposal. When Loop 3 ships, it will use the same `queue_items` table as the writeback emitters do today — same audit trail, same accept gate, same no-silent-autonomy rule.
+
+See [Loop 3 scope (ADR-0009)](https://github.com/ZethT/bbc/blob/main/memory/decisions/0009-loop-3-scope.md) for the boundary.

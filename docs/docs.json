@@ -25,7 +25,9 @@
               "concepts/typed-memory",
               "concepts/memory-types",
               "concepts/memory-schema",
-              "concepts/role-tool-bundle"
+              "concepts/role-tool-bundle",
+              "concepts/studios",
+              "concepts/writeback-flywheel"
             ]
           },
           {
