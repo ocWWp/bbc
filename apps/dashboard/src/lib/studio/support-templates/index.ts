@@ -7,6 +7,7 @@
 
 import "./customer-reply";
 import "./churn-save";
+import "./feature-request-triage";
 
 export {
   getSupportTemplate,
