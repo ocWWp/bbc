@@ -9,6 +9,8 @@
     "build": "next build",
     "start": "next start",
     "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "db:seed-example-tenant": "tsx scripts/seed-example-tenant.ts",
     "cf:build": "opennextjs-cloudflare build",
     "cf:preview": "opennextjs-cloudflare preview",
@@ -63,6 +65,7 @@
     "tailwindcss": "^4.3.0",
     "tsx": "^4.21.0",
     "typescript": "^5.6.0",
+    "vitest": "^4.1.6",
     "wrangler": "^4.90.0"
   }
 }
