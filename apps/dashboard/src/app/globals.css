@@ -35,7 +35,8 @@
 }
 
 :root {
-  /* Neutral base (zinc) */
+  /* Neutral base (zinc) — kept for shadcn components (memory/, welcome/, ui/).
+     Paper-palette tokens below are additive; both systems coexist. */
   --background: oklch(0.985 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -58,10 +59,45 @@
   --radius: 0.5rem;
 
   /* BBC personality accents — work in both modes */
-  --brain-accent: oklch(0.78 0.22 130);   /* lime-400 vibe */
+  --brain-accent: oklch(0.78 0.22 130);
   --brain-accent-foreground: oklch(0.205 0 0);
-  --studio-accent: oklch(0.7 0.21 20);    /* coral / rose-400 vibe */
+  --studio-accent: oklch(0.7 0.21 20);
   --studio-accent-foreground: oklch(0.985 0 0);
+
+  /* ============================================================
+     PAPER PALETTE — BBC landing-page design language, lifted to
+     root so every page can adopt it. Names are paper-* prefixed
+     to avoid colliding with shadcn's --accent / --muted, which
+     have different semantics (shadcn-accent is a hover-bg, paper-
+     accent is a brand color).
+     ============================================================ */
+  --paper-bg: #f6f4ee;
+  --paper-bg-2: #efece4;
+  --paper-bg-3: #e8e4d8;
+  --paper-ink: #15140f;
+  --paper-ink-2: #2a2920;
+  --paper-muted: #6a6759;
+  --paper-muted-2: #908c7d;
+  --paper-rule: #d9d4c4;
+  --paper-rule-2: #c9c3b0;
+  --paper: #fbf9f3;
+  --paper-accent: #c14a1b;        /* warm orange — syntax keyword */
+  --paper-accent-soft: #f3d9c8;
+  --paper-code-bg: #14130f;
+  --paper-code-ink: #e8e4d8;
+  --paper-ok: #2d6a3e;
+  --paper-warn: #b65a17;
+  --paper-err: #b13a3a;
+  /* supertag hues — same chroma, distinct hues */
+  --t-voice:          #b73a78;
+  --t-decision:       #2b5ec9;
+  --t-vendor:         #b16c11;
+  --t-team:           #2f7a3d;
+  --t-product:        #6f3bb8;
+  --t-glossary:       #1a7382;
+  --t-skill:          #c14a1b;
+  --t-source_artifact:#5a5a5a;
+  --t-note:           #8a6f0a;
 }
 
 .dark {
@@ -85,11 +121,34 @@
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
 
-  /* BBC personality accents — slightly shifted for dark mode */
   --brain-accent: oklch(0.82 0.22 130);
   --brain-accent-foreground: oklch(0.145 0 0);
   --studio-accent: oklch(0.75 0.21 20);
   --studio-accent-foreground: oklch(0.145 0 0);
+
+  /* Paper palette — dark variant. Inks invert, rules deepen, accent brightens
+     for legibility on near-black. */
+  --paper-bg: #0e0d0a;
+  --paper-bg-2: #161510;
+  --paper-bg-3: #1f1d16;
+  --paper-ink: #f1ede0;
+  --paper-ink-2: #d8d3c2;
+  --paper-muted: #8a8676;
+  --paper-muted-2: #6b685b;
+  --paper-rule: #2a2820;
+  --paper-rule-2: #3a382e;
+  --paper: #14130f;
+  --paper-accent: #ef7a3a;
+  --paper-accent-soft: #3a2417;
+  --t-voice:          #e26aa3;
+  --t-decision:       #6c98ef;
+  --t-vendor:         #e0a14d;
+  --t-team:           #6cb47b;
+  --t-product:        #a98aef;
+  --t-glossary:       #5fb6c3;
+  --t-skill:          #ef7a3a;
+  --t-source_artifact:#a0a0a0;
+  --t-note:           #d4b94a;
 }
 
 @layer base {
@@ -146,4 +205,350 @@
 }
 @keyframes bbc-spinner-rotate {
   to { transform: rotate(360deg); }
+}
+
+/* ============================================================================
+   PAPER LAYER — primitives lifted from /landing/styles.css so every dashboard
+   route can adopt the landing design language.
+
+   What's here: tokens, type helpers (.mono / .serif / .kbd), layout containers,
+   buttons, pills, cards, banners, navigation chrome, supertag tokens, and
+   section heads. What's NOT here: hero / walkthrough / brain / pxbrain / vs /
+   doc-grid / stack / cta / foot — those stay scoped in landing/styles.css
+   because they're landing-page-specific compositions.
+
+   These selectors are unscoped (not under .bbc-landing-root) so legacy
+   dashboard routes (queue, tools, skills, graph, api-keys, bindings, log) that
+   already write className="card proposal" / "pill ok" / "banner warn" / etc.
+   finally get matching CSS. Without this layer those pages render unstyled.
+   ============================================================================ */
+
+/* ---------- type helpers ---------- */
+.mono { font-family: var(--font-geist-mono), ui-monospace, "JetBrains Mono", monospace; font-feature-settings: "ss03"; }
+.serif { font-family: var(--font-instrument-serif), "Cormorant Garamond", Georgia, serif; font-style: italic; font-weight: 400; }
+.mono-sm { font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 11.5px; color: var(--paper-ink-2); }
+.muted { color: var(--paper-muted); }
+.ink-2 { color: var(--paper-ink-2); }
+
+.kbd {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 10.5px;
+  background: var(--paper-bg-2);
+  border: 1px solid var(--paper-rule);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--paper-muted);
+}
+
+/* ---------- layout containers ---------- */
+.container {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+.container-narrow {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+
+/* ---------- buttons ---------- */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-geist), sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s;
+  white-space: nowrap;
+  background: transparent;
+  color: var(--paper-ink);
+}
+.btn-primary,
+.btn.primary {
+  background: var(--paper-ink);
+  color: var(--paper-bg);
+}
+.btn-primary:hover,
+.btn.primary:hover { background: color-mix(in oklab, var(--paper-ink), var(--paper-accent) 20%); }
+.btn-ghost,
+.btn.ghost {
+  background: transparent;
+  color: var(--paper-ink);
+  border-color: var(--paper-rule);
+}
+.btn-ghost:hover,
+.btn.ghost:hover { background: var(--paper-bg-2); }
+.btn.warn {
+  background: var(--paper-warn);
+  color: var(--paper-bg);
+}
+.btn.warn:hover { background: color-mix(in oklab, var(--paper-warn), var(--paper-ink) 20%); }
+.btn-lg { height: 40px; padding: 0 16px; font-size: 14px; border-radius: 8px; }
+.btn-icon { width: 14px; height: 14px; flex-shrink: 0; }
+.btn:disabled,
+.btn[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
+
+/* ---------- pills (small status / count chips) ---------- */
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 100px;
+  background: var(--paper-bg-2);
+  color: var(--paper-ink-2);
+  border: 1px solid var(--paper-rule);
+  white-space: nowrap;
+}
+.pill.ok    { background: color-mix(in oklab, var(--paper-ok), transparent 88%);    color: var(--paper-ok);    border-color: color-mix(in oklab, var(--paper-ok), transparent 75%); }
+.pill.warn  { background: color-mix(in oklab, var(--paper-warn), transparent 88%);  color: var(--paper-warn);  border-color: color-mix(in oklab, var(--paper-warn), transparent 75%); }
+.pill.err   { background: color-mix(in oklab, var(--paper-err), transparent 88%);   color: var(--paper-err);   border-color: color-mix(in oklab, var(--paper-err), transparent 75%); }
+.pill.muted { background: var(--paper-bg-2); color: var(--paper-muted); border-color: var(--paper-rule); }
+.legend-pill { /* alias used by graph legend */
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 100px;
+  background: var(--paper-bg-2);
+  border: 1px solid var(--paper-rule);
+  color: var(--paper-ink-2);
+}
+
+/* ---------- cards (queue proposals, lists, etc.) ---------- */
+.card {
+  border: 1px solid var(--paper-rule);
+  border-radius: 12px;
+  background: var(--paper);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.card.proposal {
+  /* Slightly tighter spacing for queue items, accent stripe on the left
+     when the card carries a "pending" affordance via .pending. */
+  padding: 16px 18px;
+  gap: 10px;
+}
+.card.proposal.pending {
+  border-left: 2px solid var(--paper-accent);
+}
+.card.legend {
+  background: var(--paper-bg-2);
+  padding: 14px 16px;
+  gap: 8px;
+}
+.card .top {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.card .label {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 11px;
+  color: var(--paper-muted);
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+}
+.card .body {
+  font-size: 13.5px;
+  color: var(--paper-ink-2);
+  line-height: 1.55;
+}
+.card .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.card .count {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 11px;
+  color: var(--paper-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- banners (page-top notices) ---------- */
+.banner {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  background: var(--paper-bg-2);
+  color: var(--paper-ink-2);
+  border: 1px solid var(--paper-rule);
+}
+.banner.ok   { background: color-mix(in oklab, var(--paper-ok), transparent 92%);   color: var(--paper-ok);   border-color: color-mix(in oklab, var(--paper-ok), transparent 75%); }
+.banner.warn { background: color-mix(in oklab, var(--paper-warn), transparent 92%); color: var(--paper-warn); border-color: color-mix(in oklab, var(--paper-warn), transparent 75%); }
+.banner.err  { background: color-mix(in oklab, var(--paper-err), transparent 92%);  color: var(--paper-err);  border-color: color-mix(in oklab, var(--paper-err), transparent 75%); }
+
+/* ---------- helpers used inline by dashboard pages ---------- */
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.empty {
+  padding: 32px 20px;
+  text-align: center;
+  color: var(--paper-muted);
+  font-size: 13px;
+  border: 1px dashed var(--paper-rule);
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--paper-bg-2), transparent 50%);
+}
+.actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.tabs {
+  display: flex; gap: 4px; align-items: center;
+  border-bottom: 1px solid var(--paper-rule);
+}
+.tabs a, .tabs button {
+  font-family: var(--font-geist), sans-serif;
+  font-size: 13px;
+  color: var(--paper-muted);
+  text-decoration: none;
+  padding: 8px 12px;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  border-top: none; border-left: none; border-right: none;
+  cursor: pointer;
+}
+.tabs a:hover, .tabs button:hover { color: var(--paper-ink); }
+.tabs a.is-active, .tabs button.is-active {
+  color: var(--paper-ink);
+  border-bottom-color: var(--paper-accent);
+}
+
+/* ---------- supertag (typed memory badge) ---------- */
+.tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 8px 3px 6px;
+  border-radius: 5px;
+  background: color-mix(in oklab, var(--tag-color, var(--paper-ink)), transparent 90%);
+  color: var(--tag-color, var(--paper-ink));
+  border: 1px solid color-mix(in oklab, var(--tag-color, var(--paper-ink)), transparent 75%);
+  white-space: nowrap;
+  cursor: default;
+  transition: background 0.15s, transform 0.15s;
+}
+.tag .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--tag-color, var(--paper-ink));
+}
+.tag.lg { font-size: 13px; padding: 5px 10px 5px 8px; }
+.tag.is-clickable { cursor: pointer; }
+.tag.is-clickable:hover {
+  background: color-mix(in oklab, var(--tag-color, var(--paper-ink)), transparent 80%);
+}
+.tag.is-active {
+  background: color-mix(in oklab, var(--tag-color, var(--paper-ink)), transparent 82%);
+  border-color: color-mix(in oklab, var(--tag-color, var(--paper-ink)), transparent 50%);
+}
+
+/* ---------- section heads (page titles inside the dashboard) ---------- */
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.section-eyebrow {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 11.5px;
+  color: var(--paper-muted);
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  display: flex; align-items: center; gap: 10px;
+}
+.section-eyebrow .num {
+  display: inline-block;
+  padding: 2px 7px;
+  border: 1px solid var(--paper-rule);
+  border-radius: 4px;
+  color: var(--paper-ink-2);
+  background: var(--paper);
+}
+.section-title {
+  font-family: var(--font-geist), sans-serif;
+  font-weight: 500;
+  font-size: clamp(24px, 2.6vw, 32px);
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  margin: 0;
+}
+.section-title .serif { font-family: var(--font-instrument-serif), serif; font-style: italic; font-weight: 400; }
+.section-blurb {
+  font-size: 14.5px;
+  color: var(--paper-ink-2);
+  max-width: 480px;
+  margin: 0;
+}
+
+/* ---------- nav chrome (top bar) ---------- */
+.brand {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--paper-ink);
+  text-decoration: none;
+}
+.brand-mark {
+  width: 22px; height: 22px;
+  border-radius: 5px;
+  background: var(--paper-ink);
+  color: var(--paper-bg);
+  display: grid; place-items: center;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+.top {
+  /* Generic top-bar wrapper used by legacy dashboard Nav */
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--paper-rule);
+  background: color-mix(in oklab, var(--paper-bg), transparent 25%);
+  backdrop-filter: blur(16px);
+}
+.nav-user {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-geist), sans-serif;
+  font-size: 13px;
+  color: var(--paper-ink-2);
+}
+.nav-username { color: var(--paper-ink); font-weight: 500; }
+.nav-avatar {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: var(--paper-bg-3);
+  color: var(--paper-ink);
+  display: grid; place-items: center;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 11px;
+  font-weight: 600;
+}
+.nav-signout { /* small ghost button after the avatar */
+  font-size: 12px;
+  padding: 0 10px;
+  height: 28px;
+}
+
+/* ---------- skills list (skills/page.tsx) ---------- */
+.skill-id   { font-family: var(--font-geist-mono), monospace; font-size: 11.5px; color: var(--paper-muted); }
+.skill-desc { font-size: 13.5px; color: var(--paper-ink-2); line-height: 1.55; }
+.skill-meta { font-family: var(--font-geist-mono), monospace; font-size: 11px; color: var(--paper-muted); display: flex; gap: 12px; flex-wrap: wrap; }
+.skill-tier {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 100px;
+  background: var(--paper-bg-2);
+  border: 1px solid var(--paper-rule);
+  color: var(--paper-ink-2);
 }
