@@ -1,0 +1,46 @@
+topic: "Support Studio templates — deep research for BBC's 5th Loop 2 studio"
+
+# Decision context (from the preliminary research run on 2026-05-12):
+# Support Studio recommended as #5; Sales #6; PM deferred.
+# This deep dive sharpens the 5 starting templates so the build can begin
+# with concrete prompt patterns, brain-memory plumbing, and safety rails.
+
+items:
+  - id: customer-reply
+    label: "Customer reply draft (general inbound)"
+    description: >
+      User pastes a ticket / inbound message; studio drafts a reply in the
+      founder's voice, grounded in product + glossary memory. The highest-
+      frequency template (5-20x/week for an active solo founder).
+
+  - id: churn-save
+    label: "Churn-save / cancellation reply"
+    description: >
+      User pastes a cancellation message; studio drafts a high-stakes reply
+      using voice + product + decisions ("we don't discount under X").
+      Lower frequency, higher emotional load.
+
+  - id: incident-status
+    label: "Incident / status post"
+    description: >
+      Outage or degradation comm. Studio drafts a status-page-shaped post
+      using voice + product memory. One-shot, high-stress.
+
+  - id: bug-ack
+    label: "Bug acknowledgement"
+    description: >
+      User reports a bug; studio drafts an ack-and-investigate reply, with
+      optional links to vendor/decisions memory if the root cause is in
+      a known component.
+
+  - id: feature-request-triage
+    label: "Feature-request triage reply"
+    description: >
+      User asks for feature X; studio drafts a reply that contextualizes
+      X against product memory (roadmap status, similar shipped work,
+      decisions about explicitly-not-doing).
+
+execution:
+  batch_size: 3        # 3 parallel agents
+  items_per_agent: 2   # 5 items / 3 agents ≈ 2 items each (last agent gets 1)
+  output_dir: ./results

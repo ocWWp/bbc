@@ -1,0 +1,193 @@
+{
+  "id": "feature-request-triage",
+  "label": "Feature-request triage reply",
+  "prior_art_examples": {
+    "summary": "Three industries have converged on the same shape: (a) feedback-board vendors (Productboard, Canny, Featurebase) expose canonical statuses — Under Review / Planned / In Progress / Shipped / Won't Do / Already Exists — and ship in-app comment macros tied to each. (b) Support-tool vendors (Intercom, Help Scout, Savio, LiveAgent, Kayako) publish reply templates organized by the same axes plus 'similar feature already exists / workaround'. (c) Founder-written canonical examples from 37signals are the gold standard for the 'won't do' case: short, specific, names the requested feature back, gives one-sentence reasoning, no apology, no roadmap promise. The pattern that matters: every good reply triangulates the requested feature against (1) current roadmap status, (2) similar shipped work that may already solve it, and (3) a prior decision to explicitly not build it. BBC's brain already stores exactly those three facts, so the studio can do this triangulation deterministically from memory rather than from prompt creativity.",
+    "examples": [
+      {
+        "source": "Savio — 'How to Respond to Feature Requests [Full Guide + Templates]' (https://www.savio.io/blog/how-to-respond-to-feature-requests/)",
+        "snippet_kind": "won't-build template",
+        "quote": "There aren't enough other people using [service] to justify investment in that feature just yet. As a workaround, you can connect through [alternative]. Thanks for making the request — requests like that are a central part of how we build our software.",
+        "why_it_matters": "Demonstrates the four-beat structure that every good triage reply uses: (1) rationale for not-building, (2) workaround, (3) gratitude, (4) framing the request as input to the system rather than a rejection. BBC can map each beat to a brain source: rationale -> product/decisions memory; workaround -> product memory (shipped features) or vendors memory; gratitude/framing -> voice memory."
+      },
+      {
+        "source": "Savio — same article",
+        "snippet_kind": "closed-loop / 'similar shipped' template",
+        "quote": "You asked for [feature] and we just launched it. You can read more about using it here. Thanks for the requests, and keep 'em coming!",
+        "why_it_matters": "Covers the 'we already shipped something close to this' case — the most under-served scenario in generic AI reply tools, and the one where BBC's product memory is most differentiating. If product memory has a shipped feature whose tags overlap the requested feature, the studio should surface it inline."
+      },
+      {
+        "source": "Jason Fried, Signal v. Noise — 'Ask 37signals: How do you say no?' (https://signalvnoise.com/posts/1050-ask-37signals-how-do-you-say-no)",
+        "snippet_kind": "founder-voice 'won't do' template (canonical)",
+        "quote": "We appreciate the suggestion, but we will not be adding Gantt charts to Basecamp. ... For requests that are reasonable but unprioritized: 'Thanks for sending the suggestion over. While we can't guarantee we'll be adding this feature, we can promise you we'll review it.'",
+        "why_it_matters": "The shape every founder-written triage reply converges on: name the feature back explicitly ('Gantt charts'), state the decision in one clause, give one sentence of reasoning, no apology, no fake roadmap. This is the voice register Support Studio should default to for solo-founder BBC users."
+      },
+      {
+        "source": "Intercom — 'The right way to respond to feature requests' (https://www.intercom.com/blog/the-right-way-to-respond-to-feature-requests/)",
+        "snippet_kind": "consultant-style reply philosophy",
+        "quote": "Rather than promising development, support acknowledges the gap while explaining how to achieve the same outcome through office hours and response time settings. ... Suggest workarounds: when a feature won't be built, offer third-party solutions or integrations (YouCanBookMe for calendaring, Zapier for software connections).",
+        "why_it_matters": "Validates that the strongest triage replies cite specific existing features or third-party tools by name. For BBC, this maps cleanly to product memory ('similar shipped work') and vendors memory ('here's a third-party that already does this')."
+      },
+      {
+        "source": "Productboard — 'Custom feature statuses used by Productboard's Productboard' (https://support.productboard.com/hc/en-us/articles/360058216553)",
+        "snippet_kind": "status taxonomy",
+        "quote": "Won't do — features the team has decided not to develop after going through Discovery. ... Idea, Candidate, Planned, In Progress, Released.",
+        "why_it_matters": "This six-state taxonomy is the de facto industry vocabulary. BBC's roadmap_status field should align with it so the studio can deterministically pick the right reply pattern from the brain rather than re-deriving it each call. The decisive states for triage replies are: Released (-> 'we already shipped X'), Planned/In Progress (-> 'on the roadmap, ETA Q...'), Idea/Candidate (-> 'noted, unprioritized'), Won't do (-> cite the decision)."
+      },
+      {
+        "source": "Linear — Triage docs + Customer Requests (https://linear.app/docs/triage, https://linear.app/customer-requests)",
+        "snippet_kind": "ops pattern (not template text)",
+        "quote": "Triage Intelligence allows LLMs to analyze every new issue in triage against your existing issues to suggest properties like assignee and label, and pro-actively surface likely related issues or duplicates.",
+        "why_it_matters": "Linear's product proves that 'find the similar existing issue/feature' is the right first step before drafting a reply. BBC's equivalent: brain memory of `product/features.md` and `product/feature-request-log.md` should be string-matched against the new request before the LLM drafts anything. This is a retrieval step, not a generation step — and it's what makes triage replies feel grounded instead of generic."
+      }
+    ]
+  },
+  "prompt_pattern": {
+    "shape": "Retrieval-then-generation, NOT few-shot. The triage reply is 80% retrieval (find roadmap status + similar shipped + relevant decision) and 20% rewrite in voice. Few-shot examples would actually hurt: they push the model toward template-y phrasing, which is exactly what 37signals-style founder voice is not.",
+    "system_prompt_skeleton": [
+      "You are drafting a feature-request triage reply on behalf of {founder_display_name}.",
+      "The reply MUST be grounded in three pieces of brain context, injected below: (1) the explicit roadmap-status verdict for the requested feature, (2) up to 3 'similar shipped' features, (3) up to 2 prior decisions about not building things in this space. If any of these are empty, say so honestly — do not fabricate roadmap positions.",
+      "voiceClause(brain.voice) -- inject voice/tone register (e.g. 'first-person, no apologies, no marketing-speak, one clause per sentence').",
+      "productClause(brain.product, brain.similar_shipped) -- inject product name, the matched roadmap_status verdict for the requested feature, and the similar-shipped candidates with their one-line descriptions.",
+      "decisionsClause(brain.decisions) -- inject the 1-2 decisions whose title or tags overlap the requested feature, especially explicit 'we are not building X' decisions.",
+      "Task: a customer has asked for the following feature. Draft a reply.",
+      "Customer message: {inputs.request_text}",
+      "Customer name (if known): {inputs.customer_name | 'the customer'}",
+      "Requested feature (founder's one-line summary, optional): {inputs.feature_summary | derive from request_text}",
+      "Triage verdict (founder-overridable; otherwise infer from roadmap_status): {inputs.verdict | 'auto'}",
+      "Structure the reply as exactly four short paragraphs (or three if there is no workaround):",
+      "  1. Name the requested feature back to them in one sentence. No 'thanks for reaching out' opener -- that is filler.",
+      "  2. State the verdict explicitly: shipped / planned / unprioritized / won't-build. Cite the relevant decision or roadmap entry by id.",
+      "  3. If shipped or partially shipped: link/describe the similar shipped feature. If won't-build: give one sentence of reasoning (from the decision memory). If unprioritized: be honest -- 'we read every request, no promise on timing'.",
+      "  4. (Optional) Workaround or third-party tool if vendors memory has one.",
+      "Hard rules: no ETA promises unless inputs.verdict='planned' AND brain.product supplies an ETA. Do not say 'we'll pass this to the team' -- it is a solo founder. Do not apologize for not building something. Inline-cite memory ids with <cite mem_id='...'/> wherever a sentence is shaped by a specific memory."
+    ],
+    "few_shot_vs_zero_shot": "Zero-shot. The voice register is fully determined by voiceClause + brain.voice memory; few-shot examples would override it. If the brand voice memory is empty/thin, fall back to the 37signals-style default ('short, direct, names the feature back, one-clause reasoning, no apology').",
+    "context_injection": "Three retrieval probes run BEFORE the LLM call: (a) keyword-match the request_text against product memory titles + tags to find similar_shipped; (b) keyword-match against decisions memory titles + tags to find relevant_decisions; (c) read the explicit roadmap_status field for the requested-feature slug if the founder selected one from autocomplete, else leave 'unknown' and let the model say so. All three probes are deterministic substring/tag matches -- no embedding retrieval needed for v1. Embeddings can be a v1.1 upgrade.",
+    "proven_output_format": "Single tool_use call with one OutputBlock of kind 'plain' carrying the markdown reply, identical to how the engineering templates emit ADRs. The reply is short (80-160 words typical) and includes 1-3 inline <cite mem_id='...'/> tags. No subject line needed -- triage replies are usually pasted into an existing ticket thread."
+  },
+  "failure_modes": [
+    "Overpromising delivery: model invents a quarter ('we're targeting Q3') when roadmap_status is just 'planned' with no date. Mitigation: hard rule in prompt -- ETAs require an explicit ETA field in product memory, otherwise say 'no committed timeline'.",
+    "Fabricating a 'similar shipped' feature that does not exist. The retrieval probe must run; if it returns zero matches, the prompt must say 'no similar shipped feature found' so the model cannot invent one. Mitigation: pass an explicit empty-set marker rather than omitting the section.",
+    "Tone collapse to support-bot register ('Thank you for reaching out! We appreciate your feedback!'). This is the dominant failure mode when voice memory is empty. Mitigation: ship a baked-in default voice clause ('founder-first-person, no filler openers, no apologies for product decisions') that fires when brain.voice is empty.",
+    "Citing a decision that does not actually forbid the requested feature -- e.g. citing ADR-0007 (AGPL licensing) on a request about UI theming. Mitigation: the retrieval probe should require tag overlap with the request, not just title fuzzy-match; if confidence is low, skip the citation rather than guess.",
+    "Leaking other customers' requests by name. The brain stores `feature-request-log.md` entries that may include past requesters' identifiers. The prompt must not include those rows in context for a NEW reply -- only the aggregated feature title + count. Mitigation: read-side filter on the retrieval probe to strip requester identifiers."
+  ],
+  "brain_memory_consumed": {
+    "voice": "Sets the register and forbidden phrases. Especially load any 'tone' field that says first-person / second-person, and any 'forbidden_phrases' list. Without voice memory, fall back to the founder-first-person default.",
+    "product": "Two roles. (a) Roadmap status: read product memory's roadmap_status field for the requested-feature slug (Idea / Candidate / Planned / In Progress / Released / Won't Do, aligned with Productboard taxonomy). (b) Similar shipped: scan all product memory entries with status=Released for tag/title overlap with the request — the top 1-3 matches go into context as 'we already ship X'.",
+    "decisions": "Specifically the 'we are not building X' / 'we will not support Y' subset. The studio should prefer decisions whose tags overlap the request. Cite by mem_id when used; this is the single highest-leverage citation in the whole template — a decline that cites a real ADR feels principled, an uncited decline feels dismissive.",
+    "vendor": "Used for the workaround paragraph. If a 'we recommend X for Y' vendor entry exists whose use_case overlaps the request, surface it. Optional — many triage replies have no workaround paragraph.",
+    "glossary": "Used to normalize product terminology in the reply (e.g. customer says 'tags', product memory uses 'labels' — the reply uses 'labels' with a parenthetical to bridge).",
+    "team": "Not consumed for v1 (solo founder assumption). v1.1 could use it to attribute 'I' vs 'we' correctly when the BBC user has team members.",
+    "skill": "Not consumed directly. Triage is a stateless template, not a skill chain.",
+    "source_artifact": "Not consumed for input. CONSUMED FOR WRITEBACK — see memory_writeback_proposal.",
+    "note": "Not consumed for v1."
+  },
+  "inputs_required": [
+    {
+      "id": "request_text",
+      "label": "What the customer asked for",
+      "hint": "Paste the customer's message verbatim (email, ticket, DM, GitHub issue body). The studio will name the feature back to them, so include enough context to identify it.",
+      "kind": "text",
+      "required": true
+    },
+    {
+      "id": "feature_summary",
+      "label": "One-line summary of the requested feature",
+      "hint": "Optional. If you leave this blank, the studio will infer it from the message. Filling it in deterministically pins the retrieval probe — recommended when the customer's message is vague.",
+      "kind": "text",
+      "required": false
+    },
+    {
+      "id": "verdict",
+      "label": "Your call (optional override)",
+      "hint": "Leave on 'auto' to let the studio infer from roadmap memory. Override when you want the reply to take a stance the brain doesn't yet record (and accepting the run will write that stance back into memory).",
+      "kind": "select",
+      "required": false,
+      "options": [
+        "auto",
+        "already-shipped",
+        "planned",
+        "unprioritized",
+        "wont-build"
+      ]
+    },
+    {
+      "id": "customer_name",
+      "label": "Customer's first name",
+      "hint": "Optional. If provided, the reply opens with the name; otherwise no salutation (matches founder-direct register).",
+      "kind": "short",
+      "required": false
+    },
+    {
+      "id": "channel",
+      "label": "Reply channel",
+      "hint": "Where this reply is going. Affects length and formatting — email allows links and 4 paragraphs, X reply caps at one paragraph, GitHub issue uses markdown lists.",
+      "kind": "select",
+      "required": false,
+      "options": [
+        "email",
+        "in-app",
+        "github-issue",
+        "x-reply",
+        "discord"
+      ]
+    }
+  ],
+  "output_block_kinds": {
+    "v1_choice": "plain (markdown). Same shape as the engineering studio's adr-draft and tech-debt-review templates. The reply is a single short markdown document the founder copy-pastes into whatever channel they're replying on.",
+    "rationale": "Triage replies have to flow across email, GitHub, X, Discord, and in-app widgets, so the lowest-common-denominator format (plain markdown) is the most useful. A typed 'email_reply' kind with subject+body fields adds friction for non-email channels and gives the founder nothing they can't get by copy-pasting markdown.",
+    "v1_1_consideration": "If usage data shows >70% of triage replies go to email, introduce an 'email_reply' kind with {subject, body, suggested_internal_note} fields where suggested_internal_note is the proposed feature-request-log.md row that the writeback would create — letting the founder preview the writeback before accepting."
+  },
+  "comparable_template_in_existing_studios": "eng:adr-draft is the closest structural analog: both consume decisions + product memory, both emit a plain markdown block with inline <cite mem_id='...'/> tags, both are zero-shot with helper clauses. The retrieval-then-generation pattern is also shared with eng:vendor-swap, which reads vendors memory to ground its recommendation. Total complexity should land between adr-draft (~75 LOC visible) and tech-debt-review.",
+  "memory_writeback_proposal": {
+    "primary": "On accept, append a row to memory/product/feature-request-log.md (create if missing — this file is the BBC equivalent of a private Canny board, owned by the manager layer). Row fields: timestamp, feature_slug (auto-generated from feature_summary), one-line description, verdict that the founder accepted, count starts at 1 (or increments if the slug already exists), source_run_id pointing to the studio_runs row.",
+    "secondary": "If the founder's verdict on a feature with status='Idea' or 'Candidate' was 'wont-build' AND no decision currently covers it, propose (via the queue) a new decisions/ entry like 'ADR-NNNN: We will not build X' with one-sentence reasoning extracted from the reply. This is the most valuable writeback in the entire studio: it converts customer-pressure into recorded product spine. Filed as a proposal (not direct write) because decisions memory is owning_layer=main per CLAUDE.md.",
+    "tertiary": "If the founder's verdict was 'already-shipped' for a feature whose product memory entry currently has roadmap_status='Planned' or 'In Progress', file a proposal to update that entry to 'Released'. This is the staleness-correction loop: customer requests reveal that product memory is out of date.",
+    "flywheel_logic": "Every accepted feature-request-triage run either (a) increments a counter that surfaces a feature for promotion next time it's requested, or (b) seeds a new decision/product-status row. After ~30 accepted runs, the brain should be able to auto-answer ~60% of new triage requests by exact slug match, with the LLM only handling rephrase + voice. This is the central BBC bet: support replies are a high-frequency data ingestion channel disguised as a content task."
+  },
+  "safety_constraints": [
+    "Never commit to a delivery date unless inputs.verdict='planned' AND brain.product supplies an explicit ETA field. Phrases like 'soon', 'in the coming weeks', 'next release' are forbidden — they read as promises but bind nothing.",
+    "Never apologize for not building something. 'I'm sorry we don't support X' is the dominant LLM failure mode and undermines the principled-decline pattern that 37signals-style founder voice depends on.",
+    "Never say 'I'll pass this to the team' or 'I'll forward this to product' — a BBC user is a solo founder; the team is them. Override-aware: if team memory has >1 member, this constraint relaxes.",
+    "Never invent a similar-shipped feature. If retrieval returns nothing, the reply must NOT contain a 'we already ship something like this' paragraph.",
+    "Never cite a decision unless its tags or title overlap the request. A spurious citation is worse than no citation — it signals the system is hallucinating.",
+    "Never reveal that other customers have also asked for this feature unless the founder explicitly opted in via a 'social proof' override. Aggregate counters are private brain state, not customer-facing.",
+    "No legal disclaimers ('this is not a commitment', 'subject to change') — they make the reply sound corporate. The honest-rejection pattern doesn't need them.",
+    "Channel safety: if channel='x-reply', cap output at 280 chars and skip the workaround paragraph."
+  ],
+  "override_examples": [
+    {
+      "founder_correction": "Always name the feature back in the very first sentence. Never open with 'Thanks for reaching out'.",
+      "override_kind": "forbid_pattern",
+      "encoded_as": "{ kind: 'forbid_pattern', pattern: '^(Thanks for reaching out|Thanks for the message|Hi there)', scope: 'support:feature-request-triage' }"
+    },
+    {
+      "founder_correction": "For wont-build verdicts, always include the sentence: 'We read every request — this one didn't make the cut, and here's why.'",
+      "override_kind": "add_constraint",
+      "encoded_as": "{ kind: 'add_constraint', when: 'verdict == wont-build', constraint: 'Include the exact phrase \"We read every request\" before the reasoning sentence.' }"
+    },
+    {
+      "founder_correction": "When citing ADR-0007 (AGPL/no-paid-features stance), use the phrase 'BBC is OSS-first by design' instead of 'we don't offer paid tiers'.",
+      "override_kind": "replace_section",
+      "encoded_as": "{ kind: 'replace_section', section_match: 'cites mem_id=adr-0007', replacement_template: 'BBC is OSS-first by design — that's a deliberate <cite mem_id=\"adr-0007\"/>, not a gap.' }"
+    },
+    {
+      "founder_correction": "Add an example of how I phrased a recent good triage reply.",
+      "override_kind": "add_example",
+      "encoded_as": "{ kind: 'add_example', example_text: '<paste of a real accepted reply>', label: 'reference-tone-2026-04-18' }"
+    },
+    {
+      "founder_correction": "Never use the em-dash. I write with semicolons.",
+      "override_kind": "forbid_pattern",
+      "encoded_as": "{ kind: 'forbid_pattern', pattern: '—', scope: 'support:*' }"
+    }
+  ],
+  "estimated_loc": "~160 LOC total. Breakdown: ~95 LOC for the prompt builder + firstUseInputs (similar to eng:adr-draft + extra clauses for productClause and the retrieval probe scaffolding) and ~65 LOC for a thin retrieval helper (lib/studio/support-templates/retrieval.ts) that does substring/tag matching over brain.product and brain.decisions. The retrieval helper is shared with churn-save and bug-ack, so amortized this template is closer to ~120 LOC of its own. Calibrated against adr-draft.ts (~75 visible LOC) plus the additional retrieval scaffold that engineering templates don't need.",
+  "v1_essential": "yes — this template is the single best showcase of BBC's three-loop architecture (consume product+decisions memory -> produce reply -> write back to feature-request-log + propose new decisions/roadmap-status updates). Of the five Support templates, this one most clearly demonstrates the flywheel that customer-reply and bug-ack hint at but don't fully close. Ship it in v1 even if it means deferring incident-status to v1.1.",
+  "uncertain": [
+    "estimated_loc",
+    "memory_writeback_proposal"
+  ]
+}
