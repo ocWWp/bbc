@@ -1,12 +1,10 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { createRelation } from "@/app/memory/actions";
 import { TypeChip } from "./type-chip";
-import { Button } from "@/components/ui/button";
 import type { Database } from "@/lib/supabase/database.types";
 import type { Supertag } from "@/lib/memory/types";
 
@@ -67,78 +65,59 @@ export function RelationPicker({ srcId }: { srcId: string }) {
   };
 
   return (
-    <div className="space-y-2">
-      <Button
-        size="sm"
-        variant="outline"
+    <div className="rel-picker">
+      <button
+        type="button"
+        className="btn rel-picker-trigger"
         onClick={() => setOpen((o) => !o)}
-        className="w-full justify-start text-xs"
       >
-        + Link to another item
-      </Button>
+        {open ? "× close" : "+ link to another item"}
+      </button>
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2, ease: [0.2, 0, 0, 1] }}
-            className="overflow-hidden"
-          >
-            <div className="space-y-2 rounded-md border bg-background p-2">
-              <div className="flex flex-wrap gap-1">
-                {KINDS.map((k) => (
-                  <button
-                    key={k}
-                    type="button"
-                    onClick={() => setKind(k)}
-                    className={`text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full transition-colors ${
-                      kind === k
-                        ? "bg-foreground text-background"
-                        : "bg-muted text-muted-foreground hover:bg-muted/80"
-                    }`}
-                  >
-                    {k}
-                  </button>
-                ))}
-              </div>
-              <p className="text-[10px] text-muted-foreground/70">{kindHint[kind]}</p>
+      {open && (
+        <div className="rel-picker-pop">
+          <div className="rel-picker-kinds">
+            {KINDS.map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setKind(k)}
+                className={`rel-picker-kind ${kind === k ? "is-on" : ""}`}
+              >
+                {k}
+              </button>
+            ))}
+          </div>
+          <p className="rel-picker-hint">{kindHint[kind]}</p>
 
-              <input
-                autoFocus
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Search items..."
-                className="w-full rounded-md border bg-background px-2 py-1 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              />
+          <input
+            autoFocus
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="search items…"
+            className="rel-picker-search"
+          />
 
-              <ul className="max-h-64 space-y-0.5 overflow-y-auto">
-                {items.length === 0 && (
-                  <li className="px-2 py-2 text-center text-xs text-muted-foreground/60">
-                    No matches
-                  </li>
-                )}
-                {items.map((it) => (
-                  <li key={it.id}>
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={() => link(it.id)}
-                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted disabled:opacity-50"
-                    >
-                      <TypeChip type={it.type} size="xs" />
-                      <span className="truncate">{it.title}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+          <ul className="rel-picker-list">
+            {items.length === 0 && <li className="rel-picker-empty">no matches</li>}
+            {items.map((it) => (
+              <li key={it.id}>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => link(it.id)}
+                  className="rel-picker-item"
+                >
+                  <TypeChip type={it.type} size="xs" />
+                  <span className="rel-picker-item-title">{it.title}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
 
-              {error && <p className="text-xs text-rose-500">{error}</p>}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          {error && <p className="rel-picker-error">{error}</p>}
+        </div>
+      )}
     </div>
   );
 }
