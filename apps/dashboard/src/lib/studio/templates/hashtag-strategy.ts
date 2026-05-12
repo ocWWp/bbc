@@ -46,7 +46,7 @@ const template: Template = {
       "- If platform doesn't use hashtags effectively (LinkedIn over-uses them), say so and recommend 0-2.",
       CITATION_INSTRUCTION,
       "",
-      "Output as a single tool_use call with one OutputBlock of kind 'plain' and props { recommendations: Array<{ platform: string; hashtags: Array<{ tag: string; tier: string; rationale: string }> }> }.",
+      "Output as a single tool_use call with one OutputBlock of kind 'plain' and props { text: string }. Format the 'text' as markdown with a section per platform: '## <Platform>' headings, then a bullet per hashtag in the form '- **#tag** (tier) — one-sentence rationale'.",
     ]
       .filter(Boolean)
       .join("\n");

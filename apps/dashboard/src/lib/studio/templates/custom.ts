@@ -38,7 +38,7 @@ const template: Template = {
       "- If the task is ambiguous, ask ONE clarifying question and return that as the only output.",
       CITATION_INSTRUCTION,
       "",
-      "Output as a single tool_use call with one OutputBlock of kind 'plain' and props { body: string (markdown) }.",
+      "Output as a single tool_use call with one OutputBlock of kind 'plain' and props { text: string }. Put the full markdown response in the 'text' field.",
     ]
       .filter(Boolean)
       .join("\n");

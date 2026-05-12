@@ -143,30 +143,21 @@ export default function StudioClient({ templates, authorHint, recentRuns = [] }:
   const handleRun = useCallback(
     (inputs: Record<string, string>) => {
       setError(null);
-      setStage((prev) => {
-        if (prev.kind !== "configuring") return prev;
-        return { kind: "running", task: prev.task, candidate: prev.candidate, inputs };
-      });
+      const current = stageRef.current;
+      if (current.kind !== "configuring") return;
+      const { task: runTask, candidate } = current;
+      setStage({ kind: "running", task: runTask, candidate, inputs });
       startTransition(async () => {
-        // Read current stage to get task + candidate. We pulled them from the
-        // closure intentionally to avoid stale-state bugs.
-        const current = stageRef.current;
-        if (current.kind !== "running") return;
-        const res = await runWorkflow(current.candidate.templateId, current.task, inputs);
+        const res = await runWorkflow(candidate.templateId, runTask, inputs);
         if (!res.ok) {
           setError(res.error);
-          setStage({
-            kind: "configuring",
-            task: current.task,
-            candidate: current.candidate,
-            inputs,
-          });
+          setStage({ kind: "configuring", task: runTask, candidate, inputs });
           return;
         }
         setStage({
           kind: "reviewing",
-          task: current.task,
-          candidate: current.candidate,
+          task: runTask,
+          candidate,
           inputs,
           runId: res.runId,
           blocks: res.blocks,

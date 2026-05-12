@@ -48,7 +48,7 @@ const template: Template = {
       "- Aim for ~2.5 words per second of speaking pace; do not exceed the target length.",
       CITATION_INSTRUCTION,
       "",
-      "Output as a single tool_use call with one OutputBlock of kind 'script' and props { beats: Array<{ timecode: string; on_camera: string; b_roll?: string }> }.",
+      "Output as a single tool_use call with one OutputBlock of kind 'script' and props { hook: string; beats: Array<{ time: string; line: string }>; cta?: string }. 'hook' is the first 3-second attention grabber. Each beat has 'time' (e.g. '0:03-0:08') and 'line' (what's said on camera, with parenthetical b-roll cues inline). 'cta' is the closing call-to-action or summary.",
     ]
       .filter(Boolean)
       .join("\n");

@@ -50,7 +50,7 @@ const template: Template = {
       "- Numbered (1/, 2/, …) format is fine but not required.",
       CITATION_INSTRUCTION,
       "",
-      "Output as a single tool_use call with one OutputBlock of kind 'x_thread' and props { posts: string[] }.",
+      "Output as a single tool_use call with one OutputBlock of kind 'x_thread' and props { posts: Array<{ text: string }> }. Each post is an object with a 'text' field, NOT a bare string.",
     ]
       .filter(Boolean)
       .join("\n");

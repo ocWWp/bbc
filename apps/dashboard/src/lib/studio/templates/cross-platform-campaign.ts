@@ -51,10 +51,10 @@ const template: Template = {
       CITATION_INSTRUCTION,
       "",
       "Output as a single tool_use call with multiple OutputBlocks, one per platform:",
-      "- { kind: 'x_post', props: { text } }",
-      "- { kind: 'linkedin_post', props: { text } }",
-      "- { kind: 'threads_post', props: { text } } (if requested)",
-      "- { kind: 'blog_draft', props: { title, body } } (if requested)",
+      "- { kind: 'x_post', props: { text: string; hashtags?: string[] } }",
+      "- { kind: 'linkedin_post', props: { body: string; headline?: string; hashtags?: string[] } }",
+      "- { kind: 'threads_post', props: { text: string } } (if requested)",
+      "- { kind: 'blog_draft', props: { title: string; subtitle?: string; body_markdown: string } } (if requested)",
     ]
       .filter(Boolean)
       .join("\n");

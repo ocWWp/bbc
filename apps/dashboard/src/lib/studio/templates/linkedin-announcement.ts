@@ -49,7 +49,7 @@ const template: Template = {
       "- No hashtag dumps. Three relevant hashtags at the end maximum, only if natural.",
       CITATION_INSTRUCTION,
       "",
-      "Output as a single tool_use call with one OutputBlock of kind 'linkedin_post' and props { text: string }.",
+      "Output as a single tool_use call with one OutputBlock of kind 'linkedin_post' and props { body: string; headline?: string; hashtags?: string[] }. Use 'body' for the main post text.",
     ]
       .filter(Boolean)
       .join("\n");

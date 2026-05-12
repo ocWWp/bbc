@@ -38,7 +38,7 @@ const template: Template = {
       "- Maximum 8 issues; if there are more, pick the highest-severity 8.",
       CITATION_INSTRUCTION,
       "",
-      "Output as a single tool_use call with one OutputBlock of kind 'plain' and props { issues: Array<{ severity: 'high' | 'medium' | 'low'; quote: string; rule: string; suggestion: string }>; overall_verdict: string }.",
+      "Output as a single tool_use call with one OutputBlock of kind 'plain' and props { text: string }. Format the 'text' as markdown: a one-line '## Verdict' section with the overall judgment, then '## Issues' with each issue as a sub-block — bold severity tag, the quoted phrase, the rule it breaks (cite the voice memory id), and a suggested replacement.",
     ]
       .filter(Boolean)
       .join("\n");

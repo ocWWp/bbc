@@ -52,7 +52,7 @@ const template: Template = {
       "- Markdown body; do not include HTML.",
       CITATION_INSTRUCTION,
       "",
-      "Output as a single tool_use call with one OutputBlock of kind 'blog_draft' and props { title: string; subtitle?: string; body: string (markdown) }.",
+      "Output as a single tool_use call with one OutputBlock of kind 'blog_draft' and props { title: string; subtitle?: string; body_markdown: string }. Use 'body_markdown' for the full markdown body.",
     ]
       .filter(Boolean)
       .join("\n");
