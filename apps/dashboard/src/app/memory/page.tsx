@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { listMemoryItems } from "./queries";
-import { SUPERTAGS, supertagMeta, type Supertag } from "@/lib/memory/types";
+import { SUPERTAGS, type Supertag } from "@/lib/memory/types";
+import { BrainView } from "@/components/memory/BrainView";
 
 export const dynamic = "force-dynamic";
 
@@ -223,62 +224,13 @@ export default async function MemoryIndex({ searchParams }: { searchParams: Sear
           </div>
         </>
       ) : (
-        <div
-          className="card"
-          style={{
-            padding: 0,
-            minHeight: 480,
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              padding: "12px 16px",
-              borderBottom: "1px solid var(--paper-rule)",
-              background: "var(--paper-bg-2)",
-              fontFamily: "var(--font-geist-mono), monospace",
-              fontSize: 11.5,
-              color: "var(--paper-muted)",
-            }}
-          >
-            <span>
-              <strong style={{ color: "var(--paper-ink)", fontWeight: 500 }}>
-                {allItems.length}
-              </strong>{" "}
-              nodes · all types
-            </span>
-            <span>brain view · 3D coming next</span>
-          </div>
-          <div
-            style={{
-              flex: 1,
-              display: "grid",
-              placeItems: "center",
-              padding: 48,
-              color: "var(--paper-muted)",
-            }}
-          >
-            <div style={{ textAlign: "center", maxWidth: 420 }}>
-              <div
-                className="section-eyebrow"
-                style={{ justifyContent: "center", marginBottom: 12 }}
-              >
-                brain view
-              </div>
-              <p style={{ fontSize: 14.5, lineHeight: 1.55, color: "var(--paper-ink-2)" }}>
-                The 3D rotating brain (point cloud + anchored memory nodes by tag)
-                ships in the next port. For now,{" "}
-                <Link href="/graph" style={{ color: "var(--paper-accent)" }}>
-                  use the 2D graph
-                </Link>{" "}
-                or browse the list view.
-              </p>
-            </div>
-          </div>
-        </div>
+        <BrainView
+          nodes={(items as Array<{ id: string; title: string; type: string }>).map((m) => ({
+            id: m.id,
+            title: m.title,
+            tag: m.type,
+          }))}
+        />
       )}
     </div>
   );
