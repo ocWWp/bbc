@@ -17,6 +17,7 @@ function studioForTemplate(templateId: string): string {
   if (templateId.startsWith("eng:")) return "engineering";
   if (templateId.startsWith("founder:")) return "founder";
   if (templateId.startsWith("design:")) return "designer";
+  if (templateId.startsWith("support:")) return "support";
   return "marketing";
 }
 
