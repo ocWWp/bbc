@@ -1132,8 +1132,13 @@
 /* ---------- studio chooser (/studio) ---------- */
 .studio-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 12px;
+}
+/* On desktop, pin to 5 columns so the 5 role cards fill one row instead
+   of leaving the last card stranded on row 2. */
+@media (min-width: 1280px) {
+  .studio-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
 .studio-card {
   display: flex; flex-direction: column; gap: 14px;

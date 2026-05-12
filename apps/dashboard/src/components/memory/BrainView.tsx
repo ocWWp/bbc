@@ -177,6 +177,11 @@ export function BrainView({ nodes }: { nodes: BrainNode[] }) {
   const projAnchors = anchors.map((a) => ({ ...a, proj: project(a) }));
   const projAnchorsSorted = [...projAnchors].sort((a, b) => a.proj.z - b.proj.z);
 
+  // SVG numeric attrs must serialize identically on server vs. client.
+  // Float precision drift at the last decimal triggers React hydration
+  // mismatches; round to 2 decimals (plenty for a 900x520 viewport).
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+
   return (
     <div
       ref={wrapRef}
@@ -247,11 +252,11 @@ export function BrainView({ nodes }: { nodes: BrainNode[] }) {
           return (
             <circle
               key={i}
-              cx={p.proj.x}
-              cy={p.proj.y}
-              r={p.r * p.proj.persp}
+              cx={r2(p.proj.x)}
+              cy={r2(p.proj.y)}
+              r={r2(p.r * p.proj.persp)}
               fill="var(--paper-ink)"
-              opacity={op}
+              opacity={r2(op)}
             />
           );
         })}
@@ -266,13 +271,13 @@ export function BrainView({ nodes }: { nodes: BrainNode[] }) {
           return (
             <line
               key={i}
-              x1={A.proj.x}
-              y1={A.proj.y}
-              x2={B.proj.x}
-              y2={B.proj.y}
+              x1={r2(A.proj.x)}
+              y1={r2(A.proj.y)}
+              x2={r2(B.proj.x)}
+              y2={r2(B.proj.y)}
               stroke="var(--paper-rule-2)"
-              strokeWidth={0.8 + 0.6 * depth}
-              opacity={op}
+              strokeWidth={r2(0.8 + 0.6 * depth)}
+              opacity={r2(op)}
             />
           );
         })}
@@ -286,7 +291,7 @@ export function BrainView({ nodes }: { nodes: BrainNode[] }) {
           return (
             <g
               key={n.id}
-              transform={`translate(${n.proj.x} ${n.proj.y})`}
+              transform={`translate(${r2(n.proj.x)} ${r2(n.proj.y)})`}
               style={{ cursor: "pointer" }}
               onPointerEnter={() => setHover(n.id)}
               onPointerLeave={() => setHover(null)}
@@ -294,8 +299,8 @@ export function BrainView({ nodes }: { nodes: BrainNode[] }) {
                 window.location.href = `/memory/${n.id}`;
               }}
             >
-              <circle r={r * 2.2} fill={`var(--t-${n.tag})`} opacity={0.1 * op} />
-              <circle r={r} fill={`var(--t-${n.tag})`} opacity={op} />
+              <circle r={r2(r * 2.2)} fill={`var(--t-${n.tag})`} opacity={r2(0.1 * op)} />
+              <circle r={r2(r)} fill={`var(--t-${n.tag})`} opacity={r2(op)} />
               {front && (isHover || depth > 0.55) && (
                 <text
                   x={r + 5}

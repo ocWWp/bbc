@@ -107,7 +107,7 @@ export default async function BindingsSettingsPage() {
                     justifySelf: "end",
                   }}
                 >
-                  {b.kind === "unbound" ? "—" : b.bound_at}
+                  {b.kind === "unbound" ? "—" : b.bound_at.slice(5, 16).replace("T", " ")}
                 </span>
               </div>
             ))}
