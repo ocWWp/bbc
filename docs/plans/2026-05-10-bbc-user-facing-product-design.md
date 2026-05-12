@@ -301,7 +301,7 @@ Six phases (labeled G–L after existing F0/F1–F4/Y/Z work), ~6–8 weeks.
 - Lock components: Button, Input, Modal, Card, Toast, Dialog, Cmd+K palette
 - Terms / Privacy / cookie banner
 - Sentry + PostHog wired in dashboard
-- Email transactional via Resend (invite, signup, queue-digest, paywall templates)
+- Email transactional via Resend (invite, signup, queue-digest)
 
 ### Phase H — Brain editor + relations (1.5 weeks)
 - Migration: add `fields` jsonb + `body_blocks` jsonb[] to `memory_files`
@@ -326,21 +326,25 @@ Six phases (labeled G–L after existing F0/F1–F4/Y/Z work), ~6–8 weeks.
 - Run → queue items appear in `/dashboard`
 - Conversational workflow editing (chat overlay)
 
-### Phase K — Marketplace + MCP writes + Stripe (1.5 weeks)
-- `/marketplace` with role-filtered view
-- Bind/unbind providers (BBC account or BYO key)
-- Credit metering: LLM + tool passthrough accounting
-- MCP write tools (read + write through queue protocol)
-- Stripe Checkout + Customer Portal + webhook → tier/credits sync
-- Paywall triggers wired (5 from journey spec)
+### Phase K — BYOK onboarding + marketplace + MCP writes (1.5 weeks)
+
+**Rewritten 2026-05-11 per ADR-0007.** Originally "Marketplace + MCP writes + Stripe". Monetization layer dropped: BBC is AGPLv3 OSS in v1, no Stripe, no paywall, no credit metering. The marketplace stays but as a *provider directory*, not a revenue surface — users plug in their own keys (BYOK) and pay the upstream provider directly.
+
+- `/welcome` flow extended with BYOK setup: paste Anthropic key, paste Supabase URL (or click "Use the hosted demo"), pick LLM model preference. Stored encrypted per-tenant in `external_accounts`.
+- `/marketplace` with role-filtered view. Each provider card shows: role (llm-provider, video-gen, etc.), supported adapters (Anthropic, Higgsfield, n8n, …), credibility score (F1 once built), bind/unbind. **No "Add credits" CTA; no plan upsell.**
+- Bind/unbind providers writes to `bindings` (already exists in schema). Provider keys live in `external_accounts` per-tenant.
+- MCP write tools (read + write through queue protocol). Unchanged from the original Phase K scope — this is product surface, not monetization.
+- **One-click self-host:** "Deploy to Vercel" button on the README. Forking + setting 3 env vars stands up a tenant in ~5 min.
+- Hosted demo at bbc.tools with **per-IP rate limits** (3 Studio runs/day) and a shared founder-funded Anthropic key. Treat the hosted Anthropic spend as a marketing-budget line, not COGS.
 
 ### Phase L — Landing + brain map + docs + polish (1.5 weeks)
-- Landing page (8 sections)
-- Pricing page
+- Landing page (8 sections) — pitch shifts from "SaaS that scales with you" to "open-source brain for your startup"
+- ~~Pricing page~~ → **"Self-host vs hosted demo" comparison page** + AGPL FAQ
 - Brain map (`/memory/map`) — Sigma.js + Graphology + Louvain clustering
 - Mintlify docs at docs.bbc.tools
+- GitHub repo polish: README, CONTRIBUTING, CODE_OF_CONDUCT, issue + PR templates
 - End-to-end QA on golden path
-- Soft launch checklist
+- Soft launch checklist (HN "Show HN", Product Hunt, IH, X, OSS communities)
 
 ---
 
@@ -349,25 +353,30 @@ Six phases (labeled G–L after existing F0/F1–F4/Y/Z work), ~6–8 weeks.
 ```
 Week 1–8         Build (Phases G → L)
 Week 8 (T-2)     Private beta: 20 hand-picked AI-native founders.
-                 Free tier only. Feedback Slack channel. Daily fixes.
+                 Self-host or hosted demo. Feedback Slack channel. Daily fixes.
 Week 9 (T-1)     Public beta: open self-serve signup at bbc.tools.
-                 Free + Solo Founder unlocked. Stripe live.
-                 Soft-launch on X (founder personal) + IH + HN.
-Week 10 (T-0)    GA: all tiers unlocked. Press kit, Product Hunt.
-                 Activate paid acquisition (X + LinkedIn, low budget).
+                 OSS launch on Show HN + r/selfhosted + IH.
+Week 10 (T-0)    GA: GitHub repo public, Product Hunt, soft-launch on X.
+                 No paid acquisition (no revenue → no acquisition budget).
                  Weekly retro + metric dashboard.
 ```
 
 ### v1.0 success metrics (T+30 days)
 
-| Metric | Target |
-|---|---|
-| Signups | 500 |
-| Activated (completed brain dump) | 200 (40%) |
-| First agent draft (aha) | 120 (60% of activated) |
-| Paid conversions | 12 (10% of aha — $228+/mo MRR) |
-| 14-day retention | 25% |
-| NPS | 40+ |
+OSS-launch metrics replace SaaS revenue metrics. The funnel is "GitHub stars → cloners → self-hosters → daily active brains," not "signups → paid conversions."
+
+| Metric | Target | Why it matters |
+|---|---|---|
+| GitHub stars | 1,000 | Proxy for awareness in the OSS founder/AI dev audience |
+| Forks + clones | 200 | Proxy for self-host intent |
+| Hosted-demo signups | 500 | Funnel of people trying before self-hosting |
+| Hosted-demo activated (brain dump done) | 200 (40%) | Same activation bar as the original SaaS plan |
+| First Studio draft (aha) | 120 (60% of activated) | The product moment |
+| Self-host installations (telemetry opt-in) | 50 | Proxy for "this is sticky enough to self-host" |
+| Contributors with merged PRs | 5 | Proxy for community formation |
+| 14-day retention (hosted demo) | 25% | Unchanged from original plan |
+
+There is no MRR target in v1. Commercial relicensing (hosted enterprise tier, SLA-backed cloud) is deferred to v1.x and gated by ADR-0007 → maintainer's legal status.
 
 ---
 
@@ -377,9 +386,10 @@ Week 10 (T-0)    GA: all tiers unlocked. Press kit, Product Hunt.
 |---|---|---|
 | LLM extraction quality (brain-dump → typed proposals) | Aha moment dies if items miss or mis-type | Hand-tune system prompt, evaluate on 50 fake dumps before launch, log all extractions for refinement |
 | Marketing Studio task-first UX feels chatty, not productive | Activation drops if founders expect Jasper feel | Beta-test empty-state copy, add prompt chips as fallback, measure time-to-first-draft |
-| Credit pricing too aggressive or too lax | Margin or activation hurts | Instrument credit consumption from day 1, expect to re-price after beta data |
+| Hosted-demo Anthropic spend exceeds the marketing budget | Maintainer eats the bill personally | Per-IP daily caps + global daily cap + automatic disable when the cap is hit + on-screen "demo limit reached, self-host for unlimited" |
 | Sigma.js performance at scale | Brain map jank at 500+ nodes | ForceAtlas2 in WebWorker, Louvain pre-cluster, hide orphans |
-| Stripe + credit-metering bugs | Revenue leak | Stripe webhook idempotency, daily credit-reconciliation cron, paid QA pass before public beta |
+| Permissive fork by a competitor selling BBC as SaaS | Erodes future commercial option | AGPLv3 (already in `LICENSE`) — any hosted offering must open-source modifications. Same lever Plausible + Cal.com use. |
+| AGPL scares enterprise contributors | Lower community velocity | Accept the tradeoff. The contributors AGPL repels are mostly those who want to commercialize *your* code. Per ADR-0007. |
 
 ---
 

@@ -40,6 +40,7 @@ A lower-layer document can **specialize** an upper rule (add detail, scope to a 
 4. **Vendor names are not architecture.** Roles (`llm-provider`, `db-provider`, `email-delivery`) live in `memory/ops/vendors.md`. Any other file that needs to mention a vendor cites that file. This protects us from vendor churn.
 5. **Voice is single-source.** `memory/design/voice-tone.md` is canonical. The cross-repo voice anchors (`pillar-interactions.ts`, `prompts.py`) are downstream consumers.
 6. **No silent autonomy.** V1 has no daemons, no background agents, no auto-accept. Every state change is either a human edit at the layer that owns the file, or a queued proposal that passes through `accept.sh` / `reject.sh`.
+7. **BBC is AGPLv3, free, and OSS-first.** See `LICENSE` at the repo root + ADR-0007. The project takes no revenue in v1: no Stripe, no paywall, no credit metering, no commercial license clauses. Users self-host (or use a hosted demo paid for as a marketing expense) and bring their own provider keys (BYOK). Commercial relicensing is **deferred**, not foreclosed — AGPL is chosen precisely so that the maintainer retains the option to sell a hosted/enterprise license later (the Cal.com / Plausible playbook). Any change to this principle requires a new ADR superseding ADR-0007.
 
 ## What changes this file
 
