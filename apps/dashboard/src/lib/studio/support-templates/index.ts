@@ -8,6 +8,7 @@
 import "./customer-reply";
 import "./churn-save";
 import "./feature-request-triage";
+import "./bug-ack";
 
 export {
   getSupportTemplate,
