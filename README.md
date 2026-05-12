@@ -2,7 +2,7 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL_v3-blue.svg)](LICENSE)
 [![Status: alpha](https://img.shields.io/badge/status-alpha-orange.svg)](#status)
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FZethT%2Fbbc&project-name=bbc-dashboard&repository-name=bbc&root-directory=apps%2Fdashboard&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,SUPABASE_SERVICE_ROLE_KEY,BBC_SECRET_ENCRYPTION_KEY,ANTHROPIC_API_KEY&envDescription=Required%20env%20vars%20for%20BBC.%20See%20.env.example%20for%20what%20each%20one%20does.&envLink=https%3A%2F%2Fgithub.com%2FZethT%2Fbbc%2Fblob%2Fmain%2F.env.example)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/ZethT/bbc)
 
 **Stop re-explaining your company to every AI tool.** BBC is a structured brain — your positioning, voice, decisions, team, vendors — that every AI tool you use can read from. One source of truth. Self-hosted by default. AGPLv3.
 
@@ -22,16 +22,30 @@ BBC fixes that. You give it your brain once. Every AI tool — including the Mar
 
 ## Quick start
 
-### Option A — Deploy to Vercel (5 minutes)
+### Option A — Deploy to Cloudflare (5 minutes)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FZethT%2Fbbc&project-name=bbc-dashboard&repository-name=bbc&root-directory=apps%2Fdashboard&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,SUPABASE_SERVICE_ROLE_KEY,BBC_SECRET_ENCRYPTION_KEY,ANTHROPIC_API_KEY&envDescription=Required%20env%20vars%20for%20BBC.%20See%20.env.example%20for%20what%20each%20one%20does.&envLink=https%3A%2F%2Fgithub.com%2FZethT%2Fbbc%2Fblob%2Fmain%2F.env.example)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/ZethT/bbc)
 
 You'll need:
 - A free Supabase project ([supabase.com](https://supabase.com))
 - An Anthropic API key ([console.anthropic.com](https://console.anthropic.com))
 - 32 bytes for the BYOK encryption key — run `openssl rand -base64 32` and paste it
+- A free Cloudflare account ([cloudflare.com](https://cloudflare.com))
 
-Click the button, paste the values, click Deploy. After ~5 minutes you have a tenant at `your-name.vercel.app`. Run the migrations in `apps/dashboard/supabase/migrations/` against your Supabase project (Studio → SQL Editor → paste + run each file in order).
+The Cloudflare deploy button forks the repo, provisions a Worker via [@opennextjs/cloudflare](https://opennext.js.org/cloudflare), and prompts you for env vars. After it deploys you'll get a `*.workers.dev` URL.
+
+Then run the migrations in `apps/dashboard/supabase/migrations/` against your Supabase project (Studio → SQL Editor → paste + run each `0001..0026` file in order).
+
+Prefer the CLI? After cloning + filling in `.env.local`:
+
+```bash
+pnpm install
+pnpm --filter @bbc/dashboard cf:build    # build with the OpenNext Cloudflare adapter
+pnpm --filter @bbc/dashboard cf:preview  # local Workers preview
+pnpm --filter @bbc/dashboard cf:deploy   # ships to Cloudflare
+```
+
+Env vars go in the Cloudflare dashboard (Workers & Pages → bbc-dashboard → Settings → Variables) or via `wrangler secret put`. See `apps/dashboard/wrangler.toml` for the list.
 
 ### Option B — Local self-host
 
@@ -52,7 +66,7 @@ BBC_REPO=path/to/your-tenant pnpm --filter @bbc/dashboard dev
 
 ### Option C — Try the hosted demo
 
-[bbc.tools](https://bbc.tools) is a maintainer-funded hosted instance with a small daily cap on AI runs. Free to try; bring your own API key to remove the cap. **This is not a SaaS** — there's no billing relationship; per [ADR-0007](memory/decisions/0007-oss-first-agpl-deferred-commercialization.md) BBC takes no revenue in v1.
+[bbc.tools](https://bbc.tools) is a maintainer-funded hosted instance running on Cloudflare with a small daily cap on AI runs. Free to try; bring your own API key to remove the cap. **This is not a SaaS** — there's no billing relationship; per [ADR-0007](memory/decisions/0007-oss-first-agpl-deferred-commercialization.md) BBC takes no revenue in v1.
 
 ## What's in v1
 
