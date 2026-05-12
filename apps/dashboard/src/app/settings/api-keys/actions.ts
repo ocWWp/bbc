@@ -61,7 +61,7 @@ export async function createApiKey(formData: FormData): Promise<void> {
 
   // Surface the plaintext token via the query param. After this redirect,
   // the user copies it and never sees it again.
-  revalidatePath("/api-keys");
+  revalidatePath("/settings/api-keys");
   revalidatePath("/log");
   bounce({ token: String(data ?? ""), name, scope, role: roleRaw });
 }
@@ -79,7 +79,7 @@ export async function revokeApiKey(formData: FormData): Promise<void> {
   const { error } = await sb.rpc("revoke_api_key", { p_key_id: keyId });
   if (error) bounce({ error: error.message });
 
-  revalidatePath("/api-keys");
+  revalidatePath("/settings/api-keys");
   revalidatePath("/log");
   bounce({ ok: `Key ${keyId} revoked.` });
 }

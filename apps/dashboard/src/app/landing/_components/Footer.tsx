@@ -20,7 +20,7 @@ export function Footer() {
             <a href="#how">three loops</a>
             <a href="#install">install</a>
             <a href="/studio/marketing">marketing studio</a>
-            <a href="/api-keys">mcp server</a>
+            <a href="/settings/api-keys">mcp server</a>
           </div>
           <div className="foot-col">
             <h4>build with bbc</h4>

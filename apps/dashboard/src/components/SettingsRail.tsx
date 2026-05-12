@@ -20,7 +20,7 @@ const GROUPS: ReadonlyArray<{
     items: [
       { key: "general", label: "General", href: "/settings" },
       { key: "team", label: "Team", href: "/team" },
-      { key: "api-keys", label: "BBC API keys", href: "/api-keys" },
+      { key: "api-keys", label: "BBC API keys", href: "/settings/api-keys" },
       { key: "keys", label: "Provider keys", href: "/settings/keys" },
     ],
   },

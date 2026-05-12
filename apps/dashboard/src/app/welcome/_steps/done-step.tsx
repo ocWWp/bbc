@@ -173,9 +173,9 @@ export function DoneStep({ count, firstId, tenantSlug, proposals }: Props) {
             description="Visual specs, brand guideline entries, UI copy passes."
           />
           <NextStep
-            href="/api-keys"
+            href="/settings/api-keys"
             label="Wire your agents"
-            description="MCP server + REST shim. Bearer-auth from /api-keys."
+            description="MCP server + REST shim. Bearer-auth from /settings/api-keys."
           />
           <NextStep
             href="/studio"

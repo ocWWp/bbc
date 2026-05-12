@@ -9,7 +9,7 @@ const ROUTES = [
   { key: "memory",   label: "Memory",   match: (p: string) => p === "/memory" || p.startsWith("/memory/") || p === "/graph" },
   { key: "queue",    label: "Queue",    match: (p: string) => p === "/" || p === "/queue" || p.startsWith("/queue/") },
   { key: "sources",  label: "Sources",  match: (p: string) => p === "/sources" || p.startsWith("/sources/") || p === "/skills" || p === "/bindings" },
-  { key: "settings", label: "Settings", match: (p: string) => p === "/settings" || p.startsWith("/settings/") || p === "/team" || p === "/api-keys" || p === "/tools" || p === "/log" },
+  { key: "settings", label: "Settings", match: (p: string) => p === "/settings" || p.startsWith("/settings/") || p === "/team" || p === "/api-keys" || p === "/bindings" || p === "/tools" || p === "/log" },
 ] as const;
 
 const HREFS: Record<string, string> = {
