@@ -333,13 +333,10 @@
   gap: 12px;
 }
 .card.proposal {
-  /* Slightly tighter spacing for queue items, accent stripe on the left
-     when the card carries a "pending" affordance via .pending. */
+  /* Tighter spacing for queue items. Pending affordance lives on the
+     v2 grid card (.card.proposal-v2 .px-chip), not a side stripe. */
   padding: 16px 18px;
   gap: 10px;
-}
-.card.proposal.pending {
-  border-left: 2px solid var(--paper-accent);
 }
 .card.legend {
   background: var(--paper-bg-2);
@@ -640,7 +637,7 @@
   width: 28px; height: 28px;
   border-radius: 50%;
   background: var(--t-team);
-  color: #fff;
+  color: oklch(0.985 0.005 80);
   display: grid; place-items: center;
   font-family: var(--font-geist-mono), monospace;
   font-size: 11px;

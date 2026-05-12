@@ -178,7 +178,7 @@ export default async function TeamSettingsPage({
                     height: 32,
                     borderRadius: "50%",
                     background: "var(--t-team)",
-                    color: "#fff",
+                    color: "oklch(0.985 0.005 80)",
                     display: "grid",
                     placeItems: "center",
                     fontFamily: "var(--font-geist-mono), monospace",
