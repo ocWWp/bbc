@@ -19,26 +19,49 @@ export const metadata = {
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Studio chooser. Five role cards (Support · Engineering · Marketing ·
+ * Founder · Designer) using the paper-palette `.studio-card` primitive.
+ * Glyph tint maps to the supertag hue most associated with each role's
+ * primary read-set — see the Claude Design bundle annotation for the
+ * mapping rationale.
+ */
 const STUDIOS = [
   {
-    slug: "marketing",
-    label: "Marketing",
+    slug: "support",
+    label: "Support",
+    glyph: "S",
+    color: "var(--t-glossary)",
     description:
-      "X posts, threads, LinkedIn announcements, blog drafts, reel scripts — in your voice with citations.",
-    templates: () => listClientTemplates(),
-    templateMatcher: (id: string) => !id.includes(":"),
+      "Customer replies, churn-save, incident posts, bug acks, feature-request triage — voice-grounded, decisions-aware, never auto-sent.",
+    templates: () => listClientSupportTemplates(),
+    templateMatcher: (id: string) => id.startsWith("support:"),
   },
   {
     slug: "engineering",
     label: "Engineering",
+    glyph: "E",
+    color: "var(--t-decision)",
     description:
       "ADRs, vendor swap proposals, tech-debt reviews — grounded in your team's prior decisions and active vendors.",
     templates: () => listClientEngTemplates(),
     templateMatcher: (id: string) => id.startsWith("eng:"),
   },
   {
+    slug: "marketing",
+    label: "Marketing",
+    glyph: "M",
+    color: "var(--t-voice)",
+    description:
+      "X posts, threads, LinkedIn announcements, blog drafts, reel scripts — in your voice with citations.",
+    templates: () => listClientTemplates(),
+    templateMatcher: (id: string) => !id.includes(":"),
+  },
+  {
     slug: "founder",
     label: "Founder",
+    glyph: "F",
+    color: "var(--t-skill)",
     description:
       "Strategic memos, board updates, weekly recaps — drafted from product positioning, decisions, and team.",
     templates: () => listClientFounderTemplates(),
@@ -47,20 +70,28 @@ const STUDIOS = [
   {
     slug: "designer",
     label: "Designer",
+    glyph: "D",
+    color: "var(--t-product)",
     description:
       "Visual specs, brand guideline entries, UI copy passes — grounded in your voice and product positioning.",
     templates: () => listClientDesignerTemplates(),
     templateMatcher: (id: string) => id.startsWith("design:"),
   },
-  {
-    slug: "support",
-    label: "Support",
-    description:
-      "Customer replies, churn-save, incident posts, bug acks, feature-request triage — voice-grounded, decisions-aware, never auto-sent.",
-    templates: () => listClientSupportTemplates(),
-    templateMatcher: (id: string) => id.startsWith("support:"),
-  },
 ] as const;
+
+function relTime(iso: string): string {
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return iso;
+  const diff = Math.max(0, Date.now() - t);
+  const min = Math.floor(diff / 60_000);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.floor(hr / 24);
+  if (day < 7) return `${day}d ago`;
+  return new Date(t).toISOString().slice(5, 10);
+}
 
 export default async function StudioIndexPage() {
   const a = await requireActor();
@@ -74,7 +105,7 @@ export default async function StudioIndexPage() {
     .select("id, template_id, task, status, created_at")
     .eq("tenant_id", a.actor.tenant_id)
     .order("created_at", { ascending: false })
-    .limit(12);
+    .limit(20);
 
   type Row = {
     id: string;
@@ -86,84 +117,103 @@ export default async function StudioIndexPage() {
   const recent = (recentRows ?? []) as Row[];
 
   return (
-    <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-12">
-      <header className="mb-8 sm:mb-12">
-        <div className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
-          Studio
+    <div className="container page">
+      <header className="page-head">
+        <div className="page-head-left">
+          <div className="page-crumb">
+            <Link href="/queue">acme</Link>
+            <span className="sep">/</span>
+            <span className="current">studio</span>
+          </div>
+          <h1 className="page-title">
+            pick a <span className="serif">studio</span>.
+          </h1>
+          <p className="page-blurb">
+            Each studio is a role-shaped surface that reads a specific slice of
+            memory and drafts outputs in that voice. On accept, the studio files
+            structured proposals back to <span className="mono">/queue</span>.
+          </p>
         </div>
-        <h1 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight">
-          Pick a role agent
-        </h1>
-        <p className="mt-2 text-muted-foreground text-base sm:text-lg max-w-2xl">
-          Each studio is a role-scoped agent that reads your brain and produces
-          work in the shape that role makes. Same memory, different output.
-        </p>
+        <div className="page-actions">
+          <span className="pill muted">{recent.length} recent run{recent.length === 1 ? "" : "s"}</span>
+        </div>
       </header>
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="studio-grid">
         {STUDIOS.map((s) => {
-          const recentCount = recent.filter((r) => s.templateMatcher(r.template_id)).length;
+          const studioRecent = recent.filter((r) => s.templateMatcher(r.template_id)).slice(0, 3);
           const templates = s.templates();
           return (
             <Link
               key={s.slug}
               href={`/studio/${s.slug}`}
-              className="rounded-lg border border-border p-5 transition-colors hover:bg-accent/50"
+              className="studio-card"
+              style={{ ["--role-color" as string]: s.color }}
             >
-              <div className="flex items-baseline justify-between">
-                <div className="font-medium">{s.label} Studio</div>
-                <div className="text-xs text-muted-foreground">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div className="role-glyph">{s.glyph}</div>
+                <span className="pill muted">
                   {templates.length} workflow{templates.length === 1 ? "" : "s"}
-                  {recentCount > 0 && ` · ${recentCount} recent`}
-                </div>
+                </span>
               </div>
-              <p className="mt-2 text-sm text-muted-foreground">{s.description}</p>
-              {templates.length > 0 && (
-                <ul className="mt-3 space-y-1">
-                  {templates.slice(0, 3).map((t) => (
-                    <li
-                      key={t.id}
-                      className="text-xs text-muted-foreground truncate"
-                    >
-                      <span className="text-foreground/70">·</span> {t.label}
-                    </li>
-                  ))}
-                  {templates.length > 3 && (
-                    <li className="text-xs text-muted-foreground/70">
-                      +{templates.length - 3} more
-                    </li>
-                  )}
-                </ul>
-              )}
+              <h3 className="role-name">{s.label}</h3>
+              <p className="role-desc">{s.description}</p>
+              <div className="role-runs">
+                {studioRecent.length === 0 ? (
+                  <div className="run">
+                    <span className="what" style={{ fontStyle: "italic" }}>no runs yet</span>
+                    <span>—</span>
+                  </div>
+                ) : (
+                  studioRecent.map((r) => (
+                    <div key={r.id} className="run">
+                      <span className="what">{r.task.slice(0, 60)}</span>
+                      <span>{relTime(r.created_at)}</span>
+                    </div>
+                  ))
+                )}
+              </div>
             </Link>
           );
         })}
-      </section>
+      </div>
 
       {recent.length > 0 && (
-        <section className="mt-12">
-          <h2 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground mb-3">
-            Recent runs across all studios
-          </h2>
-          <ul className="space-y-2">
-            {recent.slice(0, 8).map((r) => (
-              <li key={r.id} className="text-sm">
-                <Link
-                  href={`/studio/runs/${r.id}`}
-                  className="hover:underline"
-                >
-                  <span className="text-muted-foreground">{r.template_id}</span>
-                  <span className="mx-2">·</span>
-                  <span>{r.task.slice(0, 120)}</span>
-                </Link>
-                <span className="ml-2 text-xs text-muted-foreground">
-                  ({r.status})
+        <section style={{ marginTop: 40 }}>
+          <div className="section-eyebrow" style={{ marginBottom: 14 }}>
+            recent runs across all studios
+          </div>
+          <div className="card" style={{ padding: 0 }}>
+            {recent.slice(0, 8).map((r, i) => (
+              <Link
+                key={r.id}
+                href={`/studio/runs/${r.id}`}
+                className="card-row"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "160px 1fr 80px",
+                  gap: 16,
+                  alignItems: "center",
+                  textDecoration: "none",
+                  color: "inherit",
+                  borderBottom:
+                    i === Math.min(7, recent.length - 1) ? "none" : undefined,
+                }}
+              >
+                <span className="mono" style={{ fontSize: 11.5, color: "var(--paper-muted)" }}>
+                  {r.template_id}
                 </span>
-              </li>
+                <span style={{ fontSize: 13.5, color: "var(--paper-ink-2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {r.task}
+                </span>
+                <span className="pill muted" style={{ justifySelf: "end" }}>
+                  {r.status}
+                </span>
+              </Link>
             ))}
-          </ul>
+          </div>
         </section>
       )}
-    </main>
+    </div>
   );
 }

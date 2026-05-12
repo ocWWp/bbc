@@ -21,31 +21,47 @@ function studioForTemplate(templateId: string): string {
   return "marketing";
 }
 
-function renderBlocks(blocks: OutputBlock[]): string {
-  return blocks
-    .map((b) => {
-      if (b.kind === "plain") return b.props.text;
-      if (b.kind === "blog_draft") {
-        const sub = b.props.subtitle ? `*${b.props.subtitle}*\n\n` : "";
-        return `# ${b.props.title}\n\n${sub}${b.props.body_markdown}`;
-      }
-      if (b.kind === "x_post") return b.props.text;
-      if (b.kind === "threads_post") return b.props.text;
-      if (b.kind === "linkedin_post") {
-        const head = b.props.headline ? `**${b.props.headline}**\n\n` : "";
-        return `${head}${b.props.body}`;
-      }
-      if (b.kind === "x_thread") {
-        return b.props.posts.map((p, i) => `${i + 1}/ ${p.text}`).join("\n\n");
-      }
-      if (b.kind === "script") {
-        const beats = b.props.beats.map((x) => `[${x.time}] ${x.line}`).join("\n");
-        const cta = b.props.cta ? `\n\n— ${b.props.cta}` : "";
-        return `**Hook:** ${b.props.hook}\n\n${beats}${cta}`;
-      }
-      return JSON.stringify(b, null, 2);
-    })
-    .join("\n\n---\n\n");
+type RenderedBlock = {
+  channel: string;
+  body: string;
+};
+
+function blocksToRendered(blocks: OutputBlock[]): RenderedBlock[] {
+  return blocks.map((b: OutputBlock) => {
+    if (b.kind === "plain") return { channel: "plain", body: b.props.text };
+    if (b.kind === "blog_draft") {
+      const sub = b.props.subtitle ? `*${b.props.subtitle}*\n\n` : "";
+      return {
+        channel: `blog · ${b.props.title}`,
+        body: `${sub}${b.props.body_markdown}`,
+      };
+    }
+    if (b.kind === "x_post") return { channel: "x · post", body: b.props.text };
+    if (b.kind === "threads_post") return { channel: "threads", body: b.props.text };
+    if (b.kind === "linkedin_post") {
+      const head = b.props.headline ? `**${b.props.headline}**\n\n` : "";
+      return { channel: "linkedin", body: `${head}${b.props.body}` };
+    }
+    if (b.kind === "x_thread") {
+      return {
+        channel: `x · thread (${b.props.posts.length})`,
+        body: b.props.posts.map((p, i) => `${i + 1}/ ${p.text}`).join("\n\n"),
+      };
+    }
+    if (b.kind === "script") {
+      const beats = b.props.beats.map((x) => `[${x.time}] ${x.line}`).join("\n");
+      const cta = b.props.cta ? `\n\n— ${b.props.cta}` : "";
+      return {
+        channel: "script",
+        body: `**Hook:** ${b.props.hook}\n\n${beats}${cta}`,
+      };
+    }
+    const unknownBlock = b as { kind: string; props: unknown };
+    return {
+      channel: unknownBlock.kind,
+      body: JSON.stringify(unknownBlock.props, null, 2),
+    };
+  });
 }
 
 export default async function StudioRunPage({
@@ -100,57 +116,155 @@ export default async function StudioRunPage({
 
   const studio = studioForTemplate(run.template_id);
   const isOpen = run.status === "pending_review";
-  const text = renderBlocks(run.output_blocks ?? []);
+  const blocks = blocksToRendered(run.output_blocks ?? []);
+
+  const statusPill =
+    run.status === "pending_review"
+      ? "warn"
+      : run.status === "accepted"
+      ? "ok"
+      : run.status === "rejected"
+      ? "err"
+      : "muted";
 
   return (
-    <main className="mx-auto max-w-4xl px-4 sm:px-6 py-8 sm:py-12">
-      <header className="mb-6 flex items-center justify-between">
-        <div>
-          <Link
-            href={`/studio/${studio}`}
-            className="text-xs text-muted-foreground hover:text-foreground"
-          >
-            ← {studio} studio
-          </Link>
-          <h1 className="mt-1 text-2xl font-semibold">{run.task}</h1>
-          <div className="mt-1 text-xs text-muted-foreground">
-            <span>{run.template_id}</span>
-            <span className="mx-2">·</span>
-            <span>{new Date(run.created_at).toLocaleString()}</span>
-            <span className="mx-2">·</span>
-            <span className="font-medium">{run.status}</span>
+    <div className="container-narrow page">
+      <header className="page-head">
+        <div className="page-head-left">
+          <div className="page-crumb">
+            <Link href="/studio">studio</Link>
+            <span className="sep">/</span>
+            <Link href={`/studio/${studio}`}>{studio}</Link>
+            <span className="sep">/</span>
+            <span className="current mono">{run.id.slice(0, 8)}</span>
           </div>
+          <h1 className="page-title">{run.task}</h1>
         </div>
-        {isOpen && <RunActions runId={run.id} />}
       </header>
 
       {run.error_message && (
-        <section className="mb-6 rounded-lg border border-red-500/40 bg-red-500/5 p-4 text-sm">
-          <div className="font-medium">Generation error</div>
-          <div className="mt-1 text-muted-foreground">{run.error_message}</div>
-        </section>
+        <div className="banner err">
+          <span className="dot" />
+          <span style={{ flex: 1 }}>
+            <strong>generation error:</strong> {run.error_message}
+          </span>
+        </div>
       )}
 
-      <article className="rounded-lg border border-border bg-background p-6">
-        <pre className="whitespace-pre-wrap font-mono text-sm">{text}</pre>
-      </article>
+      <div className="run-header">
+        <div>
+          <div className="section-eyebrow">task</div>
+          <p className="run-task">{run.task}</p>
+          <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
+            <span className="pill mono">template · {run.template_id}</span>
+            {Object.entries(run.inputs ?? {}).slice(0, 4).map(([k]) => (
+              <span key={k} className="pill mono">
+                reads · {k}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="run-meta">
+          <span>
+            <span className={`pill ${statusPill}`}>{run.status}</span>
+          </span>
+          <span>filed {new Date(run.created_at).toISOString().slice(0, 16).replace("T", " ")}</span>
+          <span>
+            {blocks.length} block{blocks.length === 1 ? "" : "s"}
+          </span>
+        </div>
+      </div>
+
+      <div className="run-blocks">
+        {blocks.length === 0 ? (
+          <div className="empty lg">
+            <div className="e-eyebrow">empty run</div>
+            <h2 className="e-title">No output blocks.</h2>
+            <p className="e-body">The studio finished but produced no blocks. Check the error message or re-run.</p>
+          </div>
+        ) : (
+          blocks.map((b, i) => (
+            <div className="run-block" key={i}>
+              <div className="run-block-head">
+                <span className="ch">{b.channel}</span>
+                <span className="pill ok">
+                  <span className="dot" /> drafted
+                </span>
+              </div>
+              <div className="run-block-body">{b.body}</div>
+            </div>
+          ))
+        )}
+      </div>
 
       {cited.length > 0 && (
-        <section className="mt-6">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-            Cited memories ({cited.length})
-          </h2>
-          <ul className="space-y-1">
-            {cited.map((c) => (
-              <li key={c.id} className="text-sm">
-                <span className="text-muted-foreground">{c.type ?? "memory"}</span>
-                <span className="mx-2">·</span>
-                <span>{c.title}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <div className="card" style={{ padding: 0, marginTop: 20 }}>
+          <div
+            style={{
+              padding: "14px 18px",
+              borderBottom: "1px solid var(--paper-rule)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div className="section-eyebrow">cited memories · {cited.length}</div>
+            <span className="pill muted">grounding for this run</span>
+          </div>
+          {cited.map((c) => (
+            <Link
+              key={c.id}
+              href={`/memory/${c.id}`}
+              className="card-row"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 14,
+                textDecoration: "none",
+                color: "inherit",
+              }}
+            >
+              {c.type && (
+                <span
+                  className="tag"
+                  style={{ ["--tag-color" as string]: `var(--t-${c.type})` }}
+                >
+                  <span className="dot" />
+                  {c.type}
+                </span>
+              )}
+              <span style={{ flex: 1, fontSize: 13.5, color: "var(--paper-ink-2)" }}>
+                {c.title}
+              </span>
+              <span
+                className="mono"
+                style={{ fontSize: 11, color: "var(--paper-muted)" }}
+              >
+                {c.id.slice(0, 8)}
+              </span>
+            </Link>
+          ))}
+        </div>
       )}
-    </main>
+
+      {isOpen && (
+        <div className="run-foot">
+          <div>
+            <div className="section-eyebrow" style={{ marginBottom: 6 }}>
+              on accept
+            </div>
+            <div className="help">
+              Files structured proposals to{" "}
+              <span className="mono" style={{ color: "var(--paper-ink)" }}>
+                /queue
+              </span>{" "}
+              and stamps an audit artifact. Reject discards the draft only;
+              nothing is written to memory.
+            </div>
+          </div>
+          <RunActions runId={run.id} />
+        </div>
+      )}
+    </div>
   );
 }
