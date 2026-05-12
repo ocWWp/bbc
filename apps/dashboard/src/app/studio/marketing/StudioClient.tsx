@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { OutputBlocks, type CitedMemory } from "@/components/studio/OutputBlocks";
 import { EditWorkflowChat } from "@/components/studio/EditWorkflowChat";
+import { ActiveOverridesPill } from "@/components/studio/ActiveOverridesPill";
 import type { OutputBlock } from "@/lib/studio/output-blocks";
 import type { ClientTemplate } from "@/lib/studio/templates/registry";
 import type { FirstUseInput } from "@/lib/studio/templates/types";
@@ -26,10 +27,11 @@ import {
   acceptStudioRun,
   deactivateStudioOverride,
   listActiveOverrides,
+  proposeOverride,
   proposeWorkflows,
   rejectStudioRun,
   runWorkflow,
-  type ActiveOverrideSummary,
+  saveStudioTemplateOverride,
   type TemplateProposal,
 } from "./actions";
 
@@ -495,7 +497,11 @@ function ConfigureStage({
           </div>
           <div className="mt-1 flex items-center gap-2 flex-wrap">
             <span className="text-xl font-semibold tracking-tight">{candidate.label}</span>
-            <ActiveOverridesPill templateId={candidate.templateId} />
+            <ActiveOverridesPill
+              templateId={candidate.templateId}
+              listAction={listActiveOverrides}
+              deactivateAction={deactivateStudioOverride}
+            />
           </div>
         </div>
         <Button variant="ghost" size="sm" onClick={onBack}>
@@ -643,6 +649,8 @@ function ReviewStage({
           templateId={templateId}
           templateLabel={templateLabel}
           sourceRunId={runId}
+          proposeAction={proposeOverride}
+          saveAction={saveStudioTemplateOverride}
         />
       </div>
       <OutputBlocks blocks={blocks} citedMemories={citedMemories} authorHint={authorHint} />
@@ -675,78 +683,6 @@ function ReviewStage({
         </div>
       </div>
     </section>
-  );
-}
-
-// ---------- Active overrides pill ----------
-
-function ActiveOverridesPill({ templateId }: { templateId: string }) {
-  const [overrides, setOverrides] = useState<ActiveOverrideSummary[] | null>(null);
-  const [open, setOpen] = useState(false);
-  const [, startTransition] = useTransition();
-
-  const load = useCallback(() => {
-    startTransition(async () => {
-      const res = await listActiveOverrides(templateId);
-      setOverrides(res.ok ? res.overrides : []);
-    });
-  }, [templateId]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const handleDeactivate = useCallback(
-    (id: string) => {
-      startTransition(async () => {
-        const res = await deactivateStudioOverride(id);
-        if (res.ok) {
-          setOverrides((prev) => (prev ?? []).filter((o) => o.id !== id));
-        }
-      });
-    },
-    [],
-  );
-
-  if (!overrides || overrides.length === 0) return null;
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1.5 rounded-full border border-studio-accent/40 bg-studio-accent/10 px-2.5 py-0.5 text-[11px] font-semibold text-studio-accent hover:bg-studio-accent/20 transition-colors"
-        aria-expanded={open}
-      >
-        <span className="size-1.5 rounded-full bg-studio-accent" />
-        {overrides.length} customization{overrides.length === 1 ? "" : "s"}
-      </button>
-      {open ? (
-        <div className="absolute z-20 mt-2 w-[320px] rounded-xl border bg-popover text-popover-foreground shadow-lg p-2 left-0">
-          <ul className="divide-y">
-            {overrides.map((o) => (
-              <li key={o.id} className="py-2 px-1 flex items-start gap-2">
-                <div className="flex-1 min-w-0">
-                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                    {o.kind.replace(/_/g, " ")}
-                  </div>
-                  <div className="text-[13px] leading-snug">{o.summary}</div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() => handleDeactivate(o.id)}
-                  aria-label="Deactivate customization"
-                  title="Deactivate"
-                >
-                  ✕
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-    </div>
   );
 }
 

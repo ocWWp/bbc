@@ -2,22 +2,46 @@
 
 // Conversational workflow editor. Floats a button on the canvas; clicking
 // opens an overlay where the user types a correction ("this always misses
-// our product taglines"). proposeOverride converts it into a structured
+// our product taglines"). The propose action converts it into a structured
 // override rule; the user reviews + saves.
+//
+// Actions are passed in as props so this component can be reused across
+// studios (marketing, engineering, …) without coupling to any single one.
 
 import { useCallback, useEffect, useId, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  proposeOverride,
-  saveStudioTemplateOverride,
-  type ProposedOverride,
-} from "@/app/studio/marketing/actions";
+
+export type OverrideKind =
+  | "add_constraint"
+  | "replace_section"
+  | "add_example"
+  | "forbid_pattern";
+
+export type ProposedOverride = {
+  kind: OverrideKind;
+  value: Record<string, unknown>;
+  summary: string;
+};
+
+export type ProposeOverrideResult =
+  | { ok: true; proposal: ProposedOverride }
+  | { ok: false; error: string };
+
+export type SaveOverrideResult =
+  | { ok: true; overrideId: string }
+  | { ok: false; error: string };
 
 type Props = {
   templateId: string;
   templateLabel: string;
   sourceRunId?: string;
   onSaved?: (overrideSummary: string) => void;
+  proposeAction: (templateId: string, message: string) => Promise<ProposeOverrideResult>;
+  saveAction: (input: {
+    templateId: string;
+    proposal: ProposedOverride;
+    sourceRunId?: string;
+  }) => Promise<SaveOverrideResult>;
 };
 
 type Phase =
@@ -27,7 +51,14 @@ type Phase =
   | { kind: "reviewing"; proposal: ProposedOverride }
   | { kind: "saved"; proposal: ProposedOverride };
 
-export function EditWorkflowChat({ templateId, templateLabel, sourceRunId, onSaved }: Props) {
+export function EditWorkflowChat({
+  templateId,
+  templateLabel,
+  sourceRunId,
+  onSaved,
+  proposeAction,
+  saveAction,
+}: Props) {
   const [phase, setPhase] = useState<Phase>({ kind: "closed" });
   const [message, setMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +89,7 @@ export function EditWorkflowChat({ templateId, templateLabel, sourceRunId, onSav
     setError(null);
     setPhase({ kind: "thinking" });
     startTransition(async () => {
-      const res = await proposeOverride(templateId, message);
+      const res = await proposeAction(templateId, message);
       if (!res.ok) {
         setError(res.error);
         setPhase({ kind: "composing" });
@@ -66,13 +97,13 @@ export function EditWorkflowChat({ templateId, templateLabel, sourceRunId, onSav
       }
       setPhase({ kind: "reviewing", proposal: res.proposal });
     });
-  }, [message, templateId]);
+  }, [message, templateId, proposeAction]);
 
   const handleSave = useCallback(() => {
     if (phase.kind !== "reviewing") return;
     const proposal = phase.proposal;
     startTransition(async () => {
-      const res = await saveStudioTemplateOverride({
+      const res = await saveAction({
         templateId,
         proposal,
         sourceRunId,
@@ -84,7 +115,7 @@ export function EditWorkflowChat({ templateId, templateLabel, sourceRunId, onSav
       setPhase({ kind: "saved", proposal });
       onSaved?.(proposal.summary);
     });
-  }, [phase, templateId, sourceRunId, onSaved]);
+  }, [phase, templateId, sourceRunId, onSaved, saveAction]);
 
   return (
     <>
