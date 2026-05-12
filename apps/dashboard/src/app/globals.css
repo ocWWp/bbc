@@ -2211,7 +2211,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 }
 .auth-form {
   width: 100%; max-width: 380px;
-  margin: 0 auto 0 0;
+  margin: 0 0 0 auto;
   display: flex; flex-direction: column; gap: 22px;
 }
 .auth-eyebrow {
@@ -2418,8 +2418,8 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   padding: 48px;
   background: var(--paper-bg-2);
   border-left: 1px solid var(--paper-rule);
-  display: flex; flex-direction: column; justify-content: space-between;
-  gap: 28px; overflow: hidden;
+  display: flex; flex-direction: column; justify-content: center;
+  gap: 32px; overflow: hidden;
 }
 .auth-aside-bg {
   position: absolute;
@@ -2479,4 +2479,5 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   .auth { grid-template-columns: 1fr; }
   .auth-aside { display: none; }
   .auth-form-col { padding: 36px 28px; }
+  .auth-form { margin: 0 auto; }
 }
