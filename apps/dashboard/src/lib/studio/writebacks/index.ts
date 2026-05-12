@@ -12,6 +12,13 @@ import "./customer-reply";
 import "./churn-save";
 import "./bug-ack";
 import "./incident-status";
+import "./founder-board-update";
+import "./founder-strategic-memo";
+import "./founder-weekly-recap";
+import "./design-brand-guideline-entry";
+import "./design-visual-spec";
+import "./design-ui-copy-pass";
+import "./marketing-audits";
 
 export {
   getWritebackEmitter,

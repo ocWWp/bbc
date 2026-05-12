@@ -20,6 +20,11 @@ import {
   emitOutputResponseSchema,
   type OutputBlock,
 } from "@/lib/studio/output-blocks";
+import "@/lib/studio/writebacks"; // side-effect: register emitters (incl. marketing audits)
+import {
+  getWritebackEmitter,
+  type WritebackContext,
+} from "@/lib/studio/writebacks";
 
 /**
  * SECURITY:
@@ -503,6 +508,34 @@ async function authedRunOwnership(
 export async function acceptStudioRun(runId: string): Promise<ReviewResult> {
   const g = await authedRunOwnership(runId);
   if (!g.ok) return g;
+
+  // Load the run before the status flip so the writeback has template_id +
+  // inputs + outputBlocks. Same defense-in-depth shape as the unified
+  // acceptRun at /studio/runs/[id]/actions.ts.
+  const { data: row, error: loadErr } = await g.supabase
+    .from("studio_runs")
+    .select("id, template_id, task, inputs, output_blocks, cited_memory_ids, status")
+    .eq("id", runId)
+    .eq("tenant_id", g.tenantId)
+    .eq("created_by", g.userId)
+    .maybeSingle();
+  if (loadErr) return { ok: false, error: loadErr.message };
+  if (!row) return { ok: false, error: "Run not found or not yours." };
+
+  type Row = {
+    id: string;
+    template_id: string;
+    task: string;
+    inputs: Record<string, string> | null;
+    output_blocks: OutputBlock[];
+    cited_memory_ids: string[];
+    status: string;
+  };
+  const run = row as unknown as Row;
+  if (run.status !== "pending_review") {
+    return { ok: false, error: `Run is already ${run.status}.` };
+  }
+
   const { error } = await g.supabase
     .from("studio_runs")
     .update({ status: "accepted", completed_at: new Date().toISOString() })
@@ -510,6 +543,36 @@ export async function acceptStudioRun(runId: string): Promise<ReviewResult> {
     .eq("tenant_id", g.tenantId)
     .eq("created_by", g.userId);
   if (error) return { ok: false, error: error.message };
+
+  // Writeback step. Marketing templates land in marketing-audits.ts which
+  // writes a source_artifact audit row per accepted run -- past posts become
+  // searchable history. Writeback errors do NOT fail the accept; the run is
+  // already accepted and the partial result (if any) is in /queue.
+  const a = await requireActor();
+  const emitter = getWritebackEmitter(run.template_id);
+  if (emitter && a.ok) {
+    const ctx: WritebackContext = {
+      runId: run.id,
+      templateId: run.template_id,
+      task: run.task,
+      inputs: run.inputs ?? {},
+      outputBlocks: run.output_blocks ?? [],
+      citedMemoryIds: run.cited_memory_ids ?? [],
+      tenantId: g.tenantId,
+      userId: g.userId,
+      userActor: a.actor.actor,
+    };
+    try {
+      const result = await emitter.emit(ctx, g.supabase);
+      if (result.proposals.length > 0) revalidatePath("/queue");
+    } catch (e) {
+      const m = e instanceof Error ? e.message : "unknown";
+      console.error(
+        `studio.acceptStudioRun: writeback failed for run=${run.id} template=${run.template_id}: ${m}`,
+      );
+    }
+  }
+
   revalidatePath("/studio/marketing");
   return { ok: true };
 }
