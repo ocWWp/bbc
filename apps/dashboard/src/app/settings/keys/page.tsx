@@ -19,21 +19,23 @@ export default async function ApiKeysSettingsPage() {
   const keys = res.ok ? res.keys : [];
 
   return (
-    <main className="mx-auto max-w-3xl px-4 sm:px-6 py-8 sm:py-12">
-      <header className="mb-8">
-        <div className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
-          Settings · API keys
+    <>
+      <div className="set-block">
+        <div className="set-block-head">
+          <div>
+            <div className="h">Bring your own AI</div>
+            <div className="sub">
+              Paste your own provider keys. BBC encrypts them per-tenant before
+              storing and never sends them back to the browser. The hosted demo
+              uses the maintainer&apos;s shared key with a small daily cap;
+              bringing your own key removes that cap.
+            </div>
+          </div>
         </div>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight">Bring your own AI</h1>
-        <p className="mt-2 text-muted-foreground max-w-xl">
-          Paste your own provider keys. BBC encrypts them per-tenant before
-          storing and never sends them back to the browser. The hosted demo
-          uses the maintainer&apos;s shared key with a small daily cap; bringing
-          your own key removes that cap and routes spend through your account.
-        </p>
-      </header>
-
-      <KeysClient initialKeys={keys} />
-    </main>
+        <div style={{ padding: 20 }}>
+          <KeysClient initialKeys={keys} />
+        </div>
+      </div>
+    </>
   );
 }

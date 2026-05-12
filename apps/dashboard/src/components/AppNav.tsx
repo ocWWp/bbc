@@ -17,7 +17,7 @@ const HREFS: Record<string, string> = {
   memory: "/memory",
   queue: "/queue",
   sources: "/sources",
-  settings: "/settings/keys",
+  settings: "/settings",
 };
 
 type AppNavProps = {
