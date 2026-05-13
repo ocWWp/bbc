@@ -99,6 +99,11 @@ describe("ReadOnlyMemory — read-only memory detail", () => {
     expect(inc.getAttribute("href")).toBe("/brain/m3");
   });
 
+  it("renders a 'Flag this' button (Task 16 entry point)", () => {
+    render(<ReadOnlyMemory item={baseItem} relations={emptyRelations} />);
+    expect(screen.getByTestId("flag-this-open")).toBeDefined();
+  });
+
   it("breadcrumb links to /brain (not /memory)", () => {
     render(<ReadOnlyMemory item={baseItem} relations={emptyRelations} />);
     const crumb = screen.getByRole("link", { name: "brain" }) as HTMLAnchorElement;
