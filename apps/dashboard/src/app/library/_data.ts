@@ -60,7 +60,7 @@ export type ConnectorItem = {
    *  the install button on those stays a stub. */
   connector_id: string | null;
   recommended: boolean;
-  badge: "recommended" | "new" | null;
+  badge: "recommended" | "new" | "beta" | null;
   license: string;
   repo: string;
   glyph: string;
@@ -69,6 +69,11 @@ export type ConnectorItem = {
   status?: "ok" | "error" | "partial" | "auth_expired" | "rate_limited" | null;
   last_sync_at?: string | null;
   last_sync_error?: string | null;
+  /** v1.5 D-W5-4: BBC's OAuth app for this provider hasn't cleared Google
+   *  verification yet (or any equivalent third-party review). When true the
+   *  card shows a "beta" pill and the install drawer surfaces an
+   *  unverified-app warning. Set per-tenant at request time. */
+  unverified_oauth?: boolean;
 };
 
 export type ProviderItem = {
@@ -130,8 +135,8 @@ export const CONNECTORS: ConnectorItem[] = [
   { id: "co_003", kind: "connector", connector_id: "linear",          source: "tasks",   name: "Linear",          author: "BBC",          desc: "Projects, active cycles, and issues → typed memory. Projects + cycles become product rows; issues labeled `adr` become decisions, the rest become notes.", writes: ["product", "decision", "note"], scopes_yes: ["read"], scopes_no: ["write", "admin"], installed: false, recommended: true, badge: "recommended", license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/linear", glyph: "L" },
   { id: "co_004", kind: "connector", connector_id: null,              source: "chat",    name: "Slack",           author: "BBC",          desc: "Channels → typed memory. Reactions promote messages to memory; per-channel supertag mapping.", writes: ["decision", "glossary", "note"], scopes_yes: ["channels:read", "users:read"], scopes_no: ["chat:write", "files:read"], installed: false, recommended: false, badge: null, license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/slack", glyph: "#" },
   { id: "co_005", kind: "connector", connector_id: "webhook-generic", source: "webhook", name: "Generic Webhook", author: "BBC",          desc: "POST JSON to a per-workspace endpoint. You map fields to supertags in BBC; we sign every payload.", writes: ["any (mapped)"], scopes_yes: ["–"], scopes_no: ["–"], installed: false, recommended: false, badge: null, license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/webhook", glyph: "⇢" },
-  { id: "co_006", kind: "connector", connector_id: "drive",           source: "docs",    name: "Google Drive",    author: "BBC",          desc: "Docs / Sheets → typed memory. Folder-based mapping; new doc = new proposal in /queue.", writes: ["product", "decision", "note"], scopes_yes: ["drive.readonly", "drive.metadata"], scopes_no: ["drive.file (write)", "admin"], installed: false, recommended: false, badge: null, license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/gdrive", glyph: "▤" },
-  { id: "co_007", kind: "connector", connector_id: "gmail",           source: "email",   name: "Gmail",           author: "@indie-stack", desc: "Labeled threads → typed memory. Pin a label, BBC files anything under it as note rows.", writes: ["note", "vendor", "team"], scopes_yes: ["gmail.readonly (label-scoped)"], scopes_no: ["send", "modify"], installed: false, recommended: false, badge: "new", license: "MIT", repo: "github.com/indie-stack/bbc-gmail", glyph: "@" },
+  { id: "co_006", kind: "connector", connector_id: "drive",           source: "docs",    name: "Google Drive",    author: "BBC",          desc: "My Drive + shared drives → typed memory. Google Docs/Sheets/Slides become notes; PDFs and binary files become source artifacts.", writes: ["note", "source_artifact"], scopes_yes: ["drive.readonly", "drive.metadata.readonly"], scopes_no: ["drive.file (write)", "admin"], installed: false, recommended: false, badge: null, license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/gdrive", glyph: "▤" },
+  { id: "co_007", kind: "connector", connector_id: "gmail",           source: "email",   name: "Gmail",           author: "BBC",          desc: "Threads matching your query → typed memory. Starred (or any custom-labeled) threads become decisions; senders/recipients become team rows.", writes: ["note", "decision", "team"], scopes_yes: ["gmail.readonly"], scopes_no: ["send", "modify"], installed: false, recommended: false, badge: null, license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/gmail", glyph: "@" },
   { id: "co_008", kind: "connector", connector_id: null,              source: "chat",    name: "Discord",         author: "community",    desc: "Server channels → glossary + note memory. Useful for community-led product teams.", writes: ["glossary", "note"], scopes_yes: ["messages.read"], scopes_no: ["messages.write"], installed: false, recommended: false, badge: null, license: "MIT", repo: "github.com/agentconnect/discord", glyph: "d" },
   { id: "co_009", kind: "connector", connector_id: null,              source: "files",   name: "Local folder",    author: "BBC",          desc: "Self-hosters only. Watch a folder of markdown; every file is one memory.", writes: ["any (frontmatter)"], scopes_yes: ["fs.watch (local)"], scopes_no: ["network"], installed: false, recommended: false, badge: null, license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/fs-watch", glyph: "/" },
 ];
@@ -153,6 +158,28 @@ export function mergeConnectorState(
       status: state.status,
       last_sync_at: state.last_sync_at,
       last_sync_error: state.last_sync_error,
+    };
+  });
+}
+
+/** v1.5 D-W5-4: tag Google connectors with `unverified_oauth` + a "beta"
+ *  badge until BBC's Google OAuth app clears verification. Reads
+ *  `BBC_GOOGLE_OAUTH_VERIFIED` from the env. Pure transformation — caller
+ *  applies it in the page server entry. */
+export function applyGoogleVerificationGate(
+  catalog: ConnectorItem[],
+  isVerified: boolean,
+): ConnectorItem[] {
+  if (isVerified) return catalog;
+  const GOOGLE_CONNECTOR_IDS = new Set(["gmail", "drive"]);
+  return catalog.map((c) => {
+    if (!c.connector_id || !GOOGLE_CONNECTOR_IDS.has(c.connector_id)) return c;
+    return {
+      ...c,
+      unverified_oauth: true,
+      // Don't overwrite a 'recommended' badge — the warning is additive in the
+      // drawer; the card pill still surfaces 'beta' if no stronger signal wins.
+      badge: c.badge === "recommended" ? c.badge : "beta",
     };
   });
 }

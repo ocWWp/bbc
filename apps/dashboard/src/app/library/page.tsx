@@ -5,7 +5,8 @@ import { readTenantSkills } from "@/lib/skills/read-tenant-skills";
 import { readTenantConnectors } from "@/lib/connectors/read-tenant-connectors";
 import { readPendingRecommendations } from "@/lib/loop3/read-recommendations";
 import { triggerLibraryVisitGenerate } from "@/lib/loop3/generate";
-import { CONNECTORS, mergeConnectorState } from "./_data";
+import { isGoogleAppVerified } from "@/lib/connectors/google-oauth";
+import { CONNECTORS, applyGoogleVerificationGate, mergeConnectorState } from "./_data";
 import { LibraryClient } from "./_components/LibraryClient";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +29,10 @@ export default async function LibraryPage() {
     readTenantConnectors(supabase),
     readPendingRecommendations(supabase),
   ]);
-  const catalogConnectors = mergeConnectorState(CONNECTORS, installedConnectors);
+  const catalogConnectors = applyGoogleVerificationGate(
+    mergeConnectorState(CONNECTORS, installedConnectors),
+    isGoogleAppVerified(),
+  );
 
   // Visit trigger (W4-5). Two paths:
   //   - Empty: synchronously generate + re-read so the first paint already

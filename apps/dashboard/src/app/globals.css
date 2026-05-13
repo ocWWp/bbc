@@ -3263,6 +3263,28 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   color: var(--ink);
   border: 1px solid var(--rule-2);
 }
+/* D-W5-4: connectors whose OAuth app is still in third-party review. */
+.lib-card .corner.beta {
+  background: color-mix(in oklab, var(--warn, #d97706), transparent 88%);
+  color: var(--warn, #d97706);
+  border: 1px solid color-mix(in oklab, var(--warn, #d97706), transparent 65%);
+}
+.lib-drawer .lib-warning {
+  border: 1px solid color-mix(in oklab, var(--warn, #d97706), transparent 65%);
+  background: color-mix(in oklab, var(--warn, #d97706), transparent 92%);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.lib-drawer .lib-warning .lab {
+  color: var(--warn, #d97706);
+  font-weight: 600;
+}
+.lib-drawer .lib-warning-body {
+  margin: 6px 0 0 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink);
+}
 
 /* schema chip — extends .tag */
 .schema-chip {

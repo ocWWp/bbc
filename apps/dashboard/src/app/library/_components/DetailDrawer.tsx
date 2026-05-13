@@ -218,6 +218,17 @@ export function DetailDrawer({ item, installingId, onClose, onInstall }: DetailD
             </div>
           )}
 
+          {isConnector(item) && item.unverified_oauth && (
+            <div className="lib-section lib-warning" role="note">
+              <div className="lab">
+                <span>unverified app · expect a Google warning</span>
+              </div>
+              <p className="lib-warning-body">
+                BBC&apos;s Google OAuth app is still in verification review. When you click install you&apos;ll see a Google &quot;this app isn&apos;t verified&quot; warning — to continue, click <strong>Advanced</strong> → <strong>Go to BBC (unsafe)</strong>. BBC reads {item.scopes_yes.join(", ")} only; no writes.
+              </p>
+            </div>
+          )}
+
           {isConnector(item) && (
             <div className="lib-section">
               <div className="lab">
