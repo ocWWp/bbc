@@ -1,0 +1,5 @@
+Contact: mailto:security@bbc.tools
+Expires: 2027-05-13T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://bbc.tools/.well-known/security.txt
+Policy: https://github.com/ZethT/bbc/blob/main/SECURITY.md
