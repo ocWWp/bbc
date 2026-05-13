@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireActor } from "@/lib/auth/require-user";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { isHostedDemoMode } from "@/lib/secrets/tenant-keys";
+import ResetDemoButton from "./ResetDemoButton";
 
 export const metadata = {
   title: "Settings · BBC",
@@ -118,6 +120,31 @@ export default async function SettingsGeneral() {
           </div>
         </div>
       </div>
+
+      {isHostedDemoMode() && (
+        <div className="set-block">
+          <div className="set-block-head">
+            <div>
+              <div className="h">Hosted demo</div>
+              <div className="sub">
+                This tenant is the public demo fixture. Resetting wipes all
+                memories, proposals, and connector state, then re-seeds the
+                "Acme" fixture from scratch.
+              </div>
+            </div>
+            <span className="pill muted">demo</span>
+          </div>
+          <div className="set-block-rows">
+            <div className="row">
+              <span className="k">fixture</span>
+              <span className="v">
+                58 memory rows · 2 installed skills · 1 Notion connector · 3 pending recommendations
+              </span>
+              <ResetDemoButton disabled={a.actor.role !== "admin"} />
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="set-block">
         <div className="set-block-head">

@@ -106,9 +106,11 @@ export type Database = {
       reject_proposal: { Args: { p_proposal_id: string; p_reason: string }; Returns: undefined }
       remove_member: { Args: { p_user_id: string }; Returns: undefined }
       resolve_api_key: { Args: { p_token: string }; Returns: { out_key_id: string; out_scope: Database["public"]["Enums"]["api_key_scope"]; out_tenant_id: string }[] }
+      reset_demo_tenant: { Args: { p_owner_user_id: string }; Returns: string }
       resolve_invitation_token: { Args: { p_token: string }; Returns: { out_consumed: boolean; out_email: string; out_provider: string; out_role: Database["public"]["Enums"]["tenant_role"]; out_tenant_name: string; out_tenant_slug: string }[] }
       revoke_api_key: { Args: { p_key_id: string }; Returns: undefined }
       revoke_invitation: { Args: { p_invitation_id: string }; Returns: undefined }
+      seed_demo_tenant: { Args: { p_owner_user_id: string }; Returns: string }
       setup_self_serve_tenant: { Args: { p_email: string; p_name: string; p_slug: string }; Returns: string }
     }
     Enums: {
