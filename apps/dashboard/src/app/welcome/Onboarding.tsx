@@ -274,6 +274,7 @@ export function Onboarding({
               onAddUrl={addUrlSource}
               onAddFile={addFileSource}
               onRemoveSource={removeSource}
+              tenantSlug={tenantSlug}
             />
           </>
         )}

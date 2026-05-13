@@ -62,6 +62,8 @@ type Props = {
   onAddFile: (file: File) => Promise<{ ok: true } | { ok: false; error: string }>;
   onRemoveSource: (sourceId: string) => void;
   busy?: boolean;
+  /** The actor's tenant slug, used to personalize the dump-phase headline. */
+  tenantSlug?: string;
 };
 
 export function DumpStep({
@@ -74,6 +76,7 @@ export function DumpStep({
   onAddFile,
   onRemoveSource,
   busy,
+  tenantSlug,
 }: Props) {
   const [mode, setMode] = useState<Mode>("paste");
   const [urlInput, setUrlInput] = useState("");
@@ -124,7 +127,8 @@ export function DumpStep({
           <span>step 01 · brain dump</span>
         </div>
         <h1 className="dump-title">
-          what should your brain <span className="serif">know first</span>?
+          {tenantSlug ? `${tenantSlug}'s brain is ` : "your brain is "}
+          <span className="serif">empty</span>.
         </h1>
         <p className="dump-blurb">
           paste anything that describes your team, voice, decisions, or product —
