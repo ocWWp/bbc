@@ -5,12 +5,109 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 
-const ROUTES = [
-  { key: "studio",  label: "Studio",  href: "/studio",  match: (p: string) => p === "/studio"  || p.startsWith("/studio/") },
-  { key: "memory",  label: "Memory",  href: "/memory",  match: (p: string) => p === "/memory"  || p.startsWith("/memory/") || p === "/sources" || p.startsWith("/sources/") },
-  { key: "queue",   label: "Queue",   href: "/queue",   match: (p: string) => p === "/"        || p === "/queue"   || p.startsWith("/queue/") },
-  { key: "library", label: "Library", href: "/library", match: (p: string) => p === "/library" || p.startsWith("/library/") || p === "/marketplace" || p.startsWith("/marketplace/") },
-] as const;
+type Route = {
+  key: string;
+  label: string;
+  href: string;
+  match: (p: string) => boolean;
+  badge?: "pending" | "unread";
+};
+
+const HOME_ROUTE: Route = {
+  key: "home",
+  label: "Home",
+  href: "/home",
+  match: (p) => p === "/home" || p.startsWith("/home/"),
+};
+const STUDIO_ROUTE: Route = {
+  key: "studio",
+  label: "Studio",
+  href: "/studio",
+  match: (p) => p === "/studio" || p.startsWith("/studio/"),
+};
+const MEMORY_ROUTE: Route = {
+  key: "memory",
+  label: "Memory",
+  href: "/memory",
+  match: (p) =>
+    p === "/memory" || p.startsWith("/memory/") || p === "/sources" || p.startsWith("/sources/"),
+};
+const QUEUE_ROUTE: Route = {
+  key: "queue",
+  label: "Queue",
+  href: "/queue",
+  match: (p) => p === "/" || p === "/queue" || p.startsWith("/queue/"),
+  badge: "pending",
+};
+const LIBRARY_ROUTE: Route = {
+  key: "library",
+  label: "Library",
+  href: "/library",
+  match: (p) =>
+    p === "/library" || p.startsWith("/library/") || p === "/marketplace" || p.startsWith("/marketplace/"),
+};
+const SETTINGS_ROUTE: Route = {
+  key: "settings",
+  label: "Settings",
+  href: "/settings",
+  match: (p) => p === "/settings" || p.startsWith("/settings/"),
+};
+const BRAIN_ROUTE: Route = {
+  key: "brain",
+  label: "Brain",
+  href: "/brain",
+  match: (p) => p === "/brain" || p.startsWith("/brain/"),
+};
+const INBOX_ROUTE: Route = {
+  key: "inbox",
+  label: "Inbox",
+  href: "/inbox",
+  match: (p) => p === "/inbox" || p.startsWith("/inbox/"),
+  badge: "unread",
+};
+
+const ADMIN_ROUTES: ReadonlyArray<Route> = [
+  HOME_ROUTE,
+  STUDIO_ROUTE,
+  MEMORY_ROUTE,
+  QUEUE_ROUTE,
+  LIBRARY_ROUTE,
+  SETTINGS_ROUTE,
+];
+const OPERATOR_ROUTES: ReadonlyArray<Route> = [
+  STUDIO_ROUTE,
+  MEMORY_ROUTE,
+  QUEUE_ROUTE,
+  LIBRARY_ROUTE,
+  SETTINGS_ROUTE,
+];
+
+function memberRoutes(templateSlug: string | null): ReadonlyArray<Route> {
+  const slug = (templateSlug ?? "marketing").toLowerCase();
+  const studio: Route = {
+    ...STUDIO_ROUTE,
+    href: `/studio/${slug}`,
+    match: (p) => p === `/studio/${slug}` || p.startsWith(`/studio/${slug}/`),
+  };
+  return [studio, BRAIN_ROUTE, INBOX_ROUTE];
+}
+
+function routesForRole(role: string | null, templateSlug: string | null): ReadonlyArray<Route> {
+  switch (role) {
+    case "admin":
+      return ADMIN_ROUTES;
+    case "operator":
+      return OPERATOR_ROUTES;
+    case "member":
+    case "viewer":
+      return memberRoutes(templateSlug);
+    default:
+      // Unauth (workspace null). Real users get redirected by middleware
+      // before clicking — show the admin shape so the sign-in path stays
+      // accessible from the brand link / search.
+      return ADMIN_ROUTES;
+  }
+}
 
 type AppNavProps = {
   pendingCount: number;
@@ -20,6 +117,7 @@ type AppNavProps = {
 
 export function AppNav({ pendingCount, user, workspace }: AppNavProps) {
   const pathname = usePathname() || "";
+  const routes = routesForRole(workspace?.role ?? null, workspace?.templateSlug ?? null);
 
   return (
     <header className="app-nav">
@@ -39,8 +137,9 @@ export function AppNav({ pendingCount, user, workspace }: AppNavProps) {
         )}
 
         <nav className="app-routes" aria-label="primary">
-          {ROUTES.map((r) => {
+          {routes.map((r) => {
             const active = r.match(pathname);
+            const showBadge = r.badge === "pending" && pendingCount > 0;
             return (
               <Link
                 key={r.key}
@@ -48,9 +147,7 @@ export function AppNav({ pendingCount, user, workspace }: AppNavProps) {
                 className={`app-route ${active ? "is-active" : ""}`}
               >
                 {r.label}
-                {r.key === "queue" && pendingCount > 0 ? (
-                  <span className="badge">{pendingCount}</span>
-                ) : null}
+                {showBadge ? <span className="badge">{pendingCount}</span> : null}
               </Link>
             );
           })}
