@@ -189,6 +189,19 @@ describe("pageToProposal", () => {
     });
     expect(pageToProposal(c, page as never, "").type).toBe("glossary");
   });
+
+  it("rejects types outside the writes_to manifest (codex-flagged [P2])", () => {
+    // writes_to is ['decision', 'note', 'glossary', 'product']. A page tagged
+    // 'vendor' or 'team' must fall back to 'note' — connectors must not write
+    // types they don't advertise.
+    for (const reserved of ["vendor", "team", "skill", "voice", "source_artifact"]) {
+      const page = makePage(`p-${reserved}`, {
+        Name: titleProp("X"),
+        type: selectProp(reserved),
+      });
+      expect(pageToProposal(cfg, page as never, "").type).toBe("note");
+    }
+  });
 });
 
 // --------------------------------------------------------------------------
@@ -353,6 +366,46 @@ describe("sync — happy path", () => {
     };
     const { proposals } = await collectSync(routes);
     expect(proposals.map((p) => p.source_ref)).toEqual(["notion:alive"]);
+  });
+
+  it("only checkpoints at search-response boundaries — codex-flagged [P1]", async () => {
+    // Single search response with 8 pages, has_more=false. The earlier draft
+    // checkpointed every 5 yields with cursor=next_cursor — on resume after
+    // a mid-response crash, pages 6-8 would be skipped. Now: exactly ONE
+    // checkpoint at the last item of the response, plus the terminal null.
+    const results = Array.from({ length: 8 }, (_, i) => makePage(`p${i}`, { N: titleProp(`Title ${i}`) }));
+    const routes: Record<string, RouteHandler> = {
+      [SEARCH_URL]: ok({ object: "list", results, has_more: false, next_cursor: null }),
+      "https://api.notion.com/v1/blocks/": ok({ object: "list", results: [], has_more: false, next_cursor: null }),
+    };
+    const { proposals, checkpoints } = await collectSync(routes);
+    expect(proposals).toHaveLength(8);
+    // 1 boundary checkpoint (last item of the only search response) + 1 final null.
+    expect(checkpoints).toHaveLength(2);
+    expect(checkpoints[0]).toBeNull(); // last item, no next page
+    expect(checkpoints[1]).toBeNull(); // final terminal
+  });
+
+  it("checkpoint cursor at search-response boundary points to NEXT search page", async () => {
+    // Two search responses. After the last page of response 1, the checkpoint
+    // cursor must be the next_cursor of response 1 (so a resume re-enters at
+    // response 2 — not at some mid-response position that doesn't exist).
+    let calls = 0;
+    const routes: Record<string, RouteHandler> = {
+      [SEARCH_URL]: (init) => {
+        calls++;
+        const body = init?.body ? JSON.parse(init.body) : {};
+        if (calls === 1) {
+          return { ok: true, status: 200, body: { object: "list", results: [makePage("a", { N: titleProp("A") }), makePage("b", { N: titleProp("B") })], has_more: true, next_cursor: "cursor-2" } };
+        }
+        expect(body.start_cursor).toBe("cursor-2");
+        return { ok: true, status: 200, body: { object: "list", results: [makePage("c", { N: titleProp("C") })], has_more: false, next_cursor: null } };
+      },
+      "https://api.notion.com/v1/blocks/": ok({ object: "list", results: [], has_more: false, next_cursor: null }),
+    };
+    const { checkpoints } = await collectSync(routes);
+    // First boundary (after 'b'): cursor='cursor-2'. Second boundary (after 'c'): cursor=null. Final: null.
+    expect(checkpoints).toEqual(["cursor-2", null, null]);
   });
 
   it("emits a final checkpoint with cursor=null when search drains", async () => {

@@ -118,9 +118,11 @@ type NotionBlockChildrenResponse = {
 // Public factory
 // --------------------------------------------------------------------------
 
-const SUPERTAG_VALUES: ReadonlySet<string> = new Set([
-  "voice", "decision", "glossary", "vendor", "product", "team", "skill", "source_artifact", "note",
-]);
+// Mapper-accepted supertags MUST be a subset of the writes_to manifest below.
+// Codex flagged earlier draft that accepted all 9 supertags while writes_to
+// advertised only 4 — install/admin UI would mis-disclose what the connector
+// can write. Keep these aligned.
+const SUPERTAG_VALUES: ReadonlySet<string> = new Set(["decision", "glossary", "product", "note"]);
 
 const PAGE_SEARCH_PAGE_SIZE = 50;
 const NOTION_VERSION = "2022-06-28";
@@ -131,7 +133,13 @@ export function createNotionConnector(deps: NotionConnectorDeps): Connector & {
 } {
   const fetchImpl: NotionFetch = deps.fetch ?? defaultFetchAdapter();
 
-  async function* iterateSearch(token: string, startCursor: string | null, limit: number): AsyncGenerator<{ page: NotionPage; cursor: string | null }, void, unknown> {
+  /** Iterates pages from /v1/search. Yields `{ page, isPageBoundary }` where
+   *  `isPageBoundary` is true on the LAST non-archived item of the current
+   *  search response, with `cursor` set to the next search-page start (or
+   *  null if drained). The caller checkpoints ONLY on page boundaries —
+   *  Notion's search has no intra-response cursor, so mid-response
+   *  checkpoints would skip later items in the same response on resume. */
+  async function* iterateSearch(token: string, startCursor: string | null, limit: number): AsyncGenerator<{ page: NotionPage; isPageBoundary: boolean; cursor: string | null }, void, unknown> {
     let cursor = startCursor;
     let yielded = 0;
     while (yielded < limit) {
@@ -147,10 +155,12 @@ export function createNotionConnector(deps: NotionConnectorDeps): Connector & {
       });
       if (!res.ok) throw await asConnectorError(res, "search");
       const data = (await res.json()) as NotionSearchResponse;
-      for (const page of data.results) {
-        if (page.archived) continue;
-        cursor = data.has_more ? data.next_cursor : null;
-        yield { page, cursor };
+      const nextSearchCursor = data.has_more ? data.next_cursor : null;
+      // Pre-filter archived so we know which item is the actual last one.
+      const live = data.results.filter((p) => !p.archived);
+      for (let i = 0; i < live.length; i++) {
+        const isLast = i === live.length - 1;
+        yield { page: live[i], isPageBoundary: isLast, cursor: isLast ? nextSearchCursor : null };
         yielded++;
         if (yielded >= limit) return;
       }
@@ -242,8 +252,7 @@ export function createNotionConnector(deps: NotionConnectorDeps): Connector & {
       const cfg = parseConfig(ctx.config);
       const limit = cfg.page_size;
 
-      let pageCount = 0;
-      for await (const { page, cursor } of iterateSearch(token, ctx.cursor, limit)) {
+      for await (const { page, isPageBoundary, cursor } of iterateSearch(token, ctx.cursor, limit)) {
         // Fetch + render the page body. Empty/errored body yields a proposal
         // with empty body (still useful as a metadata draft in /queue).
         let bodyMd = "";
@@ -257,13 +266,15 @@ export function createNotionConnector(deps: NotionConnectorDeps): Connector & {
           // user can still see what's there.
         }
         yield { kind: "proposal", proposal: pageToProposal(cfg, page, bodyMd) };
-        pageCount++;
-        // Checkpoint every 5 pages so a mid-sync error keeps recent progress.
-        if (pageCount % 5 === 0) {
+        // Only checkpoint at search-response boundaries — Notion's search has
+        // no intra-response cursor, so an early checkpoint inside a response
+        // would skip the remaining items on resume.
+        if (isPageBoundary) {
           yield { kind: "checkpoint", cursor };
         }
       }
-      // Final checkpoint — null marks "fully drained".
+      // Final checkpoint — null marks "fully drained" so the framework's
+      // done-cursor restart convention kicks in on the next sync.
       yield { kind: "checkpoint", cursor: null };
     },
 
