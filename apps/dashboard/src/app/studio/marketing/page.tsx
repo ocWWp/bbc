@@ -5,6 +5,7 @@ import "@/lib/studio/templates"; // side-effect registration
 import { listClientTemplates } from "@/lib/studio/templates/registry";
 
 import StudioClient, { type RecentRun } from "./StudioClient";
+import { RoleSwitcher } from "../_components/RoleSwitcher";
 
 export const metadata = {
   title: "Marketing Studio · BBC",
@@ -56,6 +57,7 @@ export default async function MarketingStudioPage() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-12">
+      <RoleSwitcher active="marketing" />
       <header className="mb-8 sm:mb-12">
         <div className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
           Marketing Studio

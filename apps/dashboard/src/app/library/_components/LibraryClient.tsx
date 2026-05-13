@@ -48,12 +48,17 @@ export type LibraryClientProps = {
    *  hides itself; the server entry's empty-load path synchronously regens
    *  before render so this only happens for genuinely empty tenants. */
   recommendations?: PendingRec[];
+  /** Server-resolved actor.role === "admin". Surfaces the diagnostics link
+   *  in the header for admins only; non-admins don't see it (the route
+   *  itself 404s for them via requireRole). */
+  isAdmin?: boolean;
 };
 
 export function LibraryClient({
   importedSkills,
   catalogConnectors,
   recommendations,
+  isAdmin = false,
 }: LibraryClientProps) {
   const allSkills = importedSkills.length === 0 ? SKILLS : [...importedSkills, ...SKILLS];
   const connectors = catalogConnectors ?? CONNECTORS;
@@ -230,6 +235,16 @@ export function LibraryClient({
             <button type="button" className="btn btn-ghost" onClick={() => openImport(false)}>
               <Icons.link /> import from URL
             </button>
+          )}
+          {tab === "providers" && (
+            <a href="/marketplace" className="btn btn-ghost">
+              live provider catalog →
+            </a>
+          )}
+          {isAdmin && (
+            <a href="/library/diagnostics" className="btn btn-ghost">
+              diagnostics →
+            </a>
           )}
           <a
             href="https://github.com/bbc-org"

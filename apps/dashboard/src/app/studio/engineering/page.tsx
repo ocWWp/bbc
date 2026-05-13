@@ -5,6 +5,7 @@ import "@/lib/studio/eng-templates";
 import { listClientEngTemplates } from "@/lib/studio/eng-templates/registry";
 
 import EngStudioClient, { type RecentEngRun } from "./EngStudioClient";
+import { RoleSwitcher } from "../_components/RoleSwitcher";
 
 export const metadata = {
   title: "Engineering Studio · BBC",
@@ -52,6 +53,7 @@ export default async function EngineeringStudioPage() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-12">
+      <RoleSwitcher active="engineering" />
       <header className="mb-8 sm:mb-12">
         <div className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
           Engineering Studio

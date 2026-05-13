@@ -5,6 +5,7 @@ import "@/lib/studio/designer-templates";
 import { listClientDesignerTemplates } from "@/lib/studio/designer-templates/registry";
 
 import DesignerStudioClient, { type RecentDesignerRun } from "./DesignerStudioClient";
+import { RoleSwitcher } from "../_components/RoleSwitcher";
 
 export const metadata = {
   title: "Designer Studio · BBC",
@@ -52,6 +53,7 @@ export default async function DesignerStudioPage() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-12">
+      <RoleSwitcher active="designer" />
       <header className="mb-8 sm:mb-12">
         <div className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
           Designer Studio

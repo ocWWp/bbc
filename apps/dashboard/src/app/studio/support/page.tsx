@@ -5,6 +5,7 @@ import "@/lib/studio/support-templates";
 import { listClientSupportTemplates } from "@/lib/studio/support-templates/registry";
 
 import SupportStudioClient, { type RecentSupportRun } from "./SupportStudioClient";
+import { RoleSwitcher } from "../_components/RoleSwitcher";
 
 export const metadata = {
   title: "Support Studio · BBC",
@@ -52,6 +53,7 @@ export default async function SupportStudioPage() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-12">
+      <RoleSwitcher active="support" />
       <header className="mb-8 sm:mb-12">
         <div className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
           Support Studio

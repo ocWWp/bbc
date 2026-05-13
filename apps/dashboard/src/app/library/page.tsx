@@ -58,11 +58,14 @@ export default async function LibraryPage() {
     }
   }
 
+  const isAdmin = actor.ok && actor.actor.role === "admin";
+
   return (
     <LibraryClient
       importedSkills={importedSkills}
       catalogConnectors={catalogConnectors}
       recommendations={recommendations}
+      isAdmin={isAdmin}
     />
   );
 }

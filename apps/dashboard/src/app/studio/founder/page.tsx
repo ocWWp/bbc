@@ -5,6 +5,7 @@ import "@/lib/studio/founder-templates";
 import { listClientFounderTemplates } from "@/lib/studio/founder-templates/registry";
 
 import FounderStudioClient, { type RecentFounderRun } from "./FounderStudioClient";
+import { RoleSwitcher } from "../_components/RoleSwitcher";
 
 export const metadata = {
   title: "Founder Studio · BBC",
@@ -52,6 +53,7 @@ export default async function FounderStudioPage() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-12">
+      <RoleSwitcher active="founder" />
       <header className="mb-8 sm:mb-12">
         <div className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
           Founder Studio
