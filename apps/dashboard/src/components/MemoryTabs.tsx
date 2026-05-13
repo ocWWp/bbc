@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 const TABS = [
   { href: "/memory",  label: "Memory",  match: (p: string) => p === "/memory"  || p.startsWith("/memory/") },
   { href: "/sources", label: "Sources", match: (p: string) => p === "/sources" || p.startsWith("/sources/") },
-  { href: "/graph",   label: "Graph",   match: (p: string) => p === "/graph" },
 ] as const;
 
 export function MemoryTabs() {

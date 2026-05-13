@@ -2957,13 +2957,13 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   display: flex; flex-direction: column; gap: 14px;
   padding: 20px 20px 18px;
   border: 1px solid var(--rule);
-  border-left: 3px solid var(--pack-color, var(--ink));
+  border-top: 3px solid var(--pack-color, var(--ink));
   border-radius: 12px;
   background: var(--paper);
   cursor: pointer;
   transition: border-color 0.15s, transform 0.15s;
 }
-.pack-card:hover { border-top-color: var(--rule-2); border-right-color: var(--rule-2); border-bottom-color: var(--rule-2); }
+.pack-card:hover { border-right-color: var(--rule-2); border-bottom-color: var(--rule-2); border-left-color: var(--rule-2); }
 .pack-card .pack-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .pack-card .pack-eyebrow {
   font-family: "Geist Mono", monospace;
@@ -3198,14 +3198,17 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   font-family: "Geist", sans-serif;
   font-size: 12px;
   font-weight: 500;
-  height: 28px;
-  padding: 0 11px;
+  height: 32px;
+  padding: 0 13px;
   border-radius: 7px;
   border: 1px solid var(--ink);
   background: var(--ink);
   color: var(--bg);
   cursor: pointer;
   white-space: nowrap;
+}
+@media (max-width: 760px) {
+  .lib-card .install { height: 40px; padding: 0 16px; font-size: 13px; }
 }
 .lib-card .install:hover { background: color-mix(in oklab, var(--ink), var(--accent) 18%); }
 .lib-card .install.is-installed {

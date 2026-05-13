@@ -9,8 +9,8 @@ import { AppNav } from "./AppNav";
  * highlighting via `usePathname`.
  *
  * Nav chrome is a 4-route shell (Studio · Memory · Queue · Library). Memory
- * absorbs /sources and /graph as sub-tabs; Settings + theme + sign out live
- * in the avatar dropdown. Absorbed routes still resolve by URL.
+ * absorbs /sources as a sub-tab; Settings + theme + sign out live in the
+ * avatar dropdown.
  */
 export default async function Nav() {
   const supabase = await getSupabaseServerClient();

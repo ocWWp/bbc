@@ -215,11 +215,11 @@ export function LibraryClient() {
                   className="mono"
                   style={{
                     marginLeft: 6,
-                    fontSize: 11,
+                    fontSize: 12,
                     color:
                       tab === t.key
                         ? "color-mix(in oklab, var(--ink), transparent 45%)"
-                        : "var(--muted)",
+                        : "var(--paper-muted)",
                   }}
                 >
                   {t.ct}
@@ -236,7 +236,7 @@ export function LibraryClient() {
               gap: 10,
               fontFamily: "Geist Mono, monospace",
               fontSize: 11.5,
-              color: "var(--muted)",
+              color: "var(--paper-muted)",
             }}
           >
             <span>{installedCount} installed</span>
@@ -351,7 +351,7 @@ export function LibraryClient() {
                 marginBottom: 12,
                 fontFamily: "Geist Mono, monospace",
                 fontSize: 11.5,
-                color: "var(--muted)",
+                color: "var(--paper-muted)",
               }}
             >
               <span>

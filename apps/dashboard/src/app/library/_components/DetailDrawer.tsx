@@ -159,20 +159,20 @@ export function DetailDrawer({ item, installingId, onClose, onInstall }: DetailD
             <div className="schema" style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {isSkill(item) && (
                 <>
-                  <span className="lab" style={{ fontFamily: "Geist Mono, monospace", fontSize: 11, color: "var(--muted)" }}>
+                  <span className="lab" style={{ fontFamily: "Geist Mono, monospace", fontSize: 11, color: "var(--paper-muted)" }}>
                     reads:
                   </span>
                   {item.reads.map((r) => (
                     <SchemaChip key={"r" + r} name={r} />
                   ))}
                   <span style={{ flexBasis: "100%", height: 0 }} />
-                  <span className="lab" style={{ fontFamily: "Geist Mono, monospace", fontSize: 11, color: "var(--muted)" }}>
+                  <span className="lab" style={{ fontFamily: "Geist Mono, monospace", fontSize: 11, color: "var(--paper-muted)" }}>
                     writes:
                   </span>
                   {item.writes.length > 0 ? (
                     item.writes.map((w) => <SchemaChip key={"w" + w} name={w} />)
                   ) : (
-                    <span className="schema-chip" style={{ "--tag-color": "var(--muted)" } as TagColorStyle}>
+                    <span className="schema-chip" style={{ "--tag-color": "var(--paper-muted)" } as TagColorStyle}>
                       <span className="dot" />
                       none
                     </span>
@@ -181,7 +181,7 @@ export function DetailDrawer({ item, installingId, onClose, onInstall }: DetailD
               )}
               {isConnector(item) && (
                 <>
-                  <span className="lab" style={{ fontFamily: "Geist Mono, monospace", fontSize: 11, color: "var(--muted)" }}>
+                  <span className="lab" style={{ fontFamily: "Geist Mono, monospace", fontSize: 11, color: "var(--paper-muted)" }}>
                     writes:
                   </span>
                   {item.writes.map((w) => (

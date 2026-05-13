@@ -7,7 +7,7 @@ import { useTheme } from "next-themes";
 
 const ROUTES = [
   { key: "studio",  label: "Studio",  href: "/studio",  match: (p: string) => p === "/studio"  || p.startsWith("/studio/") },
-  { key: "memory",  label: "Memory",  href: "/memory",  match: (p: string) => p === "/memory"  || p.startsWith("/memory/") || p === "/graph" || p === "/sources" || p.startsWith("/sources/") },
+  { key: "memory",  label: "Memory",  href: "/memory",  match: (p: string) => p === "/memory"  || p.startsWith("/memory/") || p === "/sources" || p.startsWith("/sources/") },
   { key: "queue",   label: "Queue",   href: "/queue",   match: (p: string) => p === "/"        || p === "/queue"   || p.startsWith("/queue/") },
   { key: "library", label: "Library", href: "/library", match: (p: string) => p === "/library" || p.startsWith("/library/") || p === "/marketplace" || p.startsWith("/marketplace/") },
 ] as const;

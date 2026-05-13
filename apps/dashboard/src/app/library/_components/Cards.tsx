@@ -50,7 +50,7 @@ export function SchemaChip({
 }) {
   const isMappedAny = name === "any (mapped)" || name === "any (frontmatter)";
   const tagColor = isMappedAny
-    ? "var(--muted)"
+    ? "var(--paper-muted)"
     : `var(--t-${name})`;
   const style: TagColorStyle = { "--tag-color": tagColor };
   return (
@@ -220,7 +220,7 @@ export function RecCard({ item, why, onOpen, onInstall }: RecCardProps) {
         <strong>Why this?</strong> {why}
       </div>
       <div className="foot">
-        <span className="by mono" style={{ fontSize: 11, color: "var(--muted)" }}>
+        <span className="by mono" style={{ fontSize: 11, color: "var(--paper-muted)" }}>
           by {item.author}
         </span>
         <button
