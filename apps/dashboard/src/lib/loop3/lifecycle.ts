@@ -81,6 +81,12 @@ export interface LifecycleDb {
   /** Recommendations dismissed at or after `since` for this tenant. */
   listDismissedSince(tenant_id: string, since: Date): Promise<RecRow[]>;
 
+  /** Recommendations currently snoozed past `now` for this tenant. The
+   *  partial unique index on pending does not cover snoozed rows, so the
+   *  generate pass must filter these out explicitly — otherwise re-running
+   *  generate before snoozed_until lets the same target reappear. */
+  listSnoozedActive(tenant_id: string, now: Date): Promise<RecRow[]>;
+
   /** Insert new recommendations. Returns the count actually inserted (the
    *  partial unique index may reject some — implementations should swallow
    *  unique-violation rather than fail the whole batch). */
@@ -108,6 +114,7 @@ export type GenerateResult = {
     candidates: number;
     dropped_existing_pending: number;
     dropped_cooldown: number;
+    dropped_snoozed: number;
     pending_before: number;
   };
 };
@@ -132,6 +139,7 @@ export async function generateRecommendations(
         candidates: 0,
         dropped_existing_pending: 0,
         dropped_cooldown: 0,
+        dropped_snoozed: 0,
         pending_before: pending.length,
       },
     };
@@ -141,15 +149,22 @@ export async function generateRecommendations(
   const candidates = recommend(signal);
 
   const since = new Date(now.getTime() - COOLDOWN_MS);
-  const dismissedRecently = await db.listDismissedSince(tenant_id, since);
+  const [dismissedRecently, snoozedActive] = await Promise.all([
+    db.listDismissedSince(tenant_id, since),
+    db.listSnoozedActive(tenant_id, now),
+  ]);
 
   const pendingKeys = new Set(pending.map((r) => `${r.target_kind}:${r.target_id}`));
   const cooldownKeys = new Set(
     dismissedRecently.map((r) => `${r.target_kind}:${r.target_id}`),
   );
+  const snoozedKeys = new Set(
+    snoozedActive.map((r) => `${r.target_kind}:${r.target_id}`),
+  );
 
   let dropped_existing_pending = 0;
   let dropped_cooldown = 0;
+  let dropped_snoozed = 0;
   const toInsert: NewRecRow[] = [];
   for (const c of candidates) {
     const key = `${c.target_kind}:${c.target_id}`;
@@ -159,6 +174,10 @@ export async function generateRecommendations(
     }
     if (cooldownKeys.has(key)) {
       dropped_cooldown++;
+      continue;
+    }
+    if (snoozedKeys.has(key)) {
+      dropped_snoozed++;
       continue;
     }
     toInsert.push({
@@ -181,6 +200,7 @@ export async function generateRecommendations(
         candidates: candidates.length,
         dropped_existing_pending,
         dropped_cooldown,
+        dropped_snoozed,
         pending_before: pending.length,
       },
     };
@@ -194,6 +214,7 @@ export async function generateRecommendations(
       candidates: candidates.length,
       dropped_existing_pending,
       dropped_cooldown,
+      dropped_snoozed,
       pending_before: pending.length,
     },
   };

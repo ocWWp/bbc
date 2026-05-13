@@ -34,6 +34,7 @@ export async function generateRecommendationsForTenant(
         candidates: 0,
         dropped_existing_pending: 0,
         dropped_cooldown: 0,
+        dropped_snoozed: 0,
         pending_before: 0,
       },
     };

@@ -47,21 +47,19 @@ export function makeSupabaseLifecycleDb(supabase: SupabaseClient): LifecycleDb {
   return {
     async buildSignal(tenant_id: string): Promise<Signal> {
       // Three parallel reads — memory type histogram, installed skills by
-      // role, installed connector ids. Tenant_roles is derived from the
-      // installed-skills set (any role with >0 active skills is "active");
-      // empty roles fall through to the engine's all-5-roles fallback.
+      // role, installed connector ids. Tenant_roles is left empty so the
+      // engine falls back to "all 5 roles" for the gap rule; deriving it
+      // from installed skills would invert the meaning (a tenant with one
+      // engineering skill would no longer be eligible for marketing recs).
+      // A real profile-driven role set will replace [] once profiles ship.
       const [memoryCounts, skillRoleCounts, connectorIds] = await Promise.all([
         countMemoryByType(supabase, tenant_id),
         countSkillsByRole(supabase, tenant_id),
         listInstalledConnectorIds(supabase, tenant_id),
       ]);
 
-      const tenant_roles: SkillRole[] = (Object.entries(skillRoleCounts) as [SkillRole, number][])
-        .filter(([, n]) => n > 0)
-        .map(([role]) => role);
-
       return {
-        tenant_roles,
+        tenant_roles: [],
         installed_skills_by_role: skillRoleCounts,
         installed_connectors: new Set(connectorIds),
         memory_counts_by_type: memoryCounts,
@@ -89,6 +87,19 @@ export function makeSupabaseLifecycleDb(supabase: SupabaseClient): LifecycleDb {
         .eq("tenant_id", tenant_id)
         .eq("state", "dismissed")
         .gte("dismissed_at", since.toISOString());
+      if (error || !data) return [];
+      return (data as RawRecRow[]).map(rawToRow).filter((r): r is RecRow => r !== null);
+    },
+
+    async listSnoozedActive(tenant_id: string, now: Date): Promise<RecRow[]> {
+      const { data, error } = await supabase
+        .from("recommendations")
+        .select(
+          "id, tenant_id, target_kind, target_id, reason_code, reason_human, state, recommended_at, installed_at, dismissed_at, snoozed_until, observed_signal",
+        )
+        .eq("tenant_id", tenant_id)
+        .eq("state", "snoozed")
+        .gt("snoozed_until", now.toISOString());
       if (error || !data) return [];
       return (data as RawRecRow[]).map(rawToRow).filter((r): r is RecRow => r !== null);
     },

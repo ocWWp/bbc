@@ -44,9 +44,9 @@ export type LibraryClientProps = {
   /** Catalog merged with tenant_connectors install state. Defaults to the
    *  static CONNECTORS array when the server-side reader returns nothing. */
   catalogConnectors?: ConnectorItem[];
-  /** Pending recommendations from the W4-3 lifecycle. Empty = fall back to
-   *  the legacy hardcoded carousel so dev / new-tenant first paint isn't
-   *  blank while the visit-trigger has yet to populate. */
+  /** Pending recommendations from the W4-3 lifecycle. Empty list = the band
+   *  hides itself; the server entry's empty-load path synchronously regens
+   *  before render so this only happens for genuinely empty tenants. */
   recommendations?: PendingRec[];
 };
 

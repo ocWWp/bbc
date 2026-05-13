@@ -23,26 +23,34 @@ export const metadata: Metadata = { title: "Library · BBC" };
 export default async function LibraryPage() {
   const actor = await requireActor();
   const supabase = await getSupabaseServerClient();
-  const [importedSkills, installedConnectors, recommendations] = await Promise.all([
+  const [importedSkills, installedConnectors, recommendationsInitial] = await Promise.all([
     readTenantSkills(supabase),
     readTenantConnectors(supabase),
     readPendingRecommendations(supabase),
   ]);
   const catalogConnectors = mergeConnectorState(CONNECTORS, installedConnectors);
 
-  // Fire-and-forget visit trigger. Try to hand the promise to Cloudflare's
-  // ctx.waitUntil() so the worker keeps running past the response flush;
-  // outside Workers (next dev, tests) we fall back to `void` so the
-  // microtask still kicks off in the local Node event loop. The TTL guard
-  // inside triggerLibraryVisitGenerate keeps this from running every request.
+  // Visit trigger (W4-5). Two paths:
+  //   - Empty: synchronously generate + re-read so the first paint already
+  //     includes recs. Without this the band stays blank until the next
+  //     navigation (codex [P2]: docstring previously promised a fallback
+  //     we didn't honor).
+  //   - Non-empty: fire-and-forget via ctx.waitUntil() on Cloudflare; the
+  //     1-hour TTL guard prevents per-request regeneration.
+  let recommendations = recommendationsInitial;
   if (actor.ok) {
     const tenant_id = actor.actor.tenant_id;
-    try {
-      const { getCloudflareContext } = await import("@opennextjs/cloudflare");
-      const cf = await getCloudflareContext({ async: true });
-      cf.ctx.waitUntil(triggerLibraryVisitGenerate(tenant_id));
-    } catch {
-      void triggerLibraryVisitGenerate(tenant_id);
+    if (recommendations.length === 0) {
+      await triggerLibraryVisitGenerate(tenant_id);
+      recommendations = await readPendingRecommendations(supabase);
+    } else {
+      try {
+        const { getCloudflareContext } = await import("@opennextjs/cloudflare");
+        const cf = await getCloudflareContext({ async: true });
+        cf.ctx.waitUntil(triggerLibraryVisitGenerate(tenant_id));
+      } catch {
+        void triggerLibraryVisitGenerate(tenant_id);
+      }
     }
   }
 

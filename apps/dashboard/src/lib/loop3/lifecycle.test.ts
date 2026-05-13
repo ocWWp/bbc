@@ -59,6 +59,16 @@ class FakeLifecycleDb implements LifecycleDb {
     );
   }
 
+  async listSnoozedActive(tenant_id: string, now: Date): Promise<RecRow[]> {
+    return this.rows.filter(
+      (r) =>
+        r.tenant_id === tenant_id &&
+        r.state === "snoozed" &&
+        r.snoozed_until != null &&
+        r.snoozed_until.getTime() > now.getTime(),
+    );
+  }
+
   async insertRecommendations(tenant_id: string, rows: NewRecRow[]): Promise<number> {
     let inserted = 0;
     for (const r of rows) {
@@ -370,5 +380,37 @@ describe("snoozeRecommendation", () => {
     const after = await db.getRecById(rec.id);
     expect(after?.state).toBe("snoozed");
     expect(after?.snoozed_until?.getTime()).toBe(until.getTime());
+  });
+
+  it("snoozed target does NOT regenerate before snoozed_until", async () => {
+    // Codex [P2]: the partial unique index only covers state='pending', so
+    // without an explicit snooze filter a fresh pending row could land for
+    // the same target on the next generate.
+    const t0 = new Date("2026-05-01T12:00:00Z");
+    const tDay7 = new Date(t0.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const tDay14 = new Date(t0.getTime() + 14 * 24 * 60 * 60 * 1000);
+
+    await generateRecommendations(TENANT, db, { clock: { now: () => t0 } });
+    const sk001 = db.rows.find((r) => r.target_id === "sk_001")!;
+    await snoozeRecommendation(sk001.id, tDay14, db);
+
+    // 7 days in: still snoozed; rerun should not insert a fresh sk_001.
+    const res = await generateRecommendations(TENANT, db, {
+      clock: { now: () => tDay7 },
+    });
+    expect(res.diagnostics.dropped_snoozed).toBeGreaterThanOrEqual(1);
+    const pendingAt7 = await db.listPending(TENANT);
+    expect(pendingAt7.find((r) => r.target_id === "sk_001")).toBeUndefined();
+
+    // Past snoozed_until: the target can come back. The snooze state doesn't
+    // auto-transition, so the row stays as 'snoozed' but a new pending row
+    // is permitted because the dedup filter only blocks active snoozes.
+    const tAfter = new Date(tDay14.getTime() + 1);
+    const resAfter = await generateRecommendations(TENANT, db, {
+      clock: { now: () => tAfter },
+    });
+    expect(resAfter.inserted).toBeGreaterThanOrEqual(1);
+    const pendingAfter = await db.listPending(TENANT);
+    expect(pendingAfter.find((r) => r.target_id === "sk_001")).toBeDefined();
   });
 });
