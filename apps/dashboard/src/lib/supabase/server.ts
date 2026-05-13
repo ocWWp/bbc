@@ -1,3 +1,5 @@
+import "server-only";
+import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { Database } from "./database.types";
@@ -33,4 +35,30 @@ export async function getSupabaseServerClient() {
       },
     },
   );
+}
+
+/**
+ * Service-role Supabase client. Bypasses RLS. ONLY callable from server actions,
+ * route handlers, or server components — never client code. The `server-only`
+ * import at the top of this file enforces that at build time.
+ *
+ * Use for writes where the calling user differs from the row owner — e.g.
+ * inbox notifications written to a teammate from an admin resolution, or
+ * background workers that operate on behalf of a tenant.
+ *
+ * Throws if either SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing — those
+ * env vars are required in any deployment that writes cross-user state. See
+ * apps/dashboard/CLAUDE.md "Env vars".
+ */
+export function getSupabaseServiceClient() {
+  const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error(
+      "getSupabaseServiceClient: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required",
+    );
+  }
+  return createClient<Database>(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 }
