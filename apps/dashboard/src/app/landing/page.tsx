@@ -1,6 +1,7 @@
 import { Nav } from "./_components/Nav";
 import { Hero } from "./_components/Hero";
 import { Walkthrough } from "./_components/Walkthrough";
+import { WhyBBC } from "./_components/WhyBBC";
 import { VsVector } from "./_components/VsVector";
 import { CodeBlock } from "./_components/CodeBlock";
 import { Stack } from "./_components/Stack";
@@ -14,6 +15,7 @@ export default function LandingPage() {
       <main>
         <Hero />
         <Walkthrough />
+        <WhyBBC />
         <VsVector />
         <CodeBlock />
         <Stack />

@@ -997,6 +997,52 @@
   .bbc-landing-root .doc-step { padding-left: 16px; margin-left: -16px; }
 }
 
+/* ---------- WHY BBC (moat layers) ---------- */
+.bbc-landing-root .moat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 18px;
+}
+.bbc-landing-root .moat-card {
+  position: relative;
+  padding: 24px 22px 22px;
+  border: 1px solid var(--paper-rule);
+  border-radius: 12px;
+  background: var(--paper);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+.bbc-landing-root .moat-card:hover {
+  border-color: var(--paper-ink);
+  box-shadow: 0 1px 0 var(--paper-rule), 0 18px 36px -28px rgba(20, 18, 12, 0.18);
+  transform: translateY(-1px);
+}
+.bbc-landing-root .moat-card-num {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--paper-muted);
+}
+.bbc-landing-root .moat-card-title {
+  font-size: 18px;
+  line-height: 1.25;
+  margin: 0;
+  font-weight: 500;
+  color: var(--paper-ink);
+}
+.bbc-landing-root .moat-card-body {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--paper-ink-2);
+  margin: 0;
+}
+@media (max-width: 720px) {
+  .bbc-landing-root .moat-grid { grid-template-columns: 1fr; gap: 12px; }
+  .bbc-landing-root .moat-card { padding: 20px 18px 18px; }
+}
+
 /* ---------- STACK ---------- */
 .bbc-landing-root .stack {
   display: grid;
