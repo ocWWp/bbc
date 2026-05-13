@@ -3,6 +3,13 @@
 // Returns one row per pending recommendation, narrowed to the caller's
 // tenant via RLS. The UI joins each row to its catalog entry (skill /
 // connector / provider) client-side using the data arrays it already has.
+//
+// RLS (per 0042_loop3_teammate_visibility) handles the security boundary:
+//   - operators/admins always see rows
+//   - members only see rows when tenants.loop3_teammate_visibility = 'everyone'
+// This reader is RLS-trusting; the SELECT just returns whatever RLS
+// permits. Defense-in-depth at the application layer is not required
+// because the SELECT is read-only.
 
 import "server-only";
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireActor } from "@/lib/auth/require-user";
+import { requireActor, requireRole } from "@/lib/auth/require-user";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { makeSupabaseLifecycleDb } from "./lifecycle-supabase";
 import {
@@ -13,11 +13,13 @@ import {
 // ---------------------------------------------------------------------------
 // Server actions for the Library /recommendations band.
 //
-// Auth + tenant scoping: every action goes through requireActor() before
-// touching the lifecycle. RLS on the recommendations table further narrows
-// UPDATEs to the caller's tenant. The service-role generate path used by the
-// /library visit trigger lives separately in ./generate.ts so this file's
-// "use server" surface stays small and only exposes RPC-shaped actions.
+// Auth + tenant scoping: every action goes through requireActor() +
+// requireRole("operator") before touching the lifecycle. Per ADR-0012 +
+// Task 0g, dismiss/snooze/install are tenant-wide install decisions; only
+// operators+ may make them. Members reading via the 'everyone' visibility
+// flag see suggestions but cannot resolve them. RLS on the recommendations
+// table enforces the same gate at the SQL layer (recommendations_operator_
+// update in 0042).
 // ---------------------------------------------------------------------------
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -34,6 +36,8 @@ function validateId(id: unknown): { ok: true; id: string } | { ok: false; error:
 export async function dismissRecommendationAction(formData: FormData): Promise<ActionResult> {
   const a = await requireActor();
   if (!a.ok) return { ok: false, error: a.output };
+  const r = requireRole(a.actor, "operator");
+  if (!r.ok) return { ok: false, error: r.output };
 
   const v = validateId(formData.get("id"));
   if (!v.ok) return v;
@@ -50,6 +54,8 @@ export async function dismissRecommendationAction(formData: FormData): Promise<A
 export async function snoozeRecommendationAction(formData: FormData): Promise<ActionResult> {
   const a = await requireActor();
   if (!a.ok) return { ok: false, error: a.output };
+  const r = requireRole(a.actor, "operator");
+  if (!r.ok) return { ok: false, error: r.output };
 
   const v = validateId(formData.get("id"));
   if (!v.ok) return v;
@@ -79,6 +85,8 @@ export async function markRecommendationInstalledAction(
 ): Promise<ActionResult> {
   const a = await requireActor();
   if (!a.ok) return { ok: false, error: a.output };
+  const r = requireRole(a.actor, "operator");
+  if (!r.ok) return { ok: false, error: r.output };
 
   const v = validateId(formData.get("id"));
   if (!v.ok) return v;
