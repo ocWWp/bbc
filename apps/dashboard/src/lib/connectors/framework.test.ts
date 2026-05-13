@@ -52,7 +52,7 @@ function makeDb(opts: {
   const db: ConnectorDb = {
     async getConnector() {
       return opts.row === undefined
-        ? { id: "row-1", external_account_id: null, sync_state: {} }
+        ? { id: "row-1", external_account_id: null, mapping: {}, sync_state: {} }
         : opts.row;
     },
     async getTokenExpiry() {
@@ -240,7 +240,7 @@ describe("runSync — 429 backoff", () => {
 describe("runSync — mid-sync error", () => {
   it("commits buffered proposals and records last_sync_status='partial'", async () => {
     const { db, committed, patches } = makeDb({
-      row: { id: "row-1", external_account_id: null, sync_state: { cursor: "page-0" } },
+      row: { id: "row-1", external_account_id: null, mapping: {}, sync_state: { cursor: "page-0" } },
     });
     const connector = makeConnector({
       async *sync(_ctx) {
@@ -287,7 +287,7 @@ describe("runSync — mid-sync error", () => {
 describe("runSync — resume", () => {
   it("passes the saved cursor into connector.sync()", async () => {
     const { db } = makeDb({
-      row: { id: "row-1", external_account_id: null, sync_state: { cursor: "page-42" } },
+      row: { id: "row-1", external_account_id: null, mapping: {}, sync_state: { cursor: "page-42" } },
     });
     const seen: SyncContext[] = [];
     const connector = makeConnector({
@@ -408,7 +408,7 @@ describe("runSync — token refresh", () => {
   it("calls refresh_token when expiry is within 24h", async () => {
     const expiring = new Date(Date.now() + 60 * 60 * 1000); // 1h from now
     const { db } = makeDb({
-      row: { id: "row-1", external_account_id: "acc-1", sync_state: {} },
+      row: { id: "row-1", external_account_id: "acc-1", mapping: {}, sync_state: {} },
       tokenExpiry: expiring,
     });
     const refresh = vi.fn(async () => {});
@@ -425,7 +425,7 @@ describe("runSync — token refresh", () => {
   it("skips refresh when expiry is comfortably far away", async () => {
     const farFuture = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     const { db } = makeDb({
-      row: { id: "row-1", external_account_id: "acc-1", sync_state: {} },
+      row: { id: "row-1", external_account_id: "acc-1", mapping: {}, sync_state: {} },
       tokenExpiry: farFuture,
     });
     const refresh = vi.fn(async () => {});
@@ -437,7 +437,7 @@ describe("runSync — token refresh", () => {
   it("marks rate_limited when refresh throws RateLimitError (codex-flagged)", async () => {
     const expiring = new Date(Date.now() + 60 * 60 * 1000);
     const { db, patches } = makeDb({
-      row: { id: "row-1", external_account_id: "acc-1", sync_state: {} },
+      row: { id: "row-1", external_account_id: "acc-1", mapping: {}, sync_state: {} },
       tokenExpiry: expiring,
     });
     const { RateLimitError } = await import("./framework");
@@ -457,7 +457,7 @@ describe("runSync — token refresh", () => {
   it("marks auth_expired when refresh throws AuthExpiredError", async () => {
     const expiring = new Date(Date.now() + 60 * 60 * 1000);
     const { db, patches } = makeDb({
-      row: { id: "row-1", external_account_id: "acc-1", sync_state: {} },
+      row: { id: "row-1", external_account_id: "acc-1", mapping: {}, sync_state: {} },
       tokenExpiry: expiring,
     });
     const connector = makeConnector({
@@ -594,7 +594,7 @@ describe("runSync — partial then resume composite scenario", () => {
 
     const db: ConnectorDb = {
       async getConnector() {
-        return { id: "row-1", external_account_id: null, sync_state: { cursor: storedCursor } };
+        return { id: "row-1", external_account_id: null, mapping: {}, sync_state: { cursor: storedCursor } };
       },
       async getTokenExpiry() {
         return null;

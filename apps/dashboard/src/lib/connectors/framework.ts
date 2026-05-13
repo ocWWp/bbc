@@ -57,6 +57,10 @@ export type SyncContext = {
   tenant_id: string;
   external_account_id: string | null;
   cursor: SyncCursor;
+  /** Connector-specific config from tenant_connectors.mapping. Each connector
+   *  validates its expected shape — e.g., GitHub expects { owner, repo, paths,
+   *  include_prs, include_collaborators }. */
+  config: Record<string, unknown>;
 };
 
 export type AuthURL = { url: string; state: string };
@@ -121,6 +125,7 @@ export class AuthExpiredError extends Error {
 export type ConnectorRow = {
   id: string;
   external_account_id: string | null;
+  mapping: Record<string, unknown>;
   sync_state: { cursor?: SyncCursor; [k: string]: unknown };
 };
 
@@ -242,7 +247,12 @@ export async function runSync(
   let skipped = 0;
   let buffer: MemoryProposal[] = [];
 
-  const ctx: SyncContext = { tenant_id, external_account_id: row.external_account_id, cursor: startingCursor };
+  const ctx: SyncContext = {
+    tenant_id,
+    external_account_id: row.external_account_id,
+    cursor: startingCursor,
+    config: row.mapping,
+  };
 
   const flush = async (): Promise<void> => {
     if (buffer.length === 0) return;
