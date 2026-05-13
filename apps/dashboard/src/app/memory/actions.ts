@@ -21,7 +21,7 @@ function slugify(s: string): string {
 export async function createBlankItem(type: Supertag): Promise<void> {
   const a = await requireActor();
   if (!a.ok) throw new Error(a.output);
-  const r = requireRole(a.actor, "member");
+  const r = requireRole(a.actor, "operator");
   if (!r.ok) throw new Error(r.output);
 
   const schema = supertagSchemas[type];
@@ -61,7 +61,7 @@ export type UpdatePatch = {
 export async function updateMemoryItem(id: string, patch: UpdatePatch): Promise<{ ok: true } | { ok: false; error: string }> {
   const a = await requireActor();
   if (!a.ok) return { ok: false, error: a.output };
-  const r = requireRole(a.actor, "member");
+  const r = requireRole(a.actor, "operator");
   if (!r.ok) return { ok: false, error: r.output };
 
   const supabase = await getSupabaseServerClient();
@@ -101,7 +101,7 @@ export async function updateMemoryItem(id: string, patch: UpdatePatch): Promise<
 export async function archiveMemoryItem(id: string): Promise<void> {
   const a = await requireActor();
   if (!a.ok) throw new Error(a.output);
-  const r = requireRole(a.actor, "member");
+  const r = requireRole(a.actor, "operator");
   if (!r.ok) throw new Error(r.output);
 
   const supabase = await getSupabaseServerClient();
@@ -117,7 +117,7 @@ export async function archiveMemoryItem(id: string): Promise<void> {
 export async function publishMemoryItem(id: string): Promise<void> {
   const a = await requireActor();
   if (!a.ok) throw new Error(a.output);
-  const r = requireRole(a.actor, "member");
+  const r = requireRole(a.actor, "operator");
   if (!r.ok) throw new Error(r.output);
 
   const supabase = await getSupabaseServerClient();
@@ -134,7 +134,7 @@ export async function publishMemoryItem(id: string): Promise<void> {
 export async function createRelation(src_id: string, dst_id: string, kind: RelationKind): Promise<{ ok: boolean; error?: string }> {
   const a = await requireActor();
   if (!a.ok) return { ok: false, error: a.output };
-  const r = requireRole(a.actor, "member");
+  const r = requireRole(a.actor, "operator");
   if (!r.ok) return { ok: false, error: r.output };
 
   if (src_id === dst_id) return { ok: false, error: "Cannot relate item to itself" };
@@ -154,7 +154,7 @@ export async function createRelation(src_id: string, dst_id: string, kind: Relat
 export async function deleteRelation(id: string): Promise<{ ok: boolean; error?: string }> {
   const a = await requireActor();
   if (!a.ok) return { ok: false, error: a.output };
-  const r = requireRole(a.actor, "member");
+  const r = requireRole(a.actor, "operator");
   if (!r.ok) return { ok: false, error: r.output };
 
   const supabase = await getSupabaseServerClient();

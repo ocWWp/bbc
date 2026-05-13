@@ -43,7 +43,7 @@ export async function setProviderKey(
 ): Promise<SetProviderKeyResult> {
   const a = await requireActor();
   if (!a.ok) return { ok: false, error: a.output };
-  const r = requireRole(a.actor, "member");
+  const r = requireRole(a.actor, "operator");
   if (!r.ok) return { ok: false, error: r.output };
 
   const parsed = setProviderKeyInputSchema.safeParse(input);
@@ -124,7 +124,7 @@ export async function revokeProviderKey(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const a = await requireActor();
   if (!a.ok) return { ok: false, error: a.output };
-  const r = requireRole(a.actor, "member");
+  const r = requireRole(a.actor, "operator");
   if (!r.ok) return { ok: false, error: r.output };
 
   if (!EXTERNAL_ACCOUNT_ID_RE.test(externalAccountId)) {

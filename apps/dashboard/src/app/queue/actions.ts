@@ -25,7 +25,7 @@ type Result = { ok: boolean; output: string };
 export async function acceptProposal(formData: FormData): Promise<Result> {
   const a = await requireActor();
   if (!a.ok) return { ok: false, output: a.output };
-  const r = requireRole(a.actor, "member");
+  const r = requireRole(a.actor, "operator");
   if (!r.ok) return { ok: false, output: r.output };
 
   const id = String(formData.get("id") ?? "");
@@ -48,7 +48,7 @@ export async function acceptProposal(formData: FormData): Promise<Result> {
 export async function rejectProposal(formData: FormData): Promise<Result> {
   const a = await requireActor();
   if (!a.ok) return { ok: false, output: a.output };
-  const r = requireRole(a.actor, "member");
+  const r = requireRole(a.actor, "operator");
   if (!r.ok) return { ok: false, output: r.output };
 
   const id = String(formData.get("id") ?? "");

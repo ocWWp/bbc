@@ -158,7 +158,7 @@ export async function bulkAcceptProposals(
 ): Promise<BulkAcceptResult> {
   const a = await requireActor();
   if (!a.ok) return { ok: false, error: a.output };
-  const r = requireRole(a.actor, "member");
+  const r = requireRole(a.actor, "operator");
   if (!r.ok) return { ok: false, error: r.output };
 
   if (proposals.length === 0) return { ok: false, error: "Nothing to accept." };
@@ -345,7 +345,7 @@ export type SeedDemoBrainResult =
 export async function seedDemoBrain(): Promise<SeedDemoBrainResult> {
   const a = await requireActor();
   if (!a.ok) return { ok: false, error: a.output };
-  const r = requireRole(a.actor, "member");
+  const r = requireRole(a.actor, "operator");
   if (!r.ok) return { ok: false, error: r.output };
 
   const supabase = await getSupabaseServerClient();
