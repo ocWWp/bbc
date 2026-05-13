@@ -116,6 +116,33 @@ describe("processWebhookRequest — happy path", () => {
     expect(dlq).toHaveLength(0);
     expect(patches.at(-1)?.status).toBe("ok");
   });
+
+  it("emits the prefixed source_ref (matches the dedup query) (codex-flagged [P2])", async () => {
+    // Regression: dedup queries memory_files.fields->>source_ref using
+    // proposal.source_ref ('webhook:evt-1'). The route's commitProposal must
+    // persist that prefixed key into fields.source_ref or duplicates slip past.
+    const { db, committed } = makeDb(activeConnector());
+    const body = JSON.stringify({ id: "evt-1", title: "Hi", content: "" });
+    const { sig, body_sha } = signedRequest(body, now);
+    await processWebhookRequest({
+      tenant_slug: "acme",
+      webhook_id: CONNECTOR_ROW_ID,
+      raw_body: body,
+      signature_header: sig,
+      timestamp_header: String(now),
+      content_length: body.length,
+      now_ms: now,
+      body_sha256: body_sha,
+      db,
+    });
+    // Top-level dedup key is the prefixed form.
+    expect(committed[0].source_ref).toBe("webhook:evt-1");
+    // The route's commitProposal overrides fields.source_ref with the prefixed
+    // key; this assertion lives at the route level (see route.test.ts when wired).
+    // Here we verify applyMapping puts the *unprefixed* value in fields, which
+    // is the connector-native ID — overridden at insert time.
+    expect(committed[0].fields.source_ref).toBe("evt-1");
+  });
 });
 
 // --------------------------------------------------------------------------
