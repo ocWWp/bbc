@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { requireActor, requireRole } from "@/lib/auth/require-user";
 import { listPending, listAccepted, listRejected, isApproved } from "@/lib/read-queue";
 import ActionButtons from "@/components/ActionButtons";
 import DataSource from "@/components/DataSource";
@@ -91,6 +93,13 @@ function TagBadge({ name }: { name: string }) {
 }
 
 export default async function QueuePage() {
+  const a = await requireActor();
+  if (!a.ok) redirect(`/auth/signin?callbackUrl=${encodeURIComponent("/queue")}`);
+  // Per ADR-0012: queue accept/reject is operator+. Members file proposals via Flag-this
+  // but cannot resolve them.
+  const r = requireRole(a.actor, "operator");
+  if (!r.ok) redirect("/brain");
+
   const [pending, accepted, rejected] = await Promise.all([
     listPending(),
     listAccepted(8),

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { requireActor } from "@/lib/auth/require-user";
+import { requireActor, requireRole } from "@/lib/auth/require-user";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import {
   inviteMember,
@@ -14,7 +14,7 @@ type SearchParams = Promise<{ ok?: string; error?: string }>;
 
 type MemberRow = {
   user_id: string;
-  role: "admin" | "member" | "viewer";
+  role: "admin" | "operator" | "member" | "viewer";
   template_slug: string | null;
   joined_at: string;
 };
@@ -30,7 +30,7 @@ type InvitationRow = {
   id: string;
   provider: string;
   identifier: string;
-  role: "admin" | "member" | "viewer";
+  role: "admin" | "operator" | "member" | "viewer";
   template_slug: string | null;
   created_at: string;
 };
@@ -39,12 +39,13 @@ type TemplateRow = {
   slug: string;
   display_name: string;
   description: string;
-  base_role: "admin" | "member" | "viewer";
+  base_role: "admin" | "operator" | "member" | "viewer";
   focus_areas: string[];
 };
 
 const ROLE_PILL: Record<string, string> = {
   admin: "accent",
+  operator: "accent",
   member: "muted",
   viewer: "muted",
 };
@@ -79,7 +80,10 @@ export default async function TeamSettingsPage({
   const { ok, error } = await searchParams;
   const a = await requireActor();
   if (!a.ok) redirect("/auth/signin?callbackUrl=/settings/team");
-  const isAdmin = a.actor.role === "admin";
+  // Per ADR-0012: team management (invitations + role changes) is admin-only.
+  const adminGate = requireRole(a.actor, "admin");
+  if (!adminGate.ok) redirect("/brain");
+  const isAdmin = true;
 
   const sb = await getSupabaseServerClient();
 

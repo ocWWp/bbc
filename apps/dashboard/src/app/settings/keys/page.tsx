@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { requireActor } from "@/lib/auth/require-user";
+import { requireActor, requireRole } from "@/lib/auth/require-user";
 import KeysClient from "./KeysClient";
 import { listProviderKeys } from "./actions";
 
@@ -14,6 +14,9 @@ export default async function ApiKeysSettingsPage() {
   if (!a.ok) {
     redirect(`/auth/signin?callbackUrl=${encodeURIComponent("/settings/keys")}`);
   }
+  // Per ADR-0012: provider keys are tenant-shared infrastructure; operator+.
+  const r = requireRole(a.actor, "operator");
+  if (!r.ok) redirect("/brain");
 
   const res = await listProviderKeys();
   const keys = res.ok ? res.keys : [];

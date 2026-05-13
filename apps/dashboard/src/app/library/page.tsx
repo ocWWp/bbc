@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { requireActor } from "@/lib/auth/require-user";
+import { redirect } from "next/navigation";
+import { requireActor, requireRole } from "@/lib/auth/require-user";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { readTenantSkills } from "@/lib/skills/read-tenant-skills";
 import { readTenantConnectors } from "@/lib/connectors/read-tenant-connectors";
@@ -23,6 +24,12 @@ export const metadata: Metadata = { title: "Library · BBC" };
 //   - Providers: still on _data.ts mocks; live wiring lands later.
 export default async function LibraryPage() {
   const actor = await requireActor();
+  if (!actor.ok) redirect(`/auth/signin?callbackUrl=${encodeURIComponent("/library")}`);
+  // Per ADR-0012: Library install/uninstall is operator+. Members see Loop-3
+  // suggestions via Inbox when the tenant visibility flag permits (Task 0g).
+  const op = requireRole(actor.actor, "operator");
+  if (!op.ok) redirect("/brain");
+
   const supabase = await getSupabaseServerClient();
   const [importedSkills, installedConnectors, recommendationsInitial] = await Promise.all([
     readTenantSkills(supabase),

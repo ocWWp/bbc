@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { requireActor, requireRole } from "@/lib/auth/require-user";
 import { listMemoryItems } from "./queries";
 import { SUPERTAGS, type Supertag } from "@/lib/memory/types";
 import { BrainView } from "@/components/memory/BrainView";
@@ -16,6 +18,12 @@ function relDate(iso: string | null): string {
 }
 
 export default async function MemoryIndex({ searchParams }: { searchParams: SearchParams }) {
+  const a = await requireActor();
+  if (!a.ok) redirect(`/auth/signin?callbackUrl=${encodeURIComponent("/memory")}`);
+  // Per ADR-0012: the editable /memory page is operator+. Members read via /brain.
+  const r = requireRole(a.actor, "operator");
+  if (!r.ok) redirect("/brain");
+
   const sp = await searchParams;
   const activeType = (SUPERTAGS as readonly string[]).includes(sp.type ?? "")
     ? (sp.type as Supertag)
