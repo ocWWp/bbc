@@ -37,7 +37,12 @@ const STARTER_PACK_BORDER_STYLE = (color: string): CSSProperties & { "--pack-col
   "--pack-color": color,
 });
 
-export function LibraryClient() {
+export type LibraryClientProps = {
+  importedSkills: SkillItem[];
+};
+
+export function LibraryClient({ importedSkills }: LibraryClientProps) {
+  const allSkills = importedSkills.length === 0 ? SKILLS : [...importedSkills, ...SKILLS];
   const [tab, setTab] = useState<Tab>("default");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<string>("all");
@@ -72,7 +77,7 @@ export function LibraryClient() {
 
   // ---------- list pipeline ----------
   const allItems: LibItem[] =
-    tab === "skills" ? SKILLS : tab === "connectors" ? CONNECTORS : tab === "providers" ? PROVIDERS : [];
+    tab === "skills" ? allSkills : tab === "connectors" ? CONNECTORS : tab === "providers" ? PROVIDERS : [];
 
   const installedCount = allItems.filter((x) =>
     x.kind === "provider" ? x.connected : x.installed,
@@ -113,7 +118,7 @@ export function LibraryClient() {
 
   function chipCount(key: string): number {
     if (key === "all") return allItems.length;
-    if (tab === "skills") return SKILLS.filter((s) => s.role === key).length;
+    if (tab === "skills") return allSkills.filter((s) => s.role === key).length;
     if (tab === "connectors") return CONNECTORS.filter((c) => c.source === key).length;
     if (tab === "providers") return PROVIDERS.filter((p) => p.role === key).length;
     return 0;
@@ -198,7 +203,7 @@ export function LibraryClient() {
           {(
             [
               { key: "default" as const, lab: "Overview", ct: null as number | null },
-              { key: "skills" as const, lab: "Skills", ct: SKILLS.length },
+              { key: "skills" as const, lab: "Skills", ct: allSkills.length },
               { key: "connectors" as const, lab: "Connectors", ct: CONNECTORS.length },
               { key: "providers" as const, lab: "Providers", ct: PROVIDERS.length },
             ]
@@ -252,7 +257,8 @@ export function LibraryClient() {
           <CategorySlice
             title="Skills"
             tab="skills"
-            items={SKILLS.slice(0, 3)}
+            items={allSkills.slice(0, 3)}
+            total={allSkills.length}
             onOpen={handleOpen}
             onInstall={handleInstall}
             installingId={installingId}
@@ -262,6 +268,7 @@ export function LibraryClient() {
             title="Connectors"
             tab="connectors"
             items={CONNECTORS.slice(0, 3)}
+            total={CONNECTORS.length}
             onOpen={handleOpen}
             onInstall={handleInstall}
             installingId={installingId}
@@ -271,6 +278,7 @@ export function LibraryClient() {
             title="Providers"
             tab="providers"
             items={PROVIDERS.slice(0, 3)}
+            total={PROVIDERS.length}
             onOpen={handleOpen}
             onInstall={handleInstall}
             installingId={installingId}
@@ -570,6 +578,7 @@ function CategorySlice({
   title,
   tab,
   items,
+  total,
   onOpen,
   onInstall,
   installingId,
@@ -578,13 +587,13 @@ function CategorySlice({
   title: string;
   tab: Tab;
   items: LibItem[];
+  total: number;
   onOpen: (item: LibItem) => void;
   onInstall: (item: LibItem) => void;
   installingId: string | null;
   setTab: (t: Tab) => void;
 }) {
-  const totalForTab =
-    tab === "skills" ? SKILLS.length : tab === "connectors" ? CONNECTORS.length : PROVIDERS.length;
+  const totalForTab = total;
   return (
     <section style={{ marginTop: 32, paddingTop: 24, borderTop: "1px solid var(--rule)" }}>
       <div
