@@ -16,6 +16,7 @@ import {
   type OutputBlock,
 } from "@/lib/studio/output-blocks";
 import { validateRun } from "@/lib/studio/validate-run";
+import { logStudioUsage } from "@/lib/studio/usage-log";
 
 /**
  * Designer Studio — fourth Loop 2 role agent. Visual specs, brand guideline
@@ -45,10 +46,11 @@ function runRateLimited(userId: string): boolean {
 }
 
 const EMIT_OUTPUT_TOOL = {
-  name: "emit_output_blocks",
+  name: "emit_output_blocks" as const,
   description:
     "Return the generated design document as a single OutputBlock of kind 'plain' carrying the full markdown in props.text.",
   input_schema: EMIT_OUTPUT_TOOL_INPUT_SCHEMA,
+  cache_control: { type: "ephemeral" as const },
 };
 
 const inputsRecordSchema = z.record(z.string(), z.string().max(5000));
@@ -147,6 +149,8 @@ export async function runDesignerWorkflow(
     const message = e instanceof Error ? e.message : "unknown";
     return { ok: false, error: `Generator failed: ${message}` };
   }
+
+  logStudioUsage("run", resp, { tenantId, templateId, model: resolvedModel.model_id });
 
   const toolUse = resp.content.find((c) => c.type === "tool_use");
   if (!toolUse || toolUse.type !== "tool_use") {

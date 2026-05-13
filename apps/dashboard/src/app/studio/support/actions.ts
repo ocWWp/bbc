@@ -17,6 +17,7 @@ import {
   type OutputBlock,
 } from "@/lib/studio/output-blocks";
 import { validateRun } from "@/lib/studio/validate-run";
+import { logStudioUsage } from "@/lib/studio/usage-log";
 
 /**
  * Support Studio -- third Loop 2 role agent. Mirrors Engineering Studio's
@@ -54,10 +55,11 @@ function runRateLimited(userId: string): boolean {
 }
 
 const EMIT_OUTPUT_TOOL = {
-  name: "emit_output_blocks",
+  name: "emit_output_blocks" as const,
   description:
     "Return the generated support reply as a single OutputBlock of kind 'plain' carrying the markdown body in props.text.",
   input_schema: EMIT_OUTPUT_TOOL_INPUT_SCHEMA,
+  cache_control: { type: "ephemeral" as const },
 };
 
 const inputsRecordSchema = z.record(z.string(), z.string().max(3000));
@@ -157,6 +159,8 @@ export async function runSupportWorkflow(
     const message = e instanceof Error ? e.message : "unknown";
     return { ok: false, error: `Generator failed: ${message}` };
   }
+
+  logStudioUsage("run", resp, { tenantId, templateId, model: resolvedModel.model_id });
 
   const toolUse = resp.content.find((c) => c.type === "tool_use");
   if (!toolUse || toolUse.type !== "tool_use") {
