@@ -3263,6 +3263,66 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   color: var(--ink);
   border: 1px solid var(--rule-2);
 }
+/* D-W6-4: admin diagnostics page. */
+.lib-diag {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+  font-family: "Geist", "Inter", system-ui, sans-serif;
+}
+.lib-diag-head h1 {
+  font-family: "Geist Mono", monospace;
+  font-size: 18px;
+  letter-spacing: 0.01em;
+  margin: 0 0 4px;
+}
+.lib-diag-head .muted { font-size: 13px; }
+.lib-diag-section {
+  margin-top: 28px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 18px 20px 14px;
+  background: var(--bg);
+}
+.lib-diag-section h2 {
+  font-family: "Geist Mono", monospace;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  color: var(--paper-muted);
+  margin: 0 0 12px;
+  font-weight: 500;
+}
+.lib-diag-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.lib-diag-table th,
+.lib-diag-table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+.lib-diag-table thead th {
+  font-family: "Geist Mono", monospace;
+  font-size: 11px;
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+  color: var(--paper-muted);
+  font-weight: 500;
+  border-bottom: 1px solid var(--rule-2);
+}
+.lib-diag-table tr.total td { border-bottom: none; }
+.lib-diag-table td.err {
+  font-family: "Geist Mono", monospace;
+  font-size: 11.5px;
+  color: var(--paper-err, #b91c1c);
+  max-width: 360px;
+  word-break: break-word;
+}
+
 /* D-W5-4: connectors whose OAuth app is still in third-party review. */
 .lib-card .corner.beta {
   background: color-mix(in oklab, var(--warn, #d97706), transparent 88%);
