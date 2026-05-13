@@ -527,6 +527,7 @@ function fakeActor(role: Actor["role"] = "admin"): Actor {
     tenant_id: "t1",
     tenant_slug: "acme",
     role,
+    templateSlug: null,
   };
 }
 

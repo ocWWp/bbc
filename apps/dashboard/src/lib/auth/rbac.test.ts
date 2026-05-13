@@ -16,6 +16,7 @@ function makeActor(role: Role): Actor {
     tenant_id: "00000000-0000-0000-0000-000000000001",
     tenant_slug: "test-tenant",
     role,
+    templateSlug: null,
   };
 }
 

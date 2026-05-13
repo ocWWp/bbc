@@ -13,6 +13,12 @@ export type Actor = {
   tenant_slug: string;
   /** Role in the current tenant. Server actions gate on this. */
   role: Role;
+  /**
+   * Persona template assigned to this member (e.g. "marketing", "founder",
+   * "engineering"). Drives persona-aware nav and Studio routing. Null when
+   * the member hasn't been assigned a role template yet (legacy rows).
+   */
+  templateSlug: string | null;
 };
 
 const ACTOR_RE = /^human:(github|google|email):[A-Za-z0-9._%+@-]{1,254}$/;
@@ -51,7 +57,7 @@ export async function requireActor(): Promise<
 
   const { data: membership, error: mErr } = await supabase
     .from("tenant_members")
-    .select("role, tenants:tenant_id(slug)")
+    .select("role, template_slug, tenants:tenant_id(slug)")
     .eq("user_id", user.id)
     .eq("tenant_id", profile.tenant_id)
     .single();
@@ -82,6 +88,7 @@ export async function requireActor(): Promise<
       tenant_id: profile.tenant_id,
       tenant_slug: tenantSlug,
       role,
+      templateSlug: (membership.template_slug ?? null) as string | null,
     },
   };
 }

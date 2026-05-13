@@ -15,7 +15,7 @@ const ROUTES = [
 type AppNavProps = {
   pendingCount: number;
   user: { label: string; avatar: string | null; initial: string } | null;
-  workspace: { name: string; role: string } | null;
+  workspace: { name: string; role: string; templateSlug: string | null } | null;
 };
 
 export function AppNav({ pendingCount, user, workspace }: AppNavProps) {

@@ -33,14 +33,18 @@ export default async function Nav() {
     if (profile?.tenant_id) {
       const { data: membership } = await supabase
         .from("tenant_members")
-        .select("role, tenants:tenant_id(slug)")
+        .select("role, template_slug, tenants:tenant_id(slug)")
         .eq("user_id", user.id)
         .eq("tenant_id", profile.tenant_id)
         .single();
 
       const slug = (membership?.tenants as { slug: string } | null)?.slug ?? null;
       if (slug && membership?.role) {
-        workspaceProps = { name: slug, role: membership.role };
+        workspaceProps = {
+          name: slug,
+          role: membership.role,
+          templateSlug: membership.template_slug ?? null,
+        };
       }
     }
   }
