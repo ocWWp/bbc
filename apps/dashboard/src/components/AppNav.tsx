@@ -8,6 +8,7 @@ const ROUTES = [
   { key: "studio",   label: "Studio",   match: (p: string) => p === "/studio" || p.startsWith("/studio/") },
   { key: "memory",   label: "Memory",   match: (p: string) => p === "/memory" || p.startsWith("/memory/") || p === "/graph" },
   { key: "queue",    label: "Queue",    match: (p: string) => p === "/" || p === "/queue" || p.startsWith("/queue/") },
+  { key: "library",  label: "Library",  match: (p: string) => p === "/library" || p.startsWith("/library/") || p === "/marketplace" || p.startsWith("/marketplace/") },
   { key: "sources",  label: "Sources",  match: (p: string) => p === "/sources" || p.startsWith("/sources/") },
   { key: "settings", label: "Settings", match: (p: string) => p === "/settings" || p.startsWith("/settings/") || p === "/team" || p === "/api-keys" || p === "/bindings" || p === "/tools" || p === "/skills" || p === "/log" },
 ] as const;
@@ -16,6 +17,7 @@ const HREFS: Record<string, string> = {
   studio: "/studio",
   memory: "/memory",
   queue: "/queue",
+  library: "/library",
   sources: "/sources",
   settings: "/settings",
 };

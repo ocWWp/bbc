@@ -98,6 +98,30 @@
   --t-skill:          #c14a1b;
   --t-source_artifact:#5a5a5a;
   --t-note:           #8a6f0a;
+
+  /* ============================================================
+     Unprefixed aliases — Claude Design surfaces (Library, future)
+     use --bg / --ink / --accent etc. These alias to the paper-*
+     tokens above so the design CSS works unchanged. var() lookups
+     are dynamic, so .dark redefining --paper-* automatically
+     flips these aliases too.
+     ============================================================ */
+  --bg:           var(--paper-bg);
+  --bg-2:         var(--paper-bg-2);
+  --bg-3:         var(--paper-bg-3);
+  --ink:          var(--paper-ink);
+  --ink-2:        var(--paper-ink-2);
+  --muted:        var(--paper-muted);
+  --muted-2:      var(--paper-muted-2);
+  --rule:         var(--paper-rule);
+  --rule-2:       var(--paper-rule-2);
+  --accent:       var(--paper-accent);
+  --accent-soft:  var(--paper-accent-soft);
+  --code-bg:      var(--paper-code-bg);
+  --code-ink:     var(--paper-code-ink);
+  --ok:           var(--paper-ok);
+  --warn:         var(--paper-warn);
+  --err:          var(--paper-err);
 }
 
 .dark {
@@ -2707,4 +2731,867 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   font-size: 11px;
   color: var(--err);
   margin: 0;
+}
+/* /library — additions to app-styles.css */
+
+/* ---------- RECOMMENDED BAND ---------- */
+.rec-band {
+  display: flex; flex-direction: column; gap: 14px;
+  margin-bottom: 32px;
+}
+.rec-band-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+}
+.rec-band-head .eyebrow {
+  font-family: "Geist Mono", monospace;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.rec-band-head .eyebrow .dot { width:6px; height:6px; border-radius: 50%; background: var(--accent); }
+.rec-band-head .title {
+  font-family: "Geist", sans-serif;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  margin: 4px 0 0;
+}
+.rec-band-head .why {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-left: 14px;
+}
+.rec-band-head .collapse {
+  font-family: "Geist Mono", monospace;
+  font-size: 11px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 3px 9px;
+  cursor: pointer;
+}
+.rec-band-head .collapse:hover { background: var(--bg-2); color: var(--ink); }
+
+.rec-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+}
+@media (max-width: 760px) {
+  .rec-row {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: 78%;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 6px;
+    margin: 0 -16px;
+    padding-left: 16px; padding-right: 16px;
+  }
+  .rec-row > * { scroll-snap-align: start; }
+}
+
+.rec-card {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--paper);
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.rec-card:hover { border-color: var(--rule-2); }
+.rec-card .glyph {
+  grid-row: 1 / span 3;
+  width: 32px; height: 32px;
+  border-radius: 7px;
+  background: color-mix(in oklab, var(--role-color, var(--ink)), transparent 88%);
+  color: var(--role-color, var(--ink));
+  display: grid; place-items: center;
+  font-family: "Geist Mono", monospace;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid color-mix(in oklab, var(--role-color, var(--ink)), transparent 78%);
+}
+.rec-card .nm {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+  display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap;
+}
+.rec-card .kind {
+  font-family: "Geist Mono", monospace;
+  font-size: 10.5px;
+  color: var(--muted);
+  text-transform: lowercase;
+}
+.rec-card .why-line {
+  font-size: 12.5px;
+  color: var(--ink-2);
+  line-height: 1.5;
+  margin: 4px 0 8px;
+}
+.rec-card .why-line strong { color: var(--ink); font-weight: 500; }
+.rec-card .foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rec-card .foot .btn { height: 26px; padding: 0 10px; font-size: 12px; }
+
+/* ---------- STARTER PACKS ---------- */
+.pack-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+.pack-card {
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 20px 20px 18px;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--pack-color, var(--ink));
+  border-radius: 12px;
+  background: var(--paper);
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.pack-card:hover { border-top-color: var(--rule-2); border-right-color: var(--rule-2); border-bottom-color: var(--rule-2); }
+.pack-card .pack-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pack-card .pack-eyebrow {
+  font-family: "Geist Mono", monospace;
+  font-size: 10.5px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+.pack-card h3 {
+  font-family: "Geist", sans-serif;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0;
+}
+.pack-card .pack-desc { font-size: 13px; color: var(--muted); line-height: 1.5; margin: 0; }
+.pack-card .pack-bundle {
+  display: flex; flex-direction: column; gap: 1px;
+  background: var(--rule);
+  border-radius: 7px;
+  overflow: hidden;
+  border: 1px solid var(--rule);
+}
+.pack-card .pack-bundle .row {
+  background: var(--bg);
+  padding: 7px 10px;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 10px;
+  font-family: "Geist Mono", monospace;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  align-items: center;
+}
+.pack-card .pack-bundle .row .kind {
+  color: var(--muted);
+  text-transform: lowercase;
+}
+.pack-card .pack-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule);
+}
+.pack-card .pack-foot .summary { font-family: "Geist Mono", monospace; font-size: 11px; color: var(--muted); }
+
+/* ---------- LIB TOOLBAR ---------- */
+.lib-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.lib-search {
+  display: inline-flex; align-items: center; gap: 10px;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper);
+  width: 100%;
+  cursor: text;
+  transition: border-color 0.15s, background 0.15s;
+}
+.lib-search:focus-within { border-color: var(--ink); background: var(--paper); }
+.lib-search input {
+  flex: 1; min-width: 0;
+  border: none; outline: none; background: transparent;
+  font-family: "Geist", sans-serif;
+  font-size: 14px;
+  color: var(--ink);
+}
+.lib-search input::placeholder { color: var(--muted-2); }
+.lib-search .lib-search-ic { color: var(--muted); }
+.lib-search .clear {
+  background: var(--bg-2); border: 1px solid var(--rule);
+  border-radius: 100px; width: 16px; height: 16px;
+  display: grid; place-items: center; color: var(--muted);
+  cursor: pointer; font-size: 9px;
+}
+
+.lib-toolbar .installed-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: "Geist Mono", monospace;
+  font-size: 12px;
+  padding: 0 12px;
+  height: 38px;
+  border-radius: 8px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.lib-toolbar .installed-pill .box {
+  width: 13px; height: 13px;
+  border: 1.4px solid var(--rule-2);
+  border-radius: 3px;
+  display: grid; place-items: center;
+  color: var(--bg);
+}
+.lib-toolbar .installed-pill.is-on .box { background: var(--ink); border-color: var(--ink); }
+.lib-toolbar .installed-pill .ct { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 760px) {
+  .lib-toolbar { grid-template-columns: 1fr; }
+}
+
+/* ---------- FILTER CHIPS (sidebar/chip row) ---------- */
+.lib-chiprow {
+  display: flex; flex-wrap: wrap; gap: 5px;
+  margin-bottom: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--rule);
+}
+.lib-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: "Geist Mono", monospace;
+  font-size: 11.5px;
+  padding: 5px 10px 5px 9px;
+  border-radius: 100px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.lib-chip:hover { background: var(--bg-2); border-color: var(--rule-2); }
+.lib-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--chip-color, var(--muted-2)); }
+.lib-chip.is-on {
+  background: var(--ink);
+  color: var(--bg);
+  border-color: var(--ink);
+}
+.lib-chip.is-on .dot { background: var(--bg); }
+.lib-chip .ct {
+  font-size: 10.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.lib-chip.is-on .ct { color: color-mix(in oklab, var(--bg), transparent 30%); }
+
+/* ---------- CARD GRID ---------- */
+.lib-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+}
+@media (max-width: 540px) {
+  .lib-grid { grid-template-columns: 1fr; }
+}
+
+.lib-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 14px;
+  padding: 18px 18px 16px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--paper);
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+  text-decoration: none;
+  color: var(--ink);
+}
+.lib-card:hover { border-color: var(--rule-2); }
+.lib-card:focus-visible { outline: 2px solid color-mix(in oklab, var(--accent), transparent 30%); outline-offset: 2px; }
+.lib-card.is-focused { border-color: var(--ink); }
+.lib-card .glyph {
+  grid-row: 1 / span 3;
+  width: 40px; height: 40px;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--role-color, var(--ink)), transparent 88%);
+  color: var(--role-color, var(--ink));
+  display: grid; place-items: center;
+  font-family: "Geist Mono", monospace;
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid color-mix(in oklab, var(--role-color, var(--ink)), transparent 75%);
+  letter-spacing: -0.02em;
+}
+.lib-card .head { display: flex; flex-direction: column; gap: 4px; }
+.lib-card .nm { font-size: 15px; font-weight: 500; color: var(--ink); letter-spacing: -0.01em; }
+.lib-card .by {
+  font-family: "Geist Mono", monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+.lib-card .by .bb { color: var(--ink-2); }
+.lib-card .desc {
+  grid-column: 2;
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.5;
+  margin: 4px 0 12px;
+  text-wrap: pretty;
+}
+.lib-card .schema {
+  grid-column: 2;
+  display: flex; flex-wrap: wrap; gap: 4px;
+  margin-bottom: 14px;
+}
+.lib-card .schema .lab {
+  font-family: "Geist Mono", monospace;
+  font-size: 10.5px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+  margin-right: 4px;
+  align-self: center;
+}
+.lib-card .foot {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule);
+}
+.lib-card .foot .meta {
+  font-family: "Geist Mono", monospace;
+  font-size: 11px;
+  color: var(--muted);
+  display: inline-flex; align-items: center; gap: 10px;
+}
+.lib-card .foot .meta .sep { color: var(--rule-2); }
+.lib-card .install {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: "Geist", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  height: 28px;
+  padding: 0 11px;
+  border-radius: 7px;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--bg);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.lib-card .install:hover { background: color-mix(in oklab, var(--ink), var(--accent) 18%); }
+.lib-card .install.is-installed {
+  background: transparent; color: var(--ok);
+  border-color: color-mix(in oklab, var(--ok), transparent 55%);
+}
+.lib-card .install.is-installed:hover { background: color-mix(in oklab, var(--ok), transparent 90%); }
+.lib-card .install.is-installing { background: var(--bg-2); color: var(--muted); border-color: var(--rule); cursor: progress; }
+
+.lib-card .corner {
+  position: absolute;
+  top: 12px; right: 12px;
+  font-family: "Geist Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  padding: 2px 7px;
+  border-radius: 100px;
+}
+.lib-card .corner.recommended {
+  background: color-mix(in oklab, var(--accent), transparent 88%);
+  color: var(--accent);
+  border: 1px solid color-mix(in oklab, var(--accent), transparent 70%);
+}
+.lib-card .corner.new {
+  background: var(--bg-2);
+  color: var(--ink);
+  border: 1px solid var(--rule-2);
+}
+
+/* schema chip — extends .tag */
+.schema-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: "Geist Mono", monospace;
+  font-size: 11px;
+  padding: 2px 7px 2px 5px;
+  border-radius: 5px;
+  background: color-mix(in oklab, var(--tag-color, var(--ink)), transparent 90%);
+  color: var(--tag-color, var(--ink));
+  border: 1px solid color-mix(in oklab, var(--tag-color, var(--ink)), transparent 75%);
+  white-space: nowrap;
+}
+.schema-chip .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--tag-color, var(--ink)); }
+.schema-chip .direction { color: var(--muted); margin-right: 2px; }
+
+/* installing spinner */
+.lib-spinner {
+  width: 11px; height: 11px;
+  border: 1.5px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: lib-spin 0.7s linear infinite;
+}
+@keyframes lib-spin { to { transform: rotate(360deg); } }
+
+/* ---------- DRAWER ---------- */
+.lib-drawer-scrim {
+  position: fixed; inset: 0;
+  background: color-mix(in oklab, var(--ink), transparent 65%);
+  backdrop-filter: blur(2px);
+  z-index: 80;
+  animation: scrim-in 0.18s ease-out;
+}
+@keyframes scrim-in { from { opacity: 0; } to { opacity: 1; } }
+.lib-drawer {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  width: min(560px, 100vw);
+  background: var(--bg);
+  border-left: 1px solid var(--rule);
+  z-index: 81;
+  display: flex; flex-direction: column;
+  animation: drawer-in 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: -24px 0 48px -24px rgba(20,18,12,0.18);
+}
+@keyframes drawer-in { from { transform: translateX(24px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.lib-drawer-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper);
+}
+.lib-drawer-head .crumb {
+  font-family: "Geist Mono", monospace;
+  font-size: 11px;
+  color: var(--muted);
+  flex: 1;
+}
+.lib-drawer-head .crumb strong { color: var(--ink); font-weight: 500; }
+.lib-drawer-head .close {
+  width: 28px; height: 28px;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  border-radius: 7px;
+  color: var(--ink);
+  cursor: pointer;
+  display: grid; place-items: center;
+}
+.lib-drawer-head .close:hover { background: var(--bg-2); }
+.lib-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 28px 32px;
+}
+.lib-drawer-body .hero-card {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 22px;
+}
+.lib-drawer-body .hero-card .glyph-lg {
+  width: 56px; height: 56px;
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--role-color, var(--ink)), transparent 86%);
+  color: var(--role-color, var(--ink));
+  display: grid; place-items: center;
+  font-family: "Geist Mono", monospace;
+  font-size: 22px;
+  font-weight: 600;
+  border: 1px solid color-mix(in oklab, var(--role-color, var(--ink)), transparent 70%);
+  letter-spacing: -0.03em;
+}
+.lib-drawer-body .hero-card h2 {
+  font-family: "Geist", sans-serif;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0 0 4px;
+}
+.lib-drawer-body .hero-card .sub {
+  font-family: "Geist Mono", monospace;
+  font-size: 11.5px;
+  color: var(--muted);
+  display: inline-flex; align-items: center; gap: 8px;
+  flex-wrap: wrap;
+}
+.lib-drawer-body .hero-card .sub .sep { color: var(--rule-2); }
+
+.lib-drawer-body .lede {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  margin: 0 0 22px;
+  text-wrap: pretty;
+}
+
+.lib-section {
+  border-top: 1px solid var(--rule);
+  padding-top: 18px;
+  margin-top: 22px;
+}
+.lib-section:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+.lib-section .lab {
+  font-family: "Geist Mono", monospace;
+  font-size: 10.5px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  margin-bottom: 10px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+.lib-kv {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 4px 14px;
+  font-family: "Geist Mono", monospace;
+  font-size: 12.5px;
+}
+.lib-kv .k { color: var(--muted); padding: 4px 0; }
+.lib-kv .v { color: var(--ink); padding: 4px 0; }
+.lib-kv .v a { color: var(--accent); text-decoration: none; border-bottom: 1px solid color-mix(in oklab, var(--accent), transparent 60%); }
+.lib-kv .v code, .lib-kv .v .mono {
+  font-family: "Geist Mono", monospace;
+  font-size: 0.92em;
+  background: var(--bg-2);
+  border: 1px solid var(--rule);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.lib-inputs {
+  list-style: none; padding: 0; margin: 0;
+  display: flex; flex-direction: column;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper);
+  overflow: hidden;
+}
+.lib-inputs li {
+  display: grid;
+  grid-template-columns: 24px 160px minmax(0, 1fr);
+  gap: 10px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--rule);
+  align-items: center;
+  font-family: "Geist Mono", monospace;
+  font-size: 12px;
+}
+.lib-inputs li:last-child { border-bottom: none; }
+.lib-inputs li .n { color: var(--muted-2); }
+.lib-inputs li .k { color: var(--ink); }
+.lib-inputs li .desc { color: var(--muted); }
+
+.lib-scope {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+@media (max-width: 540px) { .lib-scope { grid-template-columns: 1fr; } }
+.lib-scope .col {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper);
+  padding: 12px 14px;
+}
+.lib-scope .col .h {
+  font-family: "Geist Mono", monospace;
+  font-size: 10.5px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  margin-bottom: 8px;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.lib-scope .col.allow .h { color: var(--ok); }
+.lib-scope .col.deny .h { color: var(--muted); }
+.lib-scope ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.lib-scope li {
+  font-family: "Geist Mono", monospace;
+  font-size: 12px;
+  color: var(--ink-2);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.lib-scope li::before {
+  content: ""; width: 5px; height: 5px; border-radius: 50%;
+  background: currentColor;
+  margin-right: 2px; opacity: 0.45;
+}
+.lib-scope .col.deny li { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--rule-2); }
+
+.lib-drawer-foot {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--rule);
+  background: var(--paper);
+  flex-wrap: wrap;
+}
+.lib-drawer-foot .left {
+  font-family: "Geist Mono", monospace;
+  font-size: 11px;
+  color: var(--muted);
+  flex: 1;
+}
+.lib-drawer-foot .left strong { color: var(--ink-2); font-weight: 500; }
+
+/* ---------- IMPORT FROM URL SURFACE ---------- */
+.lib-import-stage {
+  display: flex; flex-direction: column; gap: 16px;
+}
+.lib-import-input {
+  display: flex; align-items: stretch; gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--paper);
+}
+.lib-import-input .url-box {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 12px;
+  height: 38px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.lib-import-input .url-box .scheme {
+  font-family: "Geist Mono", monospace;
+  font-size: 12px;
+  color: var(--muted);
+}
+.lib-import-input .url-box input {
+  flex: 1; border: none; outline: none; background: transparent;
+  font-family: "Geist Mono", monospace;
+  font-size: 13px;
+  color: var(--ink);
+}
+.lib-import-progress {
+  display: flex; flex-direction: column;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--paper);
+  overflow: hidden;
+}
+.lib-import-progress .step {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--rule);
+  align-items: center;
+  font-family: "Geist Mono", monospace;
+  font-size: 12.5px;
+}
+.lib-import-progress .step:last-child { border-bottom: none; }
+.lib-import-progress .step .n {
+  width: 22px; height: 22px;
+  border-radius: 5px;
+  border: 1px solid var(--rule);
+  display: grid; place-items: center;
+  background: var(--bg);
+  color: var(--muted-2);
+  font-size: 11px;
+}
+.lib-import-progress .step.done .n { background: var(--ok); border-color: var(--ok); color: var(--bg); }
+.lib-import-progress .step.run .n { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.lib-import-progress .step.err .n { background: var(--err, #b13a3a); border-color: var(--err, #b13a3a); color: var(--bg); }
+.lib-import-progress .step .lbl { color: var(--ink); }
+.lib-import-progress .step.idle .lbl { color: var(--muted-2); }
+.lib-import-progress .step .meta { color: var(--muted); font-size: 11px; }
+
+.lib-import-flag {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in oklab, var(--warn), transparent 65%);
+  background: color-mix(in oklab, var(--warn), transparent 92%);
+  border-radius: 10px;
+  color: color-mix(in oklab, var(--warn), var(--ink) 40%);
+}
+.lib-import-flag .glyph {
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--warn), transparent 60%);
+  color: #fff;
+  font-family: "Geist Mono", monospace;
+  font-weight: 700; font-size: 14px;
+}
+.lib-import-flag .ttl {
+  font-family: "Geist", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: color-mix(in oklab, var(--warn), var(--ink) 60%);
+}
+.lib-import-flag .body { font-size: 12.5px; line-height: 1.55; color: color-mix(in oklab, var(--warn), var(--ink) 50%); margin-top: 4px; }
+.lib-import-flag .acknowledge {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-top: 10px;
+  font-family: "Geist Mono", monospace;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+  color: color-mix(in oklab, var(--warn), var(--ink) 60%);
+}
+.lib-import-flag .acknowledge .box {
+  width: 14px; height: 14px;
+  border: 1.5px solid color-mix(in oklab, var(--warn), transparent 40%);
+  border-radius: 3px;
+  background: var(--paper);
+  display: grid; place-items: center;
+  color: var(--bg);
+}
+.lib-import-flag .acknowledge.is-on .box { background: var(--warn); border-color: var(--warn); }
+
+.lib-skill-preview {
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--code-bg);
+  font-family: "Geist Mono", monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--code-ink);
+  overflow: hidden;
+}
+.lib-skill-preview .head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 14px;
+  border-bottom: 1px solid #26241d;
+  background: #1a1814;
+  color: #9d9787;
+  font-size: 11.5px;
+}
+.lib-skill-preview .head .right { margin-left: auto; color: #6b685b; }
+.lib-skill-preview pre {
+  margin: 0;
+  padding: 16px 18px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+.lib-skill-preview .injected {
+  background: color-mix(in oklab, var(--warn), transparent 65%);
+  color: #ffe9c8;
+  padding: 1px 0;
+}
+
+/* ---------- INSTALLING OVERLAY ---------- */
+.installing-banner {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 16px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--paper);
+  margin-bottom: 16px;
+}
+.installing-banner .glyph {
+  width: 28px; height: 28px;
+  border-radius: 7px;
+  background: color-mix(in oklab, var(--role-color, var(--ink)), transparent 85%);
+  color: var(--role-color, var(--ink));
+  display: grid; place-items: center;
+  font-family: "Geist Mono", monospace; font-weight: 600; font-size: 12px;
+  border: 1px solid color-mix(in oklab, var(--role-color, var(--ink)), transparent 70%);
+}
+.installing-banner .body { font-size: 13px; color: var(--ink-2); }
+.installing-banner .body strong { color: var(--ink); font-weight: 500; }
+.installing-banner .body .sub { font-family: "Geist Mono", monospace; font-size: 11px; color: var(--muted); margin-top: 2px; display: block; }
+.installing-banner .right { display: inline-flex; align-items: center; gap: 8px; }
+
+/* ---------- ERROR BANNER ---------- */
+.error-banner {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in oklab, var(--err, #b13a3a), transparent 60%);
+  background: color-mix(in oklab, var(--err, #b13a3a), transparent 92%);
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+.error-banner .glyph {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--err, #b13a3a), transparent 65%);
+  color: #fff;
+  display: grid; place-items: center;
+  font-family: "Geist Mono", monospace; font-weight: 700; font-size: 14px;
+}
+.error-banner .body { color: color-mix(in oklab, var(--err, #b13a3a), var(--ink) 50%); font-size: 13px; line-height: 1.5; }
+.error-banner .body strong { color: color-mix(in oklab, var(--err, #b13a3a), var(--ink) 70%); font-weight: 500; }
+.error-banner .body .sub { font-family: "Geist Mono", monospace; font-size: 11.5px; margin-top: 4px; }
+
+/* ---------- MOBILE: drawer becomes full sheet ---------- */
+@media (max-width: 640px) {
+  .lib-drawer { width: 100vw; }
+  .lib-drawer-body { padding: 18px 18px 28px; }
+  .lib-drawer-body .hero-card .glyph-lg { width: 48px; height: 48px; font-size: 19px; }
+}
+
+/* ---------- DEVICE PREVIEW (mobile breakpoint mock) ---------- */
+.device-wrap {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+  margin-top: 12px;
+}
+@media (max-width: 920px) { .device-wrap { grid-template-columns: 1fr; } }
+.device-frame {
+  width: 100%;
+  max-width: 360px;
+  margin: 0 auto;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  border-radius: 28px;
+  padding: 14px 8px;
+  box-shadow: 0 12px 40px -24px rgba(20,18,12,0.22);
+}
+.device-frame .notch {
+  width: 96px; height: 22px; margin: 0 auto 8px;
+  background: var(--ink);
+  border-radius: 100px;
+}
+.device-screen {
+  border: 1px solid var(--rule);
+  border-radius: 16px;
+  background: var(--bg);
+  height: 620px;
+  overflow: hidden;
+  position: relative;
+}
+.device-screen .scroller {
+  height: 100%; overflow-y: auto;
+  padding: 14px 12px 18px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.device-label {
+  text-align: center;
+  font-family: "Geist Mono", monospace;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 8px;
 }

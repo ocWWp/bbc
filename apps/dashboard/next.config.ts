@@ -28,6 +28,9 @@ const config: NextConfig = {
       { source: "/bindings", destination: "/settings/bindings", permanent: true },
       { source: "/log",      destination: "/settings/log",      permanent: true },
       { source: "/skills",   destination: "/settings/skills",   permanent: true },
+      // /marketplace becomes /library at launch — the providers directory
+      // (current /marketplace content) re-houses under the Library "Providers" tab.
+      { source: "/marketplace", destination: "/library", permanent: true },
     ];
   },
 };
