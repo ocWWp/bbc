@@ -48,7 +48,7 @@ const CONNECTOR_RULES: Array<{
     connector_id: "webhook-generic",
     connector_name: "Generic Webhook",
     signal_type: "any_count",
-    threshold: 0,
+    threshold: 5,
     reason_code: "no_push_source",
     reason_template: () =>
       `No push-based source installed — a webhook endpoint lets CI / Zapier / custom hooks file memory directly.`,
@@ -69,7 +69,7 @@ export function recommendConnectors(signal: Signal): Recommendation[] {
         (acc, n) => acc + (n ?? 0),
         0,
       );
-      if (count < 5) continue; // catch-all needs at least some memory
+      if (count < rule.threshold) continue; // catch-all needs at least some memory
     } else {
       count = signal.memory_counts_by_type[rule.signal_type] ?? 0;
       if (count < rule.threshold) continue;
