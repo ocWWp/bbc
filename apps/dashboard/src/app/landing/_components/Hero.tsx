@@ -1,4 +1,4 @@
-import { ArrowIcon, CloudflareIcon, GithubIcon } from "./icons";
+import { GithubIcon } from "./icons";
 import { Brain3D } from "./Brain3D";
 import { LANDING_COPY } from "./copy";
 
@@ -24,11 +24,16 @@ export function Hero() {
             </h1>
             <p className="hero-sub">{hero.subhead}</p>
             <div className="hero-ctas">
-              <a className="btn btn-primary btn-lg" href="/auth/signin">
-                <CloudflareIcon /> deploy to cloudflare
+              <a className="btn btn-primary btn-lg" href={hero.cta_primary_href}>
+                {hero.cta_primary_label}
               </a>
-              <a className="btn btn-ghost btn-lg" href="https://github.com/ZethT/bbc" target="_blank" rel="noreferrer">
-                <GithubIcon /> read the source
+              <a
+                className="btn btn-ghost btn-lg"
+                href={hero.cta_secondary_href}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <GithubIcon /> {hero.cta_secondary_label}
               </a>
             </div>
             <div className="hero-meta">
