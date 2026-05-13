@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   CONNECTORS,
   PROV_FILTERS,
@@ -52,6 +52,22 @@ export function LibraryClient({ importedSkills }: LibraryClientProps) {
   const [importFlagged, setImportFlagged] = useState(false);
   const [installingId, setInstallingId] = useState<string | null>(null);
   const [focused, setFocused] = useState<string | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Slash-to-focus: matches the `/` kbd hint shown next to the search input.
+  // Mirrors GitHub / Linear / Vercel dashboard convention.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "/") return;
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+      if (tab === "default") return;
+      e.preventDefault();
+      searchInputRef.current?.focus();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [tab]);
 
   function handleTab(next: Tab) {
     setTab(next);
@@ -298,6 +314,7 @@ export function LibraryClient({ importedSkills }: LibraryClientProps) {
                 <Icons.search />
               </span>
               <input
+                ref={searchInputRef}
                 placeholder={`search ${tab}…`}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
