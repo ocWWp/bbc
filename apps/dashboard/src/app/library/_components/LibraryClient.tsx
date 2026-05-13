@@ -273,7 +273,7 @@ export function LibraryClient({ importedSkills, catalogConnectors }: LibraryClie
 
       {tab === "default" && (
         <>
-          <RecommendedBand onOpen={handleOpen} onInstall={handleInstall} />
+          <RecommendedBand connectors={connectors} onOpen={handleOpen} onInstall={handleInstall} />
           <CategorySlice
             title="Skills"
             tab="skills"
@@ -309,7 +309,7 @@ export function LibraryClient({ importedSkills, catalogConnectors }: LibraryClie
 
       {tab !== "default" && (
         <>
-          {tab !== "providers" && <RecommendedBand small onOpen={handleOpen} onInstall={handleInstall} />}
+          {tab !== "providers" && <RecommendedBand small connectors={connectors} onOpen={handleOpen} onInstall={handleInstall} />}
 
           {/* Toolbar */}
           <div className="lib-toolbar">
@@ -510,15 +510,19 @@ export function LibraryClient({ importedSkills, catalogConnectors }: LibraryClie
 // ---------- Recommended band ----------
 function RecommendedBand({
   small,
+  connectors,
   onOpen,
   onInstall,
 }: {
   small?: boolean;
+  /** Same merged catalog as the main grid so install state stays consistent
+   *  across the page (codex-flagged: rec card used stale static catalog). */
+  connectors: ConnectorItem[];
   onOpen: (item: LibItem) => void;
   onInstall: (item: LibItem) => void;
 }) {
   const sk003 = SKILLS.find((s) => s.id === "sk_003");
-  const co003 = CONNECTORS.find((c) => c.id === "co_003");
+  const co003 = connectors.find((c) => c.id === "co_003");
   const sk005 = SKILLS.find((s) => s.id === "sk_005");
   const sk012 = SKILLS.find((s) => s.id === "sk_012");
 

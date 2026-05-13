@@ -38,6 +38,25 @@ function isInstalled(item: LibItem): boolean {
   return item.installed;
 }
 
+/** Short relative-time formatter for the connector card footer.
+ *  Intentionally tiny (no Intl.RelativeTimeFormat overhead) — the precision
+ *  here is "rough" by design: "5m ago" / "3h ago" / "2d ago". */
+function relativeTime(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return "just now";
+  const sec = Math.floor(ms / 1000);
+  if (sec < 60) return "just now";
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.floor(hr / 24);
+  if (day < 30) return `${day}d ago`;
+  const mo = Math.floor(day / 30);
+  if (mo < 12) return `${mo}mo ago`;
+  return `${Math.floor(mo / 12)}y ago`;
+}
+
 type TagColorStyle = CSSProperties & { "--tag-color"?: string };
 type RoleColorStyle = CSSProperties & { "--role-color"?: string };
 
@@ -161,6 +180,12 @@ export function LibCard({ item, focused, installingId, onOpen, onInstall }: LibC
               <span>{item.license}</span>
               <span className="sep">·</span>
               <span>src · {item.source}</span>
+              {item.installed && item.last_sync_at ? (
+                <>
+                  <span className="sep">·</span>
+                  <span title={item.last_sync_at}>synced {relativeTime(item.last_sync_at)}</span>
+                </>
+              ) : null}
               {item.installed && item.status && item.status !== "ok" ? (
                 <>
                   <span className="sep">·</span>
