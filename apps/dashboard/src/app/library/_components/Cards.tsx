@@ -161,6 +161,23 @@ export function LibCard({ item, focused, installingId, onOpen, onInstall }: LibC
               <span>{item.license}</span>
               <span className="sep">·</span>
               <span>src · {item.source}</span>
+              {item.installed && item.status && item.status !== "ok" ? (
+                <>
+                  <span className="sep">·</span>
+                  <span
+                    className={`conn-status conn-status--${item.status}`}
+                    title={item.last_sync_error ?? item.status}
+                  >
+                    {item.status === "auth_expired"
+                      ? "re-auth"
+                      : item.status === "rate_limited"
+                        ? "rate-limited"
+                        : item.status === "partial"
+                          ? "partial"
+                          : "error"}
+                  </span>
+                </>
+              ) : null}
             </>
           )}
           {isProvider(item) && <span>env · {item.env}</span>}

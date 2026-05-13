@@ -55,11 +55,20 @@ export type ConnectorItem = {
   scopes_yes: string[];
   scopes_no: string[];
   installed: boolean;
+  /** Real framework connector id (e.g. "github", "webhook-generic"). null
+   *  for catalog cards that don't yet have a built implementation —
+   *  the install button on those stays a stub. */
+  connector_id: string | null;
   recommended: boolean;
   badge: "recommended" | "new" | null;
   license: string;
   repo: string;
   glyph: string;
+  /** Populated at page-load time from tenant_connectors. Null when the
+   *  connector isn't installed (or hasn't synced yet). */
+  status?: "ok" | "error" | "partial" | "auth_expired" | "rate_limited" | null;
+  last_sync_at?: string | null;
+  last_sync_error?: string | null;
 };
 
 export type ProviderItem = {
@@ -116,16 +125,37 @@ export const SKILLS: SkillItem[] = [
 ];
 
 export const CONNECTORS: ConnectorItem[] = [
-  { id: "co_001", kind: "connector", source: "docs",    name: "Notion",          author: "BBC",          desc: "Pages → typed memory. Maps databases to supertags; keeps mappings reviewable in /queue.", writes: ["decision", "product", "note", "glossary"], scopes_yes: ["pages", "page content", "databases"], scopes_no: ["comments", "integrations"], installed: true, recommended: false, badge: null, license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/notion", glyph: "N" },
-  { id: "co_002", kind: "connector", source: "code",    name: "GitHub",          author: "BBC",          desc: "Repos → typed memory. ADRs in /docs become decisions; READMEs become product memory.", writes: ["decision", "product", "skill"], scopes_yes: ["read repos", "read PRs", "read issues"], scopes_no: ["write", "admin"], installed: true, recommended: false, badge: null, license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/github", glyph: "G" },
-  { id: "co_003", kind: "connector", source: "tasks",   name: "Linear",          author: "BBC",          desc: "Issues + projects → typed memory. Each project maps to a product row; decisions are pulled from issue comments tagged `adr`.", writes: ["product", "decision", "team"], scopes_yes: ["read issues", "read projects", "read team"], scopes_no: ["write", "admin"], installed: false, recommended: true, badge: "recommended", license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/linear", glyph: "L" },
-  { id: "co_004", kind: "connector", source: "chat",    name: "Slack",           author: "BBC",          desc: "Channels → typed memory. Reactions promote messages to memory; per-channel supertag mapping.", writes: ["decision", "glossary", "note"], scopes_yes: ["channels:read", "users:read"], scopes_no: ["chat:write", "files:read"], installed: false, recommended: false, badge: null, license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/slack", glyph: "#" },
-  { id: "co_005", kind: "connector", source: "webhook", name: "Generic Webhook", author: "BBC",          desc: "POST JSON to a per-workspace endpoint. You map fields to supertags in BBC; we sign every payload.", writes: ["any (mapped)"], scopes_yes: ["–"], scopes_no: ["–"], installed: true, recommended: false, badge: null, license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/webhook", glyph: "⇢" },
-  { id: "co_006", kind: "connector", source: "docs",    name: "Google Drive",    author: "BBC",          desc: "Docs / Sheets → typed memory. Folder-based mapping; new doc = new proposal in /queue.", writes: ["product", "decision", "note"], scopes_yes: ["drive.readonly", "drive.metadata"], scopes_no: ["drive.file (write)", "admin"], installed: false, recommended: false, badge: null, license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/gdrive", glyph: "▤" },
-  { id: "co_007", kind: "connector", source: "email",   name: "Gmail",           author: "@indie-stack", desc: "Labeled threads → typed memory. Pin a label, BBC files anything under it as note rows.", writes: ["note", "vendor", "team"], scopes_yes: ["gmail.readonly (label-scoped)"], scopes_no: ["send", "modify"], installed: false, recommended: false, badge: "new", license: "MIT", repo: "github.com/indie-stack/bbc-gmail", glyph: "@" },
-  { id: "co_008", kind: "connector", source: "chat",    name: "Discord",         author: "community",    desc: "Server channels → glossary + note memory. Useful for community-led product teams.", writes: ["glossary", "note"], scopes_yes: ["messages.read"], scopes_no: ["messages.write"], installed: false, recommended: false, badge: null, license: "MIT", repo: "github.com/agentconnect/discord", glyph: "d" },
-  { id: "co_009", kind: "connector", source: "files",   name: "Local folder",    author: "BBC",          desc: "Self-hosters only. Watch a folder of markdown; every file is one memory.", writes: ["any (frontmatter)"], scopes_yes: ["fs.watch (local)"], scopes_no: ["network"], installed: false, recommended: false, badge: null, license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/fs-watch", glyph: "/" },
+  { id: "co_001", kind: "connector", connector_id: "notion",          source: "docs",    name: "Notion",          author: "BBC",          desc: "Pages → typed memory. Maps databases to supertags; keeps mappings reviewable in /queue.", writes: ["decision", "product", "note", "glossary"], scopes_yes: ["pages", "page content", "databases"], scopes_no: ["comments", "integrations"], installed: false, recommended: false, badge: null, license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/notion", glyph: "N" },
+  { id: "co_002", kind: "connector", connector_id: "github",          source: "code",    name: "GitHub",          author: "BBC",          desc: "Repos → typed memory. ADRs in /docs become decisions; READMEs become product memory.", writes: ["decision", "product", "skill"], scopes_yes: ["read repos", "read PRs", "read issues"], scopes_no: ["write", "admin"], installed: false, recommended: false, badge: null, license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/github", glyph: "G" },
+  { id: "co_003", kind: "connector", connector_id: "linear",          source: "tasks",   name: "Linear",          author: "BBC",          desc: "Issues + projects → typed memory. Each project maps to a product row; decisions are pulled from issue comments tagged `adr`.", writes: ["product", "decision", "team"], scopes_yes: ["read issues", "read projects", "read team"], scopes_no: ["write", "admin"], installed: false, recommended: true, badge: "recommended", license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/linear", glyph: "L" },
+  { id: "co_004", kind: "connector", connector_id: null,              source: "chat",    name: "Slack",           author: "BBC",          desc: "Channels → typed memory. Reactions promote messages to memory; per-channel supertag mapping.", writes: ["decision", "glossary", "note"], scopes_yes: ["channels:read", "users:read"], scopes_no: ["chat:write", "files:read"], installed: false, recommended: false, badge: null, license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/slack", glyph: "#" },
+  { id: "co_005", kind: "connector", connector_id: "webhook-generic", source: "webhook", name: "Generic Webhook", author: "BBC",          desc: "POST JSON to a per-workspace endpoint. You map fields to supertags in BBC; we sign every payload.", writes: ["any (mapped)"], scopes_yes: ["–"], scopes_no: ["–"], installed: false, recommended: false, badge: null, license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/webhook", glyph: "⇢" },
+  { id: "co_006", kind: "connector", connector_id: "drive",           source: "docs",    name: "Google Drive",    author: "BBC",          desc: "Docs / Sheets → typed memory. Folder-based mapping; new doc = new proposal in /queue.", writes: ["product", "decision", "note"], scopes_yes: ["drive.readonly", "drive.metadata"], scopes_no: ["drive.file (write)", "admin"], installed: false, recommended: false, badge: null, license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/gdrive", glyph: "▤" },
+  { id: "co_007", kind: "connector", connector_id: "gmail",           source: "email",   name: "Gmail",           author: "@indie-stack", desc: "Labeled threads → typed memory. Pin a label, BBC files anything under it as note rows.", writes: ["note", "vendor", "team"], scopes_yes: ["gmail.readonly (label-scoped)"], scopes_no: ["send", "modify"], installed: false, recommended: false, badge: "new", license: "MIT", repo: "github.com/indie-stack/bbc-gmail", glyph: "@" },
+  { id: "co_008", kind: "connector", connector_id: null,              source: "chat",    name: "Discord",         author: "community",    desc: "Server channels → glossary + note memory. Useful for community-led product teams.", writes: ["glossary", "note"], scopes_yes: ["messages.read"], scopes_no: ["messages.write"], installed: false, recommended: false, badge: null, license: "MIT", repo: "github.com/agentconnect/discord", glyph: "d" },
+  { id: "co_009", kind: "connector", connector_id: null,              source: "files",   name: "Local folder",    author: "BBC",          desc: "Self-hosters only. Watch a folder of markdown; every file is one memory.", writes: ["any (frontmatter)"], scopes_yes: ["fs.watch (local)"], scopes_no: ["network"], installed: false, recommended: false, badge: null, license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/fs-watch", glyph: "/" },
 ];
+
+/** Merge installed-connector state (from read-tenant-connectors) into the
+ *  static catalog. Catalog entries with no real implementation (connector_id
+ *  === null) stay at installed=false even if a row somehow exists. */
+export function mergeConnectorState(
+  catalog: ConnectorItem[],
+  installed: Map<string, { status: ConnectorItem["status"]; last_sync_at: string | null; last_sync_error: string | null }>,
+): ConnectorItem[] {
+  return catalog.map((c) => {
+    if (!c.connector_id) return { ...c, installed: false };
+    const state = installed.get(c.connector_id);
+    if (!state) return { ...c, installed: false, status: null };
+    return {
+      ...c,
+      installed: true,
+      status: state.status,
+      last_sync_at: state.last_sync_at,
+      last_sync_error: state.last_sync_error,
+    };
+  });
+}
 
 export const PROVIDERS: ProviderItem[] = [
   { id: "pr_001", kind: "provider", role: "llm",       name: "Anthropic",  author: "BBC",       desc: "Claude API — default LLM provider for studios.",            connected: true,  recommended: false, badge: null,           license: "–", env: "ANTHROPIC_KEY", lastTest: "2026-05-09 14:01", glyph: "A" },

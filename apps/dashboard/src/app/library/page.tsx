@@ -1,19 +1,25 @@
 import type { Metadata } from "next";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { readTenantSkills } from "@/lib/skills/read-tenant-skills";
+import { readTenantConnectors } from "@/lib/connectors/read-tenant-connectors";
+import { CONNECTORS, mergeConnectorState } from "./_data";
 import { LibraryClient } from "./_components/LibraryClient";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Library · BBC" };
 
-// Visual port of the Claude Design /library surface. Static catalog cards
-// live in _data.ts; user-imported skills come from tenant_skills via
-// readTenantSkills() and render alongside the catalog.
-//
-// Connectors + Providers wire to their own real-data readers in later W2/W3
-// deliverables. For now they stay on _data.ts mocks.
+// Visual port of the Claude Design /library surface.
+//   - Skills: static catalog + tenant_skills (W2-7 / readTenantSkills).
+//   - Connectors: static catalog overlaid with tenant_connectors install state
+//     (W3-6 / readTenantConnectors) — installed cards surface status badge
+//     + last_sync_at.
+//   - Providers: still on _data.ts mocks; live wiring lands later.
 export default async function LibraryPage() {
   const supabase = await getSupabaseServerClient();
-  const importedSkills = await readTenantSkills(supabase);
-  return <LibraryClient importedSkills={importedSkills} />;
+  const [importedSkills, installedConnectors] = await Promise.all([
+    readTenantSkills(supabase),
+    readTenantConnectors(supabase),
+  ]);
+  const catalogConnectors = mergeConnectorState(CONNECTORS, installedConnectors);
+  return <LibraryClient importedSkills={importedSkills} catalogConnectors={catalogConnectors} />;
 }

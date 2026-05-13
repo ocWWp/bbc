@@ -3264,6 +3264,30 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 }
 @keyframes lib-spin { to { transform: rotate(360deg); } }
 
+/* Per-connector status indicator inside the card footer meta strip.
+   Inline pill that surfaces partial / auth_expired / rate_limited / error
+   states from tenant_connectors.last_sync_status. */
+.conn-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.conn-status--partial,
+.conn-status--rate_limited {
+  background: color-mix(in oklab, var(--t-vendor, #c89020), transparent 85%);
+  color: color-mix(in oklab, var(--t-vendor, #c89020), var(--ink) 30%);
+}
+.conn-status--auth_expired,
+.conn-status--error {
+  background: color-mix(in oklab, var(--t-decision, #c84a32), transparent 85%);
+  color: color-mix(in oklab, var(--t-decision, #c84a32), var(--ink) 30%);
+}
+
 /* ---------- DRAWER ---------- */
 .lib-drawer-scrim {
   position: fixed; inset: 0;

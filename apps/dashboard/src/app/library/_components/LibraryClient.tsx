@@ -39,10 +39,14 @@ const STARTER_PACK_BORDER_STYLE = (color: string): CSSProperties & { "--pack-col
 
 export type LibraryClientProps = {
   importedSkills: SkillItem[];
+  /** Catalog merged with tenant_connectors install state. Defaults to the
+   *  static CONNECTORS array when the server-side reader returns nothing. */
+  catalogConnectors?: ConnectorItem[];
 };
 
-export function LibraryClient({ importedSkills }: LibraryClientProps) {
+export function LibraryClient({ importedSkills, catalogConnectors }: LibraryClientProps) {
   const allSkills = importedSkills.length === 0 ? SKILLS : [...importedSkills, ...SKILLS];
+  const connectors = catalogConnectors ?? CONNECTORS;
   const [tab, setTab] = useState<Tab>("default");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<string>("all");
@@ -93,7 +97,7 @@ export function LibraryClient({ importedSkills }: LibraryClientProps) {
 
   // ---------- list pipeline ----------
   const allItems: LibItem[] =
-    tab === "skills" ? allSkills : tab === "connectors" ? CONNECTORS : tab === "providers" ? PROVIDERS : [];
+    tab === "skills" ? allSkills : tab === "connectors" ? connectors : tab === "providers" ? PROVIDERS : [];
 
   const installedCount = allItems.filter((x) =>
     x.kind === "provider" ? x.connected : x.installed,
@@ -135,7 +139,7 @@ export function LibraryClient({ importedSkills }: LibraryClientProps) {
   function chipCount(key: string): number {
     if (key === "all") return allItems.length;
     if (tab === "skills") return allSkills.filter((s) => s.role === key).length;
-    if (tab === "connectors") return CONNECTORS.filter((c) => c.source === key).length;
+    if (tab === "connectors") return connectors.filter((c) => c.source === key).length;
     if (tab === "providers") return PROVIDERS.filter((p) => p.role === key).length;
     return 0;
   }
@@ -220,7 +224,7 @@ export function LibraryClient({ importedSkills }: LibraryClientProps) {
             [
               { key: "default" as const, lab: "Overview", ct: null as number | null },
               { key: "skills" as const, lab: "Skills", ct: allSkills.length },
-              { key: "connectors" as const, lab: "Connectors", ct: CONNECTORS.length },
+              { key: "connectors" as const, lab: "Connectors", ct: connectors.length },
               { key: "providers" as const, lab: "Providers", ct: PROVIDERS.length },
             ]
           ).map((t) => (
@@ -283,8 +287,8 @@ export function LibraryClient({ importedSkills }: LibraryClientProps) {
           <CategorySlice
             title="Connectors"
             tab="connectors"
-            items={CONNECTORS.slice(0, 3)}
-            total={CONNECTORS.length}
+            items={connectors.slice(0, 3)}
+            total={connectors.length}
             onOpen={handleOpen}
             onInstall={handleInstall}
             installingId={installingId}
