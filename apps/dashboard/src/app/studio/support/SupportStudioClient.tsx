@@ -6,6 +6,7 @@ import { EditWorkflowChat } from "@/components/studio/EditWorkflowChat";
 import { ActiveOverridesPill } from "@/components/studio/ActiveOverridesPill";
 import type { OutputBlock } from "@/lib/studio/output-blocks";
 import type { ClientSupportTemplate } from "@/lib/studio/support-templates/registry";
+import { CitationChip } from "@/components/studio/CitationChip";
 import {
   deactivateSupportStudioOverride,
   listActiveSupportOverrides,
@@ -339,12 +340,15 @@ function ReviewView({
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
             Cited memories ({cited.length})
           </h3>
-          <ul className="space-y-1">
-            {cited.map((c) => (
-              <li key={c.id} className="text-sm">
-                <span className="text-muted-foreground">{c.type ?? "memory"}</span>
-                <span className="mx-2">·</span>
-                <span>{c.title}</span>
+          <ul className="flex flex-wrap gap-2">
+            {cited.map((c, i) => (
+              <li key={c.id}>
+                <CitationChip
+                  memoryId={c.id}
+                  type={c.type}
+                  label={c.title}
+                  citationNumber={i + 1}
+                />
               </li>
             ))}
           </ul>

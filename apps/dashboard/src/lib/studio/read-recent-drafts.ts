@@ -61,14 +61,14 @@ export async function readRecentDrafts(role: StudioRole, limit = 10): Promise<Re
 
   if (error) return [];
 
-  return (data ?? []).map((r) => {
-    const row = r as {
-      id: string;
-      template_id: string;
-      status: string;
-      output_blocks: unknown;
-      created_at: string | null;
-    };
+  type Row = {
+    id: string;
+    template_id: string;
+    status: string;
+    output_blocks: unknown;
+    created_at: string | null;
+  };
+  return ((data ?? []) as Row[]).map((row) => {
     return {
       id: row.id,
       title: extractTitleFromOutputBlocks(row.output_blocks) ?? `${row.template_id} draft`,

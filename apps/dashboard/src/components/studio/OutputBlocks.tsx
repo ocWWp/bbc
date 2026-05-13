@@ -117,7 +117,7 @@ function CitationStrip({
           .map((m) => (
             <li key={m.id}>
               <Link
-                href={`/memory/${m.id}`}
+                href={`/brain/${m.id}`}
                 className="inline-flex items-center gap-1.5 rounded-full border bg-background px-2.5 py-1 text-xs font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
               >
                 <span className="tabular-nums text-muted-foreground">

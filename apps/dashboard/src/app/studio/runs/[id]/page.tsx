@@ -214,7 +214,7 @@ export default async function StudioRunPage({
           {cited.map((c) => (
             <Link
               key={c.id}
-              href={`/memory/${c.id}`}
+              href={`/brain/${c.id}`}
               className="card-row"
               style={{
                 display: "flex",

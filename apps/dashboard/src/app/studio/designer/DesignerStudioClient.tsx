@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import type { OutputBlock } from "@/lib/studio/output-blocks";
 import type { ClientDesignerTemplate } from "@/lib/studio/designer-templates/registry";
 import { runDesignerWorkflow, type CitedMemoryRef } from "./actions";
+import { CitationChip } from "@/components/studio/CitationChip";
 
 export type RecentDesignerRun = {
   id: string;
@@ -275,12 +276,15 @@ function ReviewView({
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
             Cited memories ({cited.length})
           </h3>
-          <ul className="space-y-1">
-            {cited.map((c) => (
-              <li key={c.id} className="text-sm">
-                <span className="text-muted-foreground">{c.type ?? "memory"}</span>
-                <span className="mx-2">·</span>
-                <span>{c.title}</span>
+          <ul className="flex flex-wrap gap-2">
+            {cited.map((c, i) => (
+              <li key={c.id}>
+                <CitationChip
+                  memoryId={c.id}
+                  type={c.type}
+                  label={c.title}
+                  citationNumber={i + 1}
+                />
               </li>
             ))}
           </ul>

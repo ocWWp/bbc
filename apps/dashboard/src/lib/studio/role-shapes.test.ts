@@ -74,11 +74,11 @@ describe("ROLE_SHAPES — invariants", () => {
   it("sidebar itemsFromBrain functions tolerate an empty brain", () => {
     const emptyBrain = {
       voice: undefined,
-      recent_decisions: [],
-      vendors: [],
-      team: [],
+      recent_decisions: [] as Array<{ id: string; title: string; decision: string }>,
+      vendors: [] as Array<{ id: string; name: string; role: string }>,
+      team: [] as Array<{ id: string; name: string; role: string }>,
       glossary: undefined,
-    } as const;
+    };
     for (const r of STUDIO_ROLES) {
       for (const section of ROLE_SHAPES[r].sidebarSections) {
         const items = section.itemsFromBrain(emptyBrain);
