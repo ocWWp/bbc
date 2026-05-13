@@ -1,6 +1,6 @@
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
-export type Role = "admin" | "member" | "viewer";
+export type Role = "admin" | "operator" | "member" | "viewer";
 
 export type Actor = {
   user_id: string;
@@ -88,10 +88,14 @@ export async function requireActor(): Promise<
 
 /**
  * Server-action gate: require a tenant role of at least `min`.
- * Hierarchy: admin > member > viewer.
+ * Hierarchy: admin > operator > member > viewer.
+ *
+ * Per ADR-0012: 'operator' sits between admin and member. Existing 'member'
+ * rows migrate to 'operator' in 0038. The new 'member' role is read-only-
+ * plus-propose for invited teammates.
  */
 export function requireRole(actor: Actor, min: Role): { ok: true } | { ok: false; output: string } {
-  const rank: Record<Role, number> = { viewer: 0, member: 1, admin: 2 };
+  const rank: Record<Role, number> = { viewer: 0, member: 1, operator: 2, admin: 3 };
   if (rank[actor.role] < rank[min]) {
     return {
       ok: false,
