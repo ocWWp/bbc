@@ -7,7 +7,7 @@ import {
 import { registerTemplate } from "./registry";
 
 const template: Template = {
-  id: "linkedin-announcement",
+  id: "marketing:linkedin-announcement",
   label: "LinkedIn announcement",
   hint: "A LinkedIn post for launches, fundraises, hires, milestones. Picks this when the audience is professional/B2B.",
   kind: "linkedin_post",

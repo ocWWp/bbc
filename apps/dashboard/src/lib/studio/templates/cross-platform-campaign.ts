@@ -7,7 +7,7 @@ import {
 import { registerTemplate } from "./registry";
 
 const template: Template = {
-  id: "cross-platform-campaign",
+  id: "marketing:cross-platform-campaign",
   label: "Cross-platform campaign",
   hint: "Same announcement, native to multiple platforms (X + LinkedIn + Threads). Picks this for launches, fundraises, big news.",
   kind: "x_post", // primary kind; the renderer detects multi-output and lays out a stack

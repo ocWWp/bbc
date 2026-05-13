@@ -161,16 +161,16 @@ describe("designer writeback emitters", () => {
 
 describe("marketing writeback emitters", () => {
   const marketingIds = [
-    "blog-post-draft",
-    "cross-platform-campaign",
-    "custom",
-    "hashtag-strategy",
-    "linkedin-announcement",
-    "reel-script",
-    "single-x-post",
-    "threads-post",
-    "tweet-thread",
-    "voice-consistency-check",
+    "marketing:blog-post-draft",
+    "marketing:cross-platform-campaign",
+    "marketing:custom",
+    "marketing:hashtag-strategy",
+    "marketing:linkedin-announcement",
+    "marketing:reel-script",
+    "marketing:single-x-post",
+    "marketing:threads-post",
+    "marketing:tweet-thread",
+    "marketing:voice-consistency-check",
   ];
 
   for (const id of marketingIds) {
@@ -187,10 +187,10 @@ describe("marketing writeback emitters", () => {
   }
 
   it("tweet-thread output is rendered as a numbered list in audit content", async () => {
-    const e = getWritebackEmitter("tweet-thread")!;
+    const e = getWritebackEmitter("marketing:tweet-thread")!;
     const inserts: { table: string; row: Record<string, unknown> }[] = [];
     await e.emit(
-      ctx("tweet-thread", { tone: "punchy" }, [
+      ctx("marketing:tweet-thread", { tone: "punchy" }, [
         {
           kind: "x_thread",
           props: {
@@ -207,10 +207,10 @@ describe("marketing writeback emitters", () => {
   });
 
   it("blog-post-draft output is rendered with title and body in audit content", async () => {
-    const e = getWritebackEmitter("blog-post-draft")!;
+    const e = getWritebackEmitter("marketing:blog-post-draft")!;
     const inserts: { table: string; row: Record<string, unknown> }[] = [];
     await e.emit(
-      ctx("blog-post-draft", { target_words: "800-1200" }, [
+      ctx("marketing:blog-post-draft", { target_words: "800-1200" }, [
         {
           kind: "blog_draft",
           props: {

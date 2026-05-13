@@ -7,7 +7,7 @@ import {
 import { registerTemplate } from "./registry";
 
 const template: Template = {
-  id: "threads-post",
+  id: "marketing:threads-post",
   label: "Threads post",
   hint: "A Meta Threads post. Picks this when audience skews creator/lifestyle or the founder explicitly mentions Threads.",
   kind: "threads_post",

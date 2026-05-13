@@ -7,7 +7,7 @@ import {
 import { registerTemplate } from "./registry";
 
 const template: Template = {
-  id: "voice-consistency-check",
+  id: "marketing:voice-consistency-check",
   label: "Voice consistency check",
   hint: "Takes a draft the founder already wrote and lints it against the brand voice memory. Picks this when the task mentions reviewing/checking/auditing existing copy.",
   kind: "plain",

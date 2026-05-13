@@ -7,7 +7,7 @@ import {
 import { registerTemplate } from "./registry";
 
 const template: Template = {
-  id: "blog-post-draft",
+  id: "marketing:blog-post-draft",
   label: "Blog post draft",
   hint: "A long-form blog post draft. Picks this for product announcements with depth, technical posts, behind-the-scenes write-ups.",
   kind: "blog_draft",

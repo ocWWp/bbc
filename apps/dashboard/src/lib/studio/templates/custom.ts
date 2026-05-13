@@ -10,7 +10,7 @@ import { registerTemplate } from "./registry";
 // "Custom" option in design doc §6. proposeWorkflows only picks this when no
 // other template fits the task well.
 const template: Template = {
-  id: "custom",
+  id: "marketing:custom",
   label: "Custom (free chat)",
   hint: "Fallback when no specific format fits. Picks this only when the task is too unusual for any of the other 9 templates.",
   kind: "plain",

@@ -7,7 +7,7 @@ import {
 import { registerTemplate } from "./registry";
 
 const template: Template = {
-  id: "tweet-thread",
+  id: "marketing:tweet-thread",
   label: "Tweet thread",
   hint: "A multi-post thread on X. Picks this for narrative, technical walkthroughs, multi-point arguments.",
   kind: "x_thread",

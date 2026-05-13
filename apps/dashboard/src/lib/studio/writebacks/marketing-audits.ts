@@ -113,15 +113,18 @@ function makeMarketingAudit(templateId: string, label: string): WritebackEmitter
 // Register every marketing template. Side-effect on import. Keeping the
 // list explicit (instead of looping over the marketing template registry)
 // so adding a writeback is a deliberate, reviewable action.
-registerWritebackEmitter(makeMarketingAudit("blog-post-draft", "Blog post"));
-registerWritebackEmitter(makeMarketingAudit("cross-platform-campaign", "Cross-platform campaign"));
-registerWritebackEmitter(makeMarketingAudit("custom", "Custom marketing run"));
-registerWritebackEmitter(makeMarketingAudit("hashtag-strategy", "Hashtag strategy"));
-registerWritebackEmitter(makeMarketingAudit("linkedin-announcement", "LinkedIn announcement"));
-registerWritebackEmitter(makeMarketingAudit("reel-script", "Reel script"));
-registerWritebackEmitter(makeMarketingAudit("single-x-post", "X post"));
-registerWritebackEmitter(makeMarketingAudit("threads-post", "Threads post"));
-registerWritebackEmitter(makeMarketingAudit("tweet-thread", "Tweet thread"));
-registerWritebackEmitter(makeMarketingAudit("voice-consistency-check", "Voice check"));
+// Template ids carry the "marketing:" prefix after 0041_marketing_template_id_prefix.
+// acceptStudioRun() looks up emitters by run.template_id; without the prefix here,
+// prefixed runs would silently lose their writebacks (codex R3 caught this).
+registerWritebackEmitter(makeMarketingAudit("marketing:blog-post-draft", "Blog post"));
+registerWritebackEmitter(makeMarketingAudit("marketing:cross-platform-campaign", "Cross-platform campaign"));
+registerWritebackEmitter(makeMarketingAudit("marketing:custom", "Custom marketing run"));
+registerWritebackEmitter(makeMarketingAudit("marketing:hashtag-strategy", "Hashtag strategy"));
+registerWritebackEmitter(makeMarketingAudit("marketing:linkedin-announcement", "LinkedIn announcement"));
+registerWritebackEmitter(makeMarketingAudit("marketing:reel-script", "Reel script"));
+registerWritebackEmitter(makeMarketingAudit("marketing:single-x-post", "X post"));
+registerWritebackEmitter(makeMarketingAudit("marketing:threads-post", "Threads post"));
+registerWritebackEmitter(makeMarketingAudit("marketing:tweet-thread", "Tweet thread"));
+registerWritebackEmitter(makeMarketingAudit("marketing:voice-consistency-check", "Voice check"));
 
 export { formatBlocksForAudit, makeMarketingAudit };

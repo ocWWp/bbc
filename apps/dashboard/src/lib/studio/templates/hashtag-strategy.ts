@@ -7,7 +7,7 @@ import {
 import { registerTemplate } from "./registry";
 
 const template: Template = {
-  id: "hashtag-strategy",
+  id: "marketing:hashtag-strategy",
   label: "Hashtag strategy",
   hint: "Recommends hashtags for a given platform mix and topic. Picks this when the task explicitly mentions hashtags or discoverability.",
   kind: "plain",

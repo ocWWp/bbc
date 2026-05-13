@@ -7,7 +7,7 @@ import {
 import { registerTemplate } from "./registry";
 
 const template: Template = {
-  id: "single-x-post",
+  id: "marketing:single-x-post",
   label: "Single X post",
   hint: "One self-contained X post (≤280 chars). Picks this for launches, hot takes, single announcements.",
   kind: "x_post",

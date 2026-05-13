@@ -7,7 +7,7 @@ import {
 import { registerTemplate } from "./registry";
 
 const template: Template = {
-  id: "reel-script",
+  id: "marketing:reel-script",
   label: "Reel / short script",
   hint: "A short-form video script (Reels, TikTok, Shorts). Picks this for product demos, hot takes, day-in-the-life style.",
   kind: "script",
