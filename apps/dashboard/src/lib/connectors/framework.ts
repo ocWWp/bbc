@@ -215,8 +215,18 @@ export async function runSync(
         await connector.refresh_token(row.external_account_id);
       } catch (err) {
         const e = err as Error;
-        const status: SyncStatus = e.name === "AuthExpiredError" ? "auth_expired" : "error";
-        const msg = status === "auth_expired" ? "auth_expired" : `token refresh failed: ${e.message}`;
+        const status: SyncStatus =
+          e.name === "AuthExpiredError"
+            ? "auth_expired"
+            : e.name === "RateLimitError"
+              ? "rate_limited"
+              : "error";
+        const msg =
+          status === "auth_expired"
+            ? "auth_expired"
+            : status === "rate_limited"
+              ? "rate_limited during token refresh"
+              : `token refresh failed: ${e.message}`;
         await db.updateSyncState(tenant_id, row.id, {
           last_sync_at: clock.now(),
           last_sync_status: status,
@@ -236,7 +246,11 @@ export async function runSync(
 
   const flush = async (): Promise<void> => {
     if (buffer.length === 0) return;
-    const { committed, skipped_count } = await commitBatch(buffer, db, tenant_id, row.id);
+    // Bound the commit by remaining cap budget so a single oversized batch can't
+    // overshoot max_proposals_per_sync. Items past the cap are dropped entirely;
+    // they neither commit nor count as skipped duplicates.
+    const remaining = Math.max(0, maxProposals - emitted);
+    const { committed, skipped_count } = await commitBatch(buffer, db, tenant_id, row.id, remaining);
     emitted += committed;
     skipped += skipped_count;
     buffer = [];
@@ -327,7 +341,9 @@ async function commitBatch(
   db: ConnectorDb,
   tenant_id: string,
   connector_row_id: string,
+  remaining_budget: number,
 ): Promise<{ committed: number; skipped_count: number }> {
+  if (remaining_budget <= 0) return { committed: 0, skipped_count: 0 };
   const refs = Array.from(new Set(proposals.map((p) => p.source_ref)));
   const existing = await db.existingSourceRefs(tenant_id, refs);
   let committed = 0;
@@ -337,6 +353,7 @@ async function commitBatch(
       skipped++;
       continue;
     }
+    if (committed >= remaining_budget) break; // cap reached — drop the rest of the batch
     await db.commitProposal(tenant_id, connector_row_id, p);
     existing.add(p.source_ref); // guard against intra-batch duplicates
     committed++;

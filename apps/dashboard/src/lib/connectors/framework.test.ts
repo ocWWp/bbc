@@ -363,6 +363,24 @@ describe("runSync — max cap", () => {
     expect(result.cursor).toBeNull();
   });
 
+  it("enforces the cap even when a single batch yields more than max_proposals (codex-flagged)", async () => {
+    const { db, committed } = makeDb();
+    const connector = makeConnector({
+      max_proposals_per_sync: 3,
+      async *sync(_ctx) {
+        // 10 proposals, no checkpoints — they all land in one batch flush.
+        for (const id of ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"]) {
+          yield { kind: "proposal", proposal: proposal(id) };
+        }
+      },
+    });
+    // Default dedup_batch_size (50) > cap (3) — without the cap guard inside
+    // commitBatch the flush would commit all 10.
+    const result = await runSync(connector, "t1", db);
+    expect(result.status).toBe("ok");
+    expect(committed.map((p) => p.source_ref)).toEqual(["a", "b", "c"]);
+  });
+
   it("opts.max_proposals overrides the connector default and stops at the last seen checkpoint", async () => {
     const { db, committed } = makeDb();
     const connector = makeConnector({
@@ -414,6 +432,26 @@ describe("runSync — token refresh", () => {
     const connector = makeConnector({ refresh_token: refresh });
     await runSync(connector, "t1", db);
     expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("marks rate_limited when refresh throws RateLimitError (codex-flagged)", async () => {
+    const expiring = new Date(Date.now() + 60 * 60 * 1000);
+    const { db, patches } = makeDb({
+      row: { id: "row-1", external_account_id: "acc-1", sync_state: {} },
+      tokenExpiry: expiring,
+    });
+    const { RateLimitError } = await import("./framework");
+    const connector = makeConnector({
+      refresh_token: async () => {
+        throw new RateLimitError(5_000);
+      },
+    });
+    const result = await runSync(connector, "t1", db);
+    expect(result.status).toBe("rate_limited");
+    expect(result.emitted).toBe(0);
+    const final = patches[patches.length - 1];
+    expect(final.last_sync_status).toBe("rate_limited");
+    expect(final.last_sync_error).toMatch(/refresh/i);
   });
 
   it("marks auth_expired when refresh throws AuthExpiredError", async () => {
