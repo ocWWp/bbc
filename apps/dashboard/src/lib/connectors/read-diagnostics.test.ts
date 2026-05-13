@@ -32,8 +32,17 @@ function fakeSupabase(opts: {
       return builder;
     }
     if (table === "webhook_dead_letters") {
+      // Mirror PostgREST pagination: .select(...).range(lo, hi) returns the
+      // slice [lo..hi] of opts.dlq. The reader pages in 1000-row strides
+      // until a short page comes back.
       const builder = {
-        select: () => Promise.resolve({ data: opts.dlq ?? null, error: opts.dlqErr ?? null }),
+        select: () => ({
+          range: (lo: number, hi: number) => {
+            if (opts.dlqErr) return Promise.resolve({ data: null, error: opts.dlqErr });
+            const all = opts.dlq ?? [];
+            return Promise.resolve({ data: all.slice(lo, hi + 1), error: null });
+          },
+        }),
       };
       return builder;
     }
@@ -107,6 +116,21 @@ describe("readDiagnostics", () => {
     );
     expect(out.total_dlq).toBe(2);
     expect(out.dlq_by_reason.rate_limited).toBe(1);
+  });
+
+  it("pages past the PostgREST 1000-row default to count all DLQ rows (codex [P2])", async () => {
+    // 2,500 DLQ rows: more than 2 full pages + a partial third.
+    const big: DlqRow[] = [];
+    for (let i = 0; i < 2_500; i++) {
+      big.push({ connector_id: "row-1", reason: i % 2 === 0 ? "invalid_signature" : "rate_limited" });
+    }
+    const out = await readDiagnostics(
+      fakeSupabase({ connectors: [sampleConnector({ id: "row-1" })], dlq: big }),
+    );
+    expect(out.total_dlq).toBe(2_500);
+    expect(out.dlq_by_reason.invalid_signature).toBe(1_250);
+    expect(out.dlq_by_reason.rate_limited).toBe(1_250);
+    expect(out.connectors[0].dlq_count).toBe(2_500);
   });
 
   it("treats DLQ DB error as no-DLQ-rows (connectors still returned)", async () => {

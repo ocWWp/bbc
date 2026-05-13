@@ -70,21 +70,29 @@ export async function readDiagnostics(supabase: SupabaseClient): Promise<Diagnos
   // Fetch DLQ rows for THIS tenant (RLS narrows). We only need (connector_id,
   // reason) to compute the two aggregates; the row body is intentionally
   // excluded — there can be thousands.
-  const { data: rawDlq, error: dlqErr } = await supabase
-    .from("webhook_dead_letters")
-    .select("connector_id, reason");
-
+  //
+  // Codex [P2]: an unbounded select silently caps at the PostgREST
+  // max_rows (default 1000), so totals + per-reason counts would
+  // under-report on a noisy tenant exactly when the diagnostics page is
+  // most useful. Page through with .range() until we get a short page.
   const dlqByConnector = new Map<string, number>();
   const dlqByReason: Record<DiagnosticsReason, number> = emptyReasonCounts();
   let total = 0;
-  if (!dlqErr && Array.isArray(rawDlq)) {
-    for (const row of rawDlq as DlqRaw[]) {
+  const PAGE = 1_000;
+  for (let offset = 0; ; offset += PAGE) {
+    const { data: page, error: dlqErr } = await supabase
+      .from("webhook_dead_letters")
+      .select("connector_id, reason")
+      .range(offset, offset + PAGE - 1);
+    if (dlqErr || !Array.isArray(page)) break;
+    for (const row of page as DlqRaw[]) {
       dlqByConnector.set(row.connector_id, (dlqByConnector.get(row.connector_id) ?? 0) + 1);
       if (isKnownReason(row.reason)) {
         dlqByReason[row.reason]++;
       }
       total++;
     }
+    if (page.length < PAGE) break;
   }
 
   const connectors: DiagnosticsRow[] = (rawConnectors as ConnectorRaw[]).map((c) => ({

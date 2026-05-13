@@ -23,14 +23,23 @@
 --   - 3 pending recommendations
 --
 -- Usage (local dev):
---   1. Sign up + sign in locally so auth.users has a row for you.
---   2. In Supabase SQL editor:  select public.seed_demo_tenant(auth.uid());
+--   1. Sign up + sign in locally so you have an auth.users row + profile.
+--   2. In the Supabase SQL editor (which runs as service_role), grab your
+--      user id and run the seed:
+--        select id from auth.users where email = 'you@example.com';
+--        select public.seed_demo_tenant('<that-uuid>');
+--      Note: codex [P2] flagged the earlier "auth.uid()" form — that
+--      returns null inside the SQL editor (service role), and the
+--      function is revoked from authenticated callers. Pass the UUID
+--      explicitly.
 --   3. Reload /library — populated dashboard.
---   4. To reset the fixture:    select public.reset_demo_tenant(auth.uid());
+--   4. To reset the fixture: select public.reset_demo_tenant('<that-uuid>').
 --
 -- Idempotent: re-running seed_demo_tenant() returns the existing tenant id
--- if one already exists for the given owner; reset_demo_tenant() deletes
--- and re-seeds in one call.
+-- if one already exists; reset_demo_tenant() deletes and re-seeds in one
+-- call. Both helpers repoint the caller's profile + tenant_members rows
+-- so requireActor() resolves the demo tenant on the next request (codex
+-- [P2]: without that, the dashboard kept loading the pre-existing tenant).
 --
 -- Spec: docs/plans/2026-05-12-bbc-launch-plan.md §3 / Week 7
 
@@ -45,16 +54,52 @@ security definer
 set search_path = public, auth
 as $$
 declare
-  v_tenant_id uuid;
+  v_old_tenant_id uuid;
+  v_new_tenant_id uuid;
 begin
   if p_owner_user_id is null then
     raise exception 'invalid_input: owner user id required' using errcode = 'P0006';
   end if;
-  -- Delete on cascade handles memory_files, tenant_members, tenant_skills,
-  -- tenant_connectors, recommendations, queue_items, etc. — all FK'd to
-  -- tenants.id with on delete cascade.
-  delete from public.tenants where slug = 'demo-acme' returning id into v_tenant_id;
-  return public.seed_demo_tenant(p_owner_user_id);
+
+  select id into v_old_tenant_id from public.tenants where slug = 'demo-acme';
+
+  -- Codex [P2]: profiles.tenant_id has ON DELETE CASCADE on tenants. If we
+  -- just delete the tenant, every profile pointing at demo-acme is wiped
+  -- (including the caller's), and requireActor() fails on the next page
+  -- load with "missing profile". Snapshot the affected profiles first.
+  if v_old_tenant_id is not null then
+    create temp table _demo_profile_snapshot on commit drop as
+    select user_id, provider, identifier, display_name, avatar_url
+    from public.profiles
+    where tenant_id = v_old_tenant_id;
+
+    -- Delete on cascade now handles memory_files, tenant_members, tenant_skills,
+    -- tenant_connectors, recommendations, queue_items, and the snapshotted
+    -- profile rows.
+    delete from public.tenants where id = v_old_tenant_id;
+  end if;
+
+  v_new_tenant_id := public.seed_demo_tenant(p_owner_user_id);
+
+  -- Repoint every snapshotted profile at the new tenant (re-seeds the
+  -- caller's profile too, on the off-chance they were already a member).
+  if v_old_tenant_id is not null then
+    insert into public.profiles (user_id, tenant_id, provider, identifier, display_name, avatar_url)
+    select s.user_id, v_new_tenant_id, s.provider, s.identifier, s.display_name, s.avatar_url
+    from _demo_profile_snapshot s
+    on conflict (user_id) do update set tenant_id = excluded.tenant_id;
+
+    -- Ensure each snapshotted user is still a member of the new tenant
+    -- (the caller is guaranteed admin by seed_demo_tenant; others come
+    -- back as members).
+    insert into public.tenant_members (tenant_id, user_id, role)
+    select v_new_tenant_id, s.user_id,
+      case when s.user_id = p_owner_user_id then 'admin'::public.tenant_role else 'member'::public.tenant_role end
+    from _demo_profile_snapshot s
+    on conflict (tenant_id, user_id) do nothing;
+  end if;
+
+  return v_new_tenant_id;
 end
 $$;
 
@@ -91,6 +136,10 @@ begin
     insert into public.tenant_members (tenant_id, user_id, role)
     values (v_existing, p_owner_user_id, 'admin')
     on conflict (tenant_id, user_id) do nothing;
+    -- Codex [P2]: also repoint profiles.tenant_id at the demo tenant.
+    -- Without this, requireActor() reads the old profiles.tenant_id and
+    -- the dashboard keeps loading the pre-existing tenant.
+    update public.profiles set tenant_id = v_existing where user_id = p_owner_user_id;
     return v_existing;
   end if;
 
@@ -101,6 +150,12 @@ begin
 
   insert into public.tenant_members (tenant_id, user_id, role)
     values (v_tenant_id, p_owner_user_id, 'admin');
+
+  -- Codex [P2]: repoint the caller's profile at the demo tenant so
+  -- requireActor() resolves it (it reads profiles.tenant_id, not the
+  -- first tenant_members row). Otherwise the dashboard would keep
+  -- loading the empty signup tenant.
+  update public.profiles set tenant_id = v_tenant_id where user_id = p_owner_user_id;
 
   -- 2. Voice (8) — what Acme sounds like
   insert into public.memory_files (tenant_id, path, content, frontmatter, type, title, slug, status, fields) values
