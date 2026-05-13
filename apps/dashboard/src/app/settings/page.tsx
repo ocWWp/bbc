@@ -121,7 +121,7 @@ export default async function SettingsGeneral() {
         </div>
       </div>
 
-      {isHostedDemoMode() && (
+      {isHostedDemoMode() && a.actor.tenant_slug === "demo-acme" && (
         <div className="set-block">
           <div className="set-block-head">
             <div>

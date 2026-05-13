@@ -13,16 +13,23 @@ import { isHostedDemoMode } from "@/lib/secrets/tenant-keys";
  * authenticated/anon (defined in supabase/seed/demo-tenant.sql); we invoke
  * it through the service-role adminClient.
  *
- * Gating:
- *   - requireActor + requireRole(admin). Members can't reset.
- *   - isHostedDemoMode() gate. On self-host (BBC_HOSTED_DEMO_MODE != true)
- *     the action refuses, even for admins — there's no demo tenant to reset.
+ * Gating (must pass ALL):
+ *   1. isHostedDemoMode() — on self-host the demo tenant doesn't exist.
+ *   2. requireActor + requireRole(admin) — members can't reset.
+ *   3. Caller's tenant_slug === DEMO_TENANT_SLUG. **Codex [P1]:** without
+ *      this, any tenant admin on the hosted demo could call this action and
+ *      (a) wipe the shared demo out from under other users, (b) get
+ *      themselves repointed into the freshly-seeded demo tenant as admin.
+ *      The RPC ignores the caller's current tenant_id — it always targets
+ *      `slug='demo-acme'` — so the safety gate has to live here.
  *
  * On success, every tenant_members + memory_files row in the demo tenant
  * is replaced, and the caller's profile is repointed at the new tenant_id
  * (the SQL function handles the profile snapshot/restore). Re-revalidate
  * the routes that read tenant state.
  */
+const DEMO_TENANT_SLUG = "demo-acme";
+
 export type ResetDemoResult =
   | { ok: true; newTenantId: string }
   | { ok: false; error: string };
@@ -36,6 +43,9 @@ export async function resetDemoTenant(): Promise<ResetDemoResult> {
   if (!a.ok) return { ok: false, error: a.output };
   const r = requireRole(a.actor, "admin");
   if (!r.ok) return { ok: false, error: r.output };
+  if (a.actor.tenant_slug !== DEMO_TENANT_SLUG) {
+    return { ok: false, error: "reset_demo_tenant can only be called from the demo tenant" };
+  }
 
   const supabase = adminClient();
   const { data, error } = await supabase.rpc("reset_demo_tenant", {
