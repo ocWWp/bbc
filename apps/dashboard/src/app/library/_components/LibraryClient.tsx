@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
 import {
   CONNECTORS,
   PROV_FILTERS,
@@ -21,6 +21,8 @@ import { Icons } from "./Icons";
 import { LibCard, RecCard } from "./Cards";
 import { DetailDrawer } from "./DetailDrawer";
 import { ImportDrawer } from "./ImportDrawer";
+import type { PendingRec } from "@/lib/loop3/read-recommendations";
+import { dismissRecommendationAction } from "@/lib/loop3/actions";
 
 type Tab = "default" | "skills" | "connectors" | "providers";
 
@@ -42,11 +44,43 @@ export type LibraryClientProps = {
   /** Catalog merged with tenant_connectors install state. Defaults to the
    *  static CONNECTORS array when the server-side reader returns nothing. */
   catalogConnectors?: ConnectorItem[];
+  /** Pending recommendations from the W4-3 lifecycle. Empty = fall back to
+   *  the legacy hardcoded carousel so dev / new-tenant first paint isn't
+   *  blank while the visit-trigger has yet to populate. */
+  recommendations?: PendingRec[];
 };
 
-export function LibraryClient({ importedSkills, catalogConnectors }: LibraryClientProps) {
+export function LibraryClient({
+  importedSkills,
+  catalogConnectors,
+  recommendations,
+}: LibraryClientProps) {
   const allSkills = importedSkills.length === 0 ? SKILLS : [...importedSkills, ...SKILLS];
   const connectors = catalogConnectors ?? CONNECTORS;
+  const recs = recommendations ?? [];
+  const [dismissedRecIds, setDismissedRecIds] = useState<Set<string>>(new Set());
+  const [, startTransition] = useTransition();
+
+  // Optimistic dismiss: hide the card immediately, then call the server
+  // action. On failure we silently re-show — the next /library load reads
+  // from the DB and corrects any drift.
+  function handleDismissRec(recId: string) {
+    setDismissedRecIds((prev) => new Set(prev).add(recId));
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("id", recId);
+      const result = await dismissRecommendationAction(fd);
+      if (!result.ok) {
+        setDismissedRecIds((prev) => {
+          const next = new Set(prev);
+          next.delete(recId);
+          return next;
+        });
+      }
+    });
+  }
+
+  const visibleRecs = recs.filter((r) => !dismissedRecIds.has(r.id));
   const [tab, setTab] = useState<Tab>("default");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<string>("all");
@@ -273,7 +307,14 @@ export function LibraryClient({ importedSkills, catalogConnectors }: LibraryClie
 
       {tab === "default" && (
         <>
-          <RecommendedBand connectors={connectors} onOpen={handleOpen} onInstall={handleInstall} />
+          <RecommendedBand
+            recommendations={visibleRecs}
+            allSkills={allSkills}
+            connectors={connectors}
+            onOpen={handleOpen}
+            onInstall={handleInstall}
+            onDismiss={handleDismissRec}
+          />
           <CategorySlice
             title="Skills"
             tab="skills"
@@ -309,7 +350,17 @@ export function LibraryClient({ importedSkills, catalogConnectors }: LibraryClie
 
       {tab !== "default" && (
         <>
-          {tab !== "providers" && <RecommendedBand small connectors={connectors} onOpen={handleOpen} onInstall={handleInstall} />}
+          {tab !== "providers" && (
+            <RecommendedBand
+              small
+              recommendations={visibleRecs}
+              allSkills={allSkills}
+              connectors={connectors}
+              onOpen={handleOpen}
+              onInstall={handleInstall}
+              onDismiss={handleDismissRec}
+            />
+          )}
 
           {/* Toolbar */}
           <div className="lib-toolbar">
@@ -508,69 +559,67 @@ export function LibraryClient({ importedSkills, catalogConnectors }: LibraryClie
 }
 
 // ---------- Recommended band ----------
+
+/** Per-connector framework id → catalog id mapping. Recommendations carry
+ *  the framework id ("github", "notion") because that's the dedupe key the
+ *  rule engine uses; the static catalog keys cards on "co_NNN". This shim
+ *  lets either id reach the same card. */
+const CONNECTOR_ID_TO_CATALOG_ID: Record<string, string> = {
+  github: "co_002",
+  notion: "co_001",
+  linear: "co_003",
+  "webhook-generic": "co_005",
+  drive: "co_006",
+  gmail: "co_007",
+};
+
+function resolveRecItem(
+  rec: PendingRec,
+  allSkills: SkillItem[],
+  connectors: ConnectorItem[],
+): LibItem | null {
+  if (rec.target_kind === "skill") {
+    return allSkills.find((s) => s.id === rec.target_id) ?? null;
+  }
+  if (rec.target_kind === "connector") {
+    const catalogId = CONNECTOR_ID_TO_CATALOG_ID[rec.target_id] ?? rec.target_id;
+    return connectors.find((c) => c.id === catalogId) ?? null;
+  }
+  if (rec.target_kind === "provider") {
+    return PROVIDERS.find((p) => p.id === rec.target_id) ?? null;
+  }
+  return null;
+}
+
 function RecommendedBand({
   small,
+  recommendations,
+  allSkills,
   connectors,
   onOpen,
   onInstall,
+  onDismiss,
 }: {
   small?: boolean;
+  /** Pending recs from the lifecycle. Empty list = nothing yet (or the
+   *  visit-trigger hasn't run). */
+  recommendations: PendingRec[];
+  allSkills: SkillItem[];
   /** Same merged catalog as the main grid so install state stays consistent
    *  across the page (codex-flagged: rec card used stale static catalog). */
   connectors: ConnectorItem[];
   onOpen: (item: LibItem) => void;
   onInstall: (item: LibItem) => void;
+  onDismiss: (recId: string) => void;
 }) {
-  const sk003 = SKILLS.find((s) => s.id === "sk_003");
-  const co003 = connectors.find((c) => c.id === "co_003");
-  const sk005 = SKILLS.find((s) => s.id === "sk_005");
-  const sk012 = SKILLS.find((s) => s.id === "sk_012");
+  const items = recommendations
+    .map((rec) => {
+      const item = resolveRecItem(rec, allSkills, connectors);
+      return item ? { rec, item } : null;
+    })
+    .filter((x): x is { rec: PendingRec; item: LibItem } => x !== null);
 
-  const items: { item: LibItem; why: React.ReactNode }[] = [];
-  if (sk003) {
-    items.push({
-      item: sk003,
-      why: (
-        <>
-          Founder role detected · no recap skill installed · syncs to{" "}
-          <strong>team + decision</strong> memory.
-        </>
-      ),
-    });
-  }
-  if (co003) {
-    items.push({
-      item: co003,
-      why: (
-        <>
-          You have <strong>3 product rows</strong> and <strong>9 decision rows</strong> but no{" "}
-          <strong>tasks</strong> source.
-        </>
-      ),
-    });
-  }
-  if (sk005) {
-    items.push({
-      item: sk005,
-      why: (
-        <>
-          Support role detected · <strong>glossary</strong> is your second-largest type but no skill
-          reads it yet.
-        </>
-      ),
-    });
-  }
-  if (sk012) {
-    items.push({
-      item: sk012,
-      why: (
-        <>
-          Your read-set covers 4 supertags · <strong>5 left unreferenced</strong>. This skill flags
-          the gap.
-        </>
-      ),
-    });
-  }
+  if (items.length === 0) return null;
 
   return (
     <div className="rec-band">
@@ -583,15 +632,17 @@ function RecommendedBand({
           {!small && <div className="title">Based on your roles · memory shape · and gaps.</div>}
         </div>
         {!small && <span className="why">Hide for power users · BBC explains every recommendation.</span>}
-        {small && (
-          <button type="button" className="collapse">
-            hide for now
-          </button>
-        )}
       </div>
       <div className="rec-row">
-        {items.map((it, i) => (
-          <RecCard key={i} item={it.item} why={it.why} onOpen={onOpen} onInstall={onInstall} />
+        {items.map(({ rec, item }) => (
+          <RecCard
+            key={rec.id}
+            item={item}
+            why={rec.reason_human}
+            onOpen={onOpen}
+            onInstall={onInstall}
+            onDismiss={() => onDismiss(rec.id)}
+          />
         ))}
       </div>
     </div>

@@ -3,26 +3,21 @@
 import { revalidatePath } from "next/cache";
 import { requireActor } from "@/lib/auth/require-user";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import { adminClient } from "@/lib/api-auth";
 import { makeSupabaseLifecycleDb } from "./lifecycle-supabase";
 import {
   dismissRecommendation,
-  generateRecommendations,
   installRecommendation,
   snoozeRecommendation,
-  type GenerateResult,
 } from "./lifecycle";
 
 // ---------------------------------------------------------------------------
 // Server actions for the Library /recommendations band.
 //
-// Auth + tenant scoping:
-//   - All state-changing actions go through requireActor(); RLS on the
-//     recommendations table further constrains UPDATEs to the caller's tenant.
-//   - generateRecommendationsForTenant() uses the service-role client because
-//     INSERTs have no member-level RLS policy (recommender runs without
-//     auth.uid()) and the call site is a fire-and-forget /library visit
-//     trigger (W4-5) rather than an authenticated form submit.
+// Auth + tenant scoping: every action goes through requireActor() before
+// touching the lifecycle. RLS on the recommendations table further narrows
+// UPDATEs to the caller's tenant. The service-role generate path used by the
+// /library visit trigger lives separately in ./generate.ts so this file's
+// "use server" surface stays small and only exposes RPC-shaped actions.
 // ---------------------------------------------------------------------------
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -97,26 +92,3 @@ export async function markRecommendationInstalledAction(
   return { ok: true };
 }
 
-/** Service-role wrapper used by the /library visit trigger (W4-5). Safe to
- *  call without an auth context because tenant_id is passed explicitly and
- *  RLS is bypassed (INSERT into recommendations has no member-level policy).
- *  Returns the GenerateResult so callers can log diagnostics. */
-export async function generateRecommendationsForTenant(
-  tenant_id: string,
-): Promise<GenerateResult> {
-  if (!UUID_RE.test(tenant_id)) {
-    return {
-      inserted: 0,
-      reason: "all_filtered",
-      diagnostics: {
-        candidates: 0,
-        dropped_existing_pending: 0,
-        dropped_cooldown: 0,
-        pending_before: 0,
-      },
-    };
-  }
-  const supabase = adminClient();
-  const db = makeSupabaseLifecycleDb(supabase);
-  return generateRecommendations(tenant_id, db);
-}

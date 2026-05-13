@@ -238,13 +238,29 @@ export type RecCardProps = {
   why: ReactNode;
   onOpen: (item: LibItem) => void;
   onInstall: (item: LibItem) => void;
+  /** Optional dismiss handler. When omitted (legacy callers, tests), the
+   *  dismiss control is hidden so the card behaves as before. */
+  onDismiss?: () => void;
 };
 
-export function RecCard({ item, why, onOpen, onInstall }: RecCardProps) {
+export function RecCard({ item, why, onOpen, onInstall, onDismiss }: RecCardProps) {
   const roleColor = roleColorFor(item);
   const style: RoleColorStyle = { "--role-color": roleColor };
   return (
     <div className="rec-card" style={style} onClick={() => onOpen(item)}>
+      {onDismiss && (
+        <button
+          type="button"
+          className="rec-dismiss"
+          aria-label={`Dismiss ${item.name} recommendation`}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDismiss();
+          }}
+        >
+          ×
+        </button>
+      )}
       <div className="glyph">
         {hasBrandIcon(item.name) ? (
           <BrandIcon name={item.name} size={16} />

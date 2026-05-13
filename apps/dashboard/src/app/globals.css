@@ -2904,6 +2904,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 }
 
 .rec-card {
+  position: relative;
   display: grid;
   grid-template-columns: 32px minmax(0, 1fr);
   gap: 12px;
@@ -2915,6 +2916,30 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   transition: border-color 0.15s, transform 0.15s;
 }
 .rec-card:hover { border-color: var(--rule-2); }
+.rec-card .rec-dismiss {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--paper-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+}
+.rec-card:hover .rec-dismiss,
+.rec-card .rec-dismiss:focus-visible { opacity: 1; }
+.rec-card .rec-dismiss:hover {
+  color: var(--ink);
+  background: color-mix(in oklab, var(--ink), transparent 92%);
+}
 .rec-card .glyph {
   grid-row: 1 / span 3;
   width: 32px; height: 32px;
