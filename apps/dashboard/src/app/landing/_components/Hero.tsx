@@ -1,7 +1,9 @@
 import { ArrowIcon, CloudflareIcon, GithubIcon } from "./icons";
 import { Brain3D } from "./Brain3D";
+import { LANDING_COPY } from "./copy";
 
 export function Hero() {
+  const { hero } = LANDING_COPY;
   return (
     <section className="hero hero-brain-host" id="top">
       <div className="container hero-inner">
@@ -12,18 +14,15 @@ export function Hero() {
           <div className="hero-copy">
             <div className="hero-eyebrow">
               <span className="dot" />
-              <span>open source · AGPLv3 · self-hosted</span>
-              <span style={{ color: "var(--rule-2)" }}>/</span>
-              <span>v1.5 beta</span>
+              <span>{hero.eyebrow}</span>
             </div>
             <h1>
-              the company brain.<br />
-              <span className="serif">typed, cited,</span><br />
-              writing its own next page.
+              {hero.headline_lead}{" "}
+              <span className="serif">{hero.headline_serif}</span>
+              <br />
+              {hero.headline_tail}
             </h1>
-            <p className="hero-sub">
-              nine supertags. one Postgres row per memory. queryable by <em>type</em>, never by similarity. humans review what goes in, agents read what comes out, and over time the brain quietly files proposals back about what your company should do next.
-            </p>
+            <p className="hero-sub">{hero.subhead}</p>
             <div className="hero-ctas">
               <a className="btn btn-primary btn-lg" href="/auth/signin">
                 <CloudflareIcon /> deploy to cloudflare
