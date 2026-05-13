@@ -28,6 +28,7 @@ function mockGmailFetch(
   routes: {
     threadList?: (url: URL) => Resp;
     threadGet?: (id: string, url: URL) => Resp;
+    labelsList?: () => Resp;
     tokenRefresh?: () => Resp;
   },
 ): { fetch: GoogleFetch; calls: { url: string; method: string }[] } {
@@ -41,6 +42,10 @@ function mockGmailFetch(
     } else if (u.host === "gmail.googleapis.com" && u.pathname.includes("/threads/")) {
       const id = decodeURIComponent(u.pathname.split("/threads/")[1] ?? "");
       r = routes.threadGet ? routes.threadGet(id, u) : { ok: false, status: 500 };
+    } else if (u.host === "gmail.googleapis.com" && u.pathname.endsWith("/labels")) {
+      // labels.list is best-effort — default to an empty result when the test
+      // doesn't supply a handler so existing tests don't have to wire it.
+      r = routes.labelsList ? routes.labelsList() : okBody({ labels: [] });
     } else if (u.host === "oauth2.googleapis.com") {
       r = routes.tokenRefresh ? routes.tokenRefresh() : { ok: false, status: 500 };
     } else {
@@ -420,6 +425,60 @@ describe("sync", () => {
     const c = createGmailConnector(baseDeps(fetch));
     await collect(c.sync(syncCtx({ cursor: JSON.stringify({ phase: "done", pageToken: null }) })));
     expect(observed).toBeNull();
+  });
+
+  it("resolves custom label names to opaque label IDs via labels.list (codex [P2])", async () => {
+    // Gmail returns custom label IDs like `Label_BBC_ADR_xyz`; the user
+    // configures decision_labels by the human-visible name `BBC_ADR`. The
+    // connector must call labels.list, build a name→id index, and match the
+    // resolved id against thread.messages[].labelIds.
+    const { fetch } = mockGmailFetch({
+      labelsList: () => okBody({ labels: [{ id: "Label_42", name: "BBC_ADR" }, { id: "Label_99", name: "Other" }] }),
+      threadList: () => okBody({ threads: [{ id: "th_custom" }] }),
+      threadGet: () =>
+        okBody({
+          id: "th_custom",
+          messages: [
+            {
+              id: "m",
+              threadId: "th_custom",
+              labelIds: ["INBOX", "Label_42"],
+              snippet: "decision under custom label",
+              internalDate: "1715673600000",
+              payload: { headers: [{ name: "Subject", value: "Custom-labeled decision" }] },
+            },
+          ],
+        }),
+    });
+    const c = createGmailConnector(baseDeps(fetch));
+    const events = await collect(c.sync(syncCtx({ config: { decision_labels: ["BBC_ADR"] } })));
+    const thread = proposalsOf(events).find((p) => p.source_ref === "gmail:thread:th_custom")!;
+    expect(thread.type).toBe("decision");
+  });
+
+  it("when labels.list fails, falls back to raw config (STARRED still works)", async () => {
+    const { fetch } = mockGmailFetch({
+      labelsList: () => ({ ok: false, status: 500, body: "boom" }),
+      threadList: () => okBody({ threads: [{ id: "th_starred" }] }),
+      threadGet: () =>
+        okBody({
+          id: "th_starred",
+          messages: [
+            {
+              id: "m",
+              threadId: "th_starred",
+              labelIds: ["STARRED"],
+              snippet: "starred thread",
+              internalDate: "1715673600000",
+              payload: { headers: [{ name: "Subject", value: "Starred" }] },
+            },
+          ],
+        }),
+    });
+    const c = createGmailConnector(baseDeps(fetch));
+    const events = await collect(c.sync(syncCtx()));
+    const thread = proposalsOf(events).find((p) => p.source_ref === "gmail:thread:th_starred")!;
+    expect(thread.type).toBe("decision");
   });
 
   it("maps 401 from threads.list to AuthExpiredError", async () => {

@@ -216,7 +216,32 @@ export function createGmailConnector(deps: GmailConnectorDeps): Connector {
       const startPageToken = !parsed || parsed.phase === "done" ? null : parsed.pageToken;
 
       const seenContacts = new Set<string>();
-      const decisionLabels = new Set(cfg.decision_labels);
+      // Codex [P2]: messages[].labelIds are opaque IDs (system labels match
+      // their canonical name, but custom labels are `Label_<n>`), so a config
+      // like decision_labels=["BBC_ADR"] would never match. Resolve any
+      // configured human names against users.labels.list once. The set keeps
+      // BOTH the raw config string AND any resolved id, so STARRED-only
+      // configs still work even if labels.list fails (best-effort soft fail).
+      const decisionLabels = new Set<string>(cfg.decision_labels);
+      try {
+        const labels = await gmailGet<{ labels?: Array<{ id: string; name: string }> }>(
+          token,
+          "/labels",
+          {},
+          "labels.list",
+        );
+        const byName = new Map<string, string>();
+        for (const l of labels.labels ?? []) byName.set(l.name, l.id);
+        for (const configured of cfg.decision_labels) {
+          const resolved = byName.get(configured);
+          if (resolved) decisionLabels.add(resolved);
+        }
+      } catch (err) {
+        const e = err as Error;
+        if (e.name === "RateLimitError" || e.name === "AuthExpiredError") throw e;
+        // Otherwise fall through: decisionLabels keeps the raw config strings,
+        // which still matches system labels like STARRED.
+      }
 
       let lastEmittedPageToken: string | null = null;
       let hasMore = false;

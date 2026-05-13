@@ -136,6 +136,15 @@ describe("fileToProposal", () => {
     expect(p.fields.source_kind).toBe("google_sheet");
   });
 
+  it("requests text/csv for Sheets and text/plain for Docs (codex [P2])", async () => {
+    // This pure-fileToProposal test pairs with the sync-level test below that
+    // verifies the export URL carries the right mimeType per native type.
+    const docs: DriveFile = { id: "d1", name: "D", mimeType: "application/vnd.google-apps.document" };
+    expect(fileToProposal(docs, "doc body").body).toContain("doc body");
+    const sheet: DriveFile = { id: "s1", name: "S", mimeType: "application/vnd.google-apps.spreadsheet" };
+    expect(fileToProposal(sheet, "a,b\n1,2").body).toContain("a,b");
+  });
+
   it("synthesizes a Drive permalink when webViewLink is missing", () => {
     const file: DriveFile = { id: "x1", name: "x", mimeType: "image/png" };
     const p = fileToProposal(file, "");
@@ -248,6 +257,42 @@ describe("sync", () => {
     expect(listUrl!.searchParams.get("corpora")).toBe("allDrives");
     expect(listUrl!.searchParams.get("includeItemsFromAllDrives")).toBe("true");
     expect(listUrl!.searchParams.get("supportsAllDrives")).toBe("true");
+  });
+
+  it("export call uses text/csv for Sheets, text/plain for Docs/Slides (codex [P2])", async () => {
+    const exportMimes: Record<string, string | null> = {};
+    const { fetch } = mockDriveFetch({
+      filesList: () =>
+        okBody({
+          files: [
+            { id: "doc1", name: "Doc", mimeType: "application/vnd.google-apps.document" },
+            { id: "sheet1", name: "Sheet", mimeType: "application/vnd.google-apps.spreadsheet" },
+            { id: "slides1", name: "Slides", mimeType: "application/vnd.google-apps.presentation" },
+          ],
+        }),
+      fileExport: (id, url) => {
+        exportMimes[id] = url.searchParams.get("mimeType");
+        return okText("body");
+      },
+    });
+    const c = createDriveConnector(baseDeps(fetch));
+    await collect(c.sync(syncCtx()));
+    expect(exportMimes).toEqual({ doc1: "text/plain", sheet1: "text/csv", slides1: "text/plain" });
+  });
+
+  it("export call does NOT include supportsAllDrives (codex [P1])", async () => {
+    let exportUrl: URL | null = null;
+    const { fetch } = mockDriveFetch({
+      filesList: () => okBody({ files: [{ id: "doc1", name: "D", mimeType: "application/vnd.google-apps.document" }] }),
+      fileExport: (_id, url) => {
+        exportUrl = url;
+        return okText("body");
+      },
+    });
+    const c = createDriveConnector(baseDeps(fetch));
+    await collect(c.sync(syncCtx()));
+    expect(exportUrl!.searchParams.get("supportsAllDrives")).toBeNull();
+    expect(Array.from(exportUrl!.searchParams.keys())).toEqual(["mimeType"]);
   });
 
   it("does not call export for non-Google-native files (PDF)", async () => {

@@ -100,12 +100,15 @@ const DEFAULT_QUERY = "mimeType != 'application/vnd.google-apps.folder' and tras
 const FILE_FIELDS =
   "files(id,name,mimeType,modifiedTime,webViewLink,description,parents,driveId,size,owners(displayName,emailAddress)),nextPageToken,incompleteSearch";
 
-// MIME types that we can export to text/plain via /export.
-const TEXT_EXPORTABLE: ReadonlySet<string> = new Set([
-  "application/vnd.google-apps.document",
-  "application/vnd.google-apps.spreadsheet",
-  "application/vnd.google-apps.presentation",
-]);
+// MIME types that Drive's /export endpoint can render as text, mapped to the
+// export mimeType we ask for. Docs/Slides export cleanly to text/plain; Sheets
+// requires text/csv (text/plain returns 400). Codex [P2] flagged the
+// uniform text/plain assumption silently degrading Sheets to metadata-only.
+const TEXT_EXPORT_MIME_BY_NATIVE: Readonly<Record<string, string>> = {
+  "application/vnd.google-apps.document": "text/plain",
+  "application/vnd.google-apps.spreadsheet": "text/csv",
+  "application/vnd.google-apps.presentation": "text/plain",
+};
 
 export function createDriveConnector(deps: DriveConnectorDeps): Connector {
   const fetchImpl: GoogleFetch = deps.fetch ?? defaultFetchAdapter();
@@ -220,12 +223,18 @@ export function createDriveConnector(deps: DriveConnectorDeps): Connector {
         // fail on a single file — emit a metadata-only proposal so the user
         // can still see it.
         let body = "";
-        if (TEXT_EXPORTABLE.has(file.mimeType)) {
+        const exportMime = TEXT_EXPORT_MIME_BY_NATIVE[file.mimeType];
+        if (exportMime) {
           try {
+            // Codex [P1]: /files/{id}/export only accepts `mimeType` (plus
+            // standard auth headers). Passing supportsAllDrives here returns
+            // 400 and the surrounding catch silently degrades every Doc/
+            // Slide to metadata-only. Shared-drive access is determined by
+            // the file ID + permissions; no flag needed on this endpoint.
             body = await driveGetText(
               token,
               `/files/${encodeURIComponent(file.id)}/export`,
-              { mimeType: "text/plain", supportsAllDrives: "true" },
+              { mimeType: exportMime },
               cfg.body_byte_limit,
               `files.export ${file.id}`,
             );
