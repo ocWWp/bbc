@@ -1,9 +1,31 @@
-# BBC — Persona-Aware Navigation & Launch Surfaces (Design)
+# BBC — Persona-Aware Navigation, Moat, and Launch Surfaces (Design)
 
 **Date:** 2026-05-13
 **Status:** Brainstorm complete — ready for implementation plan
-**Authors:** Oscar (product) + Claude (brainstorm partner) + Codex (adversarial review)
-**Context:** Pre-launch audit (`.gstack/qa-reports/qa-report-bbc-dashboard-2026-05-13.md`) found that BBC's landing page and in-app surfaces fail the IQ-80 non-technical founder test, and that invited teammates see the same dense nav as admins — confusing them within 60 seconds. This design fixes both, plus aligns the self-improvement promise (Loop 3) with what v1.5 actually ships.
+**Authors:** Oscar (product) + Claude (brainstorm partner) + Codex (adversarial review) + web research
+**Context:** Pre-launch audit (`.gstack/qa-reports/qa-report-bbc-dashboard-2026-05-13.md`) found that BBC's landing page and in-app surfaces fail the IQ-80 non-technical founder test, and that invited teammates see the same dense nav as admins — confusing them within 60 seconds. This design fixes both, aligns the self-improvement promise with what v1.5 actually ships, names BBC's moat in one sentence, picks Hermes Agent as the post-launch agent runtime, and locks the off-the-shelf security baseline.
+
+---
+
+## What BBC actually is (one paragraph)
+
+A web product (Next.js on Cloudflare Workers). Open source, AGPLv3, self-hostable; hosted demo available at maintainer expense. Users plug in their own AI provider keys (BYOK) at `/settings/keys` — BBC never holds credit, never bills. Data flows two ways: **inbound** via the Connectors framework (Notion, GitHub, Drive, Gmail, Linear, generic webhooks) that pulls company data into the typed brain through the human-reviewed queue; **outbound** via the MCP server at `/api/mcp` + REST shim at `/api/v1/brain/*` that lets any AI tool (Claude, Cursor, ChatGPT) read the same brain with cited responses. In-app, the brain powers 5 role-shaped Studios — marketing, eng, founder, designer, support — each pre-loaded with company memory and pre-equipped with the role's tool bundle. Every change to the brain (from humans, agents, or BBC itself) passes through the same Accept/Reject queue. No silent autonomy.
+
+---
+
+## The moat, in one sentence
+
+> **BBC gives every role in your team an AI agent that's pre-loaded with your company's typed brain, pre-equipped with role-shaped tools, and gets sharper daily as BBC fetches and assesses new skills + tools from the open AI ecosystem. You own all the credentials. Agents talk to each other through a swappable runtime. Every change to your brain is human-reviewed.**
+
+The five-layer moat, in priority order:
+
+1. **Typed memory + queue gate (Loop 1).** Notion has typed nodes but no AI structure. Claude Projects / Glean / NotebookLM have AI context but no typing and no review gate. BBC has both. **Wedge.**
+2. **Role-tool bundles + F4 bindings.** Per-role profiles (`memory/ops/profiles/*.yaml`) with curated default tool stacks, swappable per tenant. Vendor-agnostic, role-specialized, outcome-ranked. **Unfair advantage vs Custom GPTs / Claude Projects.**
+3. **OOP skill inheritance (F2).** Skills extend abstract bases; tenants specialize via `replace`/`add`/`remove`. Not flat — a real type system for prompts.
+4. **Daily skill discovery + propagation (Phase N, new).** Crawl Reddit / X / GitHub releases / npm / MCP registries → trust-assess via F1 ranker + injection sandbox → propagate good ones to tenant Library → if user has BYOK key for premium tools (Higgsfield, Replicate, premium MCPs), route the agent through their key. **Web research confirmed (May 2026): nobody ships the full loop.** Components exist (PulseMCP, MCP Skills, agentskill.sh, x402); nobody glues them. Real gap.
+5. **MCP + REST.** Every AI tool reads the same brain. One source of truth. Day-1 utility.
+
+Plus AGPLv3 + self-host: trust hygiene, not differentiation, but absence would kill the technical sale.
 
 ---
 
@@ -129,6 +151,76 @@ Verdict survives the review with revisions. Load-bearing assumption: *Persona B 
 
 ---
 
+---
+
+## The AI layer (v1.5 honest + Phase N target)
+
+**Today (v1.5):** every Studio calls `resolveRoleTool("llm-provider")` and routes through the tenant's binding. Default binding `memory/ops/providers/anthropic-claude-sonnet.yaml` = Claude Sonnet 4.6 for runs, Claude Haiku 4.5 for cheap propose-steps. BYOK at `/settings/keys`. The Studios are **structured prompts → Claude → cited response**, one-shot. They are NOT autonomous agents and they do NOT talk to each other yet.
+
+**This is fine for launch.** Loop 1 + the prompt-based Loop 2 + the typed brain + MCP + REST is the wedge. Multi-agent is the second chapter.
+
+**Phase N (post-launch, the moat phase) introduces:**
+
+1. **`agent-runtime` role contract** in F4, distinct from `llm-provider`. Studios that need autonomy (eng opens a real PR, founder runs an outreach campaign) bind an `agent-runtime`; one-shot Studios stay on `llm-provider` only.
+2. **Default `agent-runtime` binding: Hermes Agent** ([github.com/nousresearch/hermes-agent](https://github.com/nousresearch/hermes-agent), MIT, Nous Research, v0.9). Reasons: aligned philosophy (persistent memory + skills that self-improve from experience), BYOK across many model providers (matches BBC's vendor-neutral stance), MIT/OSS matches AGPL ethos. **We do NOT build a native runtime.** Less maintenance, not more.
+3. **Pin to a specific Hermes version.** Pre-1.0 risk is real; mitigation is the F4 binding layer — if Hermes stalls, swap to LangGraph by editing one YAML.
+4. **First inter-agent capability:** Marketing-agent → Designer-agent thumbnail handoff. Proof the substrate works.
+5. **Agents read the brain via the same MCP server** other tools use. The brain is one source of truth for human users, external AI tools, and BBC's own internal agents.
+
+**Daily skill-discovery + auto-routing of premium tools** lands in Phase N too. Plain English:
+
+> BBC scans Reddit / X / GitHub releases / npm / MCP registries every day. The F1 ranker + injection sandbox assess each new skill or tool. The good ones land in your tenant's Library. The bad ones get blocked. If a tool is premium (Higgsfield, Replicate, a paid MCP server) and you've already plugged your own API key at `/settings/keys`, BBC routes the agent through your key. **BBC never holds credit, never charges. The user owns every credential.** Per ADR-0007 (no monetization in v1).
+
+---
+
+## Security — adopt off-the-shelf, do not reinvent
+
+BBC is the brain of the company. A breach is catastrophic. Same principle as the agent runtime: **bind, don't build.** Use best-in-class security tools rather than rolling our own primitives.
+
+| Layer | Tool | Status in BBC today |
+|---|---|---|
+| Network edge | Cloudflare WAF + OWASP Core Rule Set + rate limit + bot management | We're on CF Workers — turn the WAF rules on |
+| Database row access | Supabase RLS | **Already enforced** — every `memory_files` row gates on `tenant_id` |
+| Secrets at rest | `BBC_SECRET_ENCRYPTION_KEY` + libsodium | **Already there** at `apps/dashboard/src/lib/encryption.ts` |
+| Secrets rotation | Doppler or 1Password CLI | Not adopted — add post-launch |
+| Static analysis | Semgrep + GitHub Advanced Security | Not adopted — free for OSS, add to CI |
+| Dependency vulnerabilities | Dependabot + Socket | Dependabot likely on; add Socket for supply-chain |
+| Supply chain integrity | OpenSSF Scorecard + Sigstore | Not adopted — public OSS hygiene |
+| Runtime audit | Cloudflare audit logs + Supabase logs | **Already on** |
+| Auth | Supabase Auth + invite-only signup trigger | **Already enforced** — `tenant_invitations` blocks uninvited signups |
+| PII / data scope | ADR-0009 Loop 3 privacy floor | **Already in spec** — no PII in Loop 3 proposal bodies |
+| Disclosure | `.well-known/security.txt` + `SECURITY.md` | Not set up — add before launch |
+
+**Pre-launch security checklist (under 1 day total, off-the-shelf, free):**
+
+1. Add `.well-known/security.txt` + `SECURITY.md` with disclosure policy (15 min).
+2. Enable Cloudflare WAF + OWASP Core Rule Set (30 min).
+3. Add Semgrep CI workflow (`semgrep ci`, free OSS tier) — catches SQL injection, XSS, auth bypass patterns (1 hr).
+4. Add Socket as a dependency-PR commenter (free for OSS, 15 min).
+5. `npm audit` + Dependabot sweep, fix anything CVSS≥7 before launch (1–3 hrs).
+6. Threat-model session — write `docs/security/THREAT-MODEL.md` documenting STRIDE for each surface (queue, Studio runs, MCP server, REST shim, ingest). 2 hrs.
+7. Add OpenSSF Scorecard to the repo (15 min).
+
+**Structural advantage:** BBC's "no silent autonomy" principle (Main `CLAUDE.md` #6) is itself a security guarantee. Every change to typed memory is human-reviewed via the queue. There is no path for an attacker (or a hallucinating agent) to write to the brain without a human gate. That property is rare in AI products and worth naming.
+
+---
+
+## Loop 3 gains a sixth observation class — security drift
+
+Per ADR-0009, Loop 3 observes queue activity, memory access, run accept/reject ratios, bindings churn, ingestion coverage. Add a sixth class:
+
+**Security drift.** Plain examples:
+- "Your `anthropic` API key was added 90 days ago. Rotate?"
+- "Skill `image-gen-v2` triggered the prompt-injection sandbox 4 times this week. Block?"
+- "External account `notion-acme` has had 3 auth-expired errors. Re-auth or remove?"
+- "Cloudflare WAF blocked 1,200 requests from one IP this week. Review?"
+
+Same Loop 3 discipline: BBC observes, proposes via the queue, human accepts or rejects. Security becomes a self-reinforcing layer of the same loop. Per-tenant only in v1; cross-tenant security benchmarks deferred to a privacy ADR.
+
+This addition needs an amendment to ADR-0009 before Phase N.1 ships.
+
+---
+
 ## Out of scope (deferred)
 
 - Team chat / comments on drafts (mentioned as a "communication surface" — handled via Inbox channels for v1; richer collaboration TBD).
@@ -152,30 +244,48 @@ This design implies code changes across roughly these areas:
 8. **`/welcome` simplification** — collapse current 5+ zones into single paste-or-import task.
 9. **Citation chips clickable** — link to `/brain/<memory_id>` from inside draft renders.
 10. **Loop-3 admin/teammate visibility flag** — new `tenant_settings.loop3_teammate_visibility` column or scope flag on `tenant_members`.
+11. **Security baseline pre-launch** — `.well-known/security.txt`, `SECURITY.md`, Cloudflare WAF rules, Semgrep + Socket CI workflows, OpenSSF Scorecard config, `docs/security/THREAT-MODEL.md`. Mostly config + docs, not code.
+12. **(Phase N) `agent-runtime` role contract + Hermes Agent binding** — add `memory/ops/provider-roles/agent-runtime.yaml` + `memory/ops/providers/nous-hermes-agent.yaml` + binding plumbing. Slots into the existing F4 layer.
+13. **(Phase N) Daily skill-discovery crawler** — new service that scans Reddit / X / GitHub releases / npm / MCP registries; existing F1 ranker + skill-injection sandbox assess output; results propagate to tenant Library via existing install path.
+14. **(Phase N) BYOK premium-tool routing** — agent runtime reads tenant's `secrets` table to find user-provided premium-tool keys (Higgsfield, Replicate, premium MCPs) and routes through them. No new payment infrastructure.
 
-Most of these are surface-level (UI + routing). The structural changes are (3) role-aware nav, (4) Brain read-only route, and (5) Studio shell refactor. The rest is copy + composition.
+Most v1.5 items are surface-level (UI + routing). The structural changes are (3) role-aware nav, (4) Brain read-only route, and (5) Studio shell refactor. Items 12–14 are Phase N and post-launch.
 
 ---
 
 ## Sequencing recommendation
 
-1. **Landing rewrite** (Stage 1) — 1-2 days, content-heavy.
-2. **Role-aware nav + default route + Brain (read-only)** (Stage 4 core) — 2-3 days. This is the retention play.
-3. **Studio shell refactor — shared skeleton + per-role chrome** (Stage 4 polish) — 5 sessions of `/design-shotgun`, one per studio, then implementation. Largest line-of-code change.
-4. **`/welcome` simplification** (Stage 2) — 1 day.
-5. **Admin Home dashboard** (Stage 5) — 2 days.
-6. **Inbox route** (Stage 4 + Stage 6 surface) — 2 days.
-7. **Citation chips clickable + Flag-this** (Stage 4 + Stage 6 plumbing) — 1 day.
-8. **Loop-3 visibility flag + admin-opt-in surface** (Stage 6) — 1 day.
+**Pre-launch (must ship in v1.5):**
 
-Total: ~2-3 weeks of focused work, parallelizable across UI vs route plumbing.
+1. **Security baseline** (off-the-shelf — security.txt, Cloudflare WAF, Semgrep, Socket, npm audit, threat-model doc, OpenSSF Scorecard) — under 1 day total.
+2. **Landing rewrite** (Stage 1) — 1-2 days, content-heavy.
+3. **Role-aware nav + default route + Brain (read-only)** (Stage 4 core) — 2-3 days. The retention play.
+4. **Studio shell refactor — shared skeleton + per-role chrome** (Stage 4 polish) — 5 sessions of `/design-shotgun`, one per studio, then implementation. Largest line-of-code change.
+5. **`/welcome` simplification** (Stage 2) — 1 day.
+6. **Admin Home dashboard** (Stage 5) — 2 days.
+7. **Inbox route** (Stage 4 + Stage 6 surface) — 2 days.
+8. **Citation chips clickable + Flag-this** (Stage 4 + Stage 6 plumbing) — 1 day.
+9. **Loop-3 visibility flag + admin-opt-in surface** (Stage 6) — 1 day.
+
+Total v1.5 polish: ~2-3 weeks, parallelizable across UI vs route plumbing.
+
+**Post-launch (Phase N — the moat phase):**
+
+10. **`agent-runtime` role contract in F4** + bind Hermes Agent as default. Pin version.
+11. **First inter-agent capability:** Marketing-agent → Designer-agent thumbnail handoff.
+12. **Daily skill-discovery crawler** — Reddit / X / GitHub releases / npm / MCP registries. Drop into existing F1 ranker + skill-injection sandbox. Propagate good ones into tenant Library.
+13. **BYOK premium-tool routing** — when user has plugged a Higgsfield / Replicate / paid-MCP key, agents route through their key. No BBC-side payment.
+14. **Loop 3 security-drift observation class** — amend ADR-0009 first, then ship the observation + proposal types.
 
 ---
 
 ## Related
 
 - `.gstack/qa-reports/qa-report-bbc-dashboard-2026-05-13.md` — the audit that surfaced these problems.
+- `memory/decisions/0007-oss-first-agpl-deferred-commercialization.md` — AGPL, no monetization, BYOK only.
 - `memory/decisions/0008-three-loop-architecture.md` — three-loop framing.
-- `memory/decisions/0009-loop-3-scope.md` — what Loop 3 may observe and propose.
+- `memory/decisions/0009-loop-3-scope.md` — what Loop 3 may observe and propose; this design proposes amending it to add the "security drift" observation class.
 - `~/.claude/projects/-Users-ocwwp-Desktop-BB-C/memory/project_bbc_full_vision.md` — the canonical product vision.
-- `docs/plans/2026-05-12-bbc-launch-plan.md` — the week-by-week launch plan; this design slots in as a redirected scope of W8 (landing) + the audit phase-3/4 work.
+- `docs/plans/2026-05-12-bbc-launch-plan.md` — the week-by-week launch plan; this design slots in as a redirected scope of W8 (landing) + the audit phase-3/4 work + a new Phase N for the moat capabilities.
+- [github.com/nousresearch/hermes-agent](https://github.com/nousresearch/hermes-agent) — proposed default `agent-runtime` binding for Phase N.
+- [pulsemcp.com](https://www.pulsemcp.com/) · [mcpskills.io](https://mcpskills.io/) · [agentskill.sh](https://agentskill.sh) — closest existing pieces of the daily-skill-discovery loop; BBC's Phase N glues them with the F1 ranker and per-tenant propagation.
