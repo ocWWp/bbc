@@ -132,7 +132,14 @@ export function createGithubConnector(deps: GithubConnectorDeps): Connector {
       }
       const pat = await deps.getToken(ctx.external_account_id);
       const headers = githubHeaders(pat);
-      const phase = parseCursor(ctx.cursor) ?? { phase: "decisions" as const, offset: 0 };
+      // A previous successful sync left cursor='{"phase":"done"}'. Treat that as
+      // a fresh start so we re-poll the repo for new ADRs / PRs / collaborators.
+      // Framework dedup on source_ref handles items we already saw.
+      const parsed = parseCursor(ctx.cursor);
+      const phase =
+        !parsed || parsed.phase === "done"
+          ? { phase: "decisions" as const, offset: 0 }
+          : parsed;
 
       // ---- Phase 1: decisions ------------------------------------------
       if (phase.phase === "decisions") {
@@ -327,8 +334,12 @@ async function fetchCollaborators(
     `https://api.github.com/repos/${enc(cfg.owner)}/${enc(cfg.repo)}/collaborators` +
     `?per_page=${TEAM_PAGE_SIZE}&page=${page}`;
   const res = await fetchImpl(url, { headers });
-  // Public repos / fine-grained PATs may 403 on this; treat as "no collaborators readable".
-  if (res.status === 403 || res.status === 404) return [];
+  // Public repos / fine-grained PATs commonly 403 on collaborators. We swallow
+  // permission-style 403s ("no collaborators readable") but MUST surface a
+  // rate-limit 403 (x-ratelimit-remaining: 0) so the framework can record
+  // status='rate_limited' and the user knows to back off.
+  if (res.status === 404) return [];
+  if (res.status === 403 && res.headers.get("x-ratelimit-remaining") !== "0") return [];
   if (!res.ok) throw await asConnectorError(res, `fetching collaborators page ${page}`);
   return (await res.json()) as GithubCollaborator[];
 }

@@ -254,15 +254,20 @@ export async function runSync(
     config: row.mapping,
   };
 
+  // Set when a flush drops items past the cap. If true, the next checkpoint
+  // event MUST NOT advance the cursor — those dropped items belong to the
+  // current cursor position and will be re-fetched next sync (dedup'd by source_ref).
+  let dropOverflowed = false;
+
   const flush = async (): Promise<void> => {
     if (buffer.length === 0) return;
     // Bound the commit by remaining cap budget so a single oversized batch can't
-    // overshoot max_proposals_per_sync. Items past the cap are dropped entirely;
-    // they neither commit nor count as skipped duplicates.
+    // overshoot max_proposals_per_sync.
     const remaining = Math.max(0, maxProposals - emitted);
-    const { committed, skipped_count } = await commitBatch(buffer, db, tenant_id, row.id, remaining);
+    const { committed, skipped_count, dropped } = await commitBatch(buffer, db, tenant_id, row.id, remaining);
     emitted += committed;
     skipped += skipped_count;
+    if (dropped > 0) dropOverflowed = true;
     buffer = [];
   };
 
@@ -290,6 +295,13 @@ export async function runSync(
         // Flush before advancing cursor so a crash here doesn't lose un-committed
         // proposals belonging to the previous cursor position.
         await flush();
+        if (dropOverflowed) {
+          // The flush we just did dropped items past the cap. The connector's
+          // proposed next cursor would skip past those dropped items — refuse
+          // it. Cursor stays at the last fully-committed checkpoint, and the
+          // next sync re-fetches the same page (dedup handles overlap).
+          break;
+        }
         cursor = event.cursor;
         await db.updateSyncState(tenant_id, row.id, {
           sync_state: { ...row.sync_state, cursor },
@@ -352,23 +364,32 @@ async function commitBatch(
   tenant_id: string,
   connector_row_id: string,
   remaining_budget: number,
-): Promise<{ committed: number; skipped_count: number }> {
-  if (remaining_budget <= 0) return { committed: 0, skipped_count: 0 };
+): Promise<{ committed: number; skipped_count: number; dropped: number }> {
+  if (remaining_budget <= 0) {
+    // Everything in the buffer is over-budget. Caller MUST NOT advance the
+    // cursor past these — they'll be re-fetched on the next sync and dedup
+    // (by source_ref) will handle anything that was committed before.
+    return { committed: 0, skipped_count: 0, dropped: proposals.length };
+  }
   const refs = Array.from(new Set(proposals.map((p) => p.source_ref)));
   const existing = await db.existingSourceRefs(tenant_id, refs);
   let committed = 0;
   let skipped = 0;
+  let dropped = 0;
   for (const p of proposals) {
     if (existing.has(p.source_ref)) {
       skipped++;
       continue;
     }
-    if (committed >= remaining_budget) break; // cap reached — drop the rest of the batch
+    if (committed >= remaining_budget) {
+      dropped++;
+      continue;
+    }
     await db.commitProposal(tenant_id, connector_row_id, p);
     existing.add(p.source_ref); // guard against intra-batch duplicates
     committed++;
   }
-  return { committed, skipped_count: skipped };
+  return { committed, skipped_count: skipped, dropped };
 }
 
 // --------------------------------------------------------------------------

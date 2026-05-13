@@ -363,6 +363,33 @@ describe("runSync — max cap", () => {
     expect(result.cursor).toBeNull();
   });
 
+  it("does NOT advance cursor past items dropped by the cap (codex-flagged [P2])", async () => {
+    const { db, committed, patches } = makeDb();
+    const connector = makeConnector({
+      max_proposals_per_sync: 2,
+      async *sync(_ctx) {
+        // Cap=2. Page has 5 items; the last 3 are over budget. The connector
+        // then yields a checkpoint advancing to the next page — runSync must
+        // refuse it and break so the next sync re-fetches this page.
+        yield { kind: "proposal", proposal: proposal("a") };
+        yield { kind: "proposal", proposal: proposal("b") };
+        yield { kind: "proposal", proposal: proposal("c") };
+        yield { kind: "proposal", proposal: proposal("d") };
+        yield { kind: "proposal", proposal: proposal("e") };
+        yield { kind: "checkpoint", cursor: "page-2" }; // MUST be ignored
+        yield { kind: "proposal", proposal: proposal("f") };
+      },
+    });
+    const result = await runSync(connector, "t1", db);
+    expect(committed.map((p) => p.source_ref)).toEqual(["a", "b"]);
+    expect(result.cursor).toBeNull(); // startingCursor — never advanced
+    // No sync_state patch ever wrote page-2 as the cursor.
+    const cursors = patches
+      .map((p) => (p.sync_state as { cursor?: unknown } | undefined)?.cursor)
+      .filter((c) => c !== undefined);
+    expect(cursors).not.toContain("page-2");
+  });
+
   it("enforces the cap even when a single batch yields more than max_proposals (codex-flagged)", async () => {
     const { db, committed } = makeDb();
     const connector = makeConnector({

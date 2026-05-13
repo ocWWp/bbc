@@ -343,6 +343,86 @@ describe("sync — error classification", () => {
 // 6. End-to-end via runSync — dedup verification
 // --------------------------------------------------------------------------
 
+// --------------------------------------------------------------------------
+// Codex regression: phase=done cursor must not block subsequent syncs.
+// --------------------------------------------------------------------------
+
+describe("sync — done cursor reset (codex-flagged [P1])", () => {
+  it("a saved phase='done' cursor restarts at decisions on the next sync", async () => {
+    const { fetch } = mockFetch({
+      "https://api.github.com/repos/ZethT/bbc/contents/docs/decisions": jsonRoute([
+        { type: "file", name: "0001.md", path: "docs/decisions/0001.md", sha: "a", download_url: "https://raw/a" },
+      ]),
+      "https://api.github.com/repos/ZethT/bbc/contents/docs/adr": notFound(),
+      "https://raw/a": textRoute("# Fresh decision"),
+      "https://api.github.com/repos/ZethT/bbc/pulls": jsonRoute([]),
+      "https://api.github.com/repos/ZethT/bbc/collaborators": jsonRoute([]),
+    });
+
+    // Cursor from a previous successful run.
+    const { proposals } = await collectSync(
+      fetch,
+      { owner: "ZethT", repo: "bbc" },
+      "ghp_test",
+      JSON.stringify({ phase: "done" }),
+    );
+    // Without the reset, this would emit zero proposals. With the reset, the
+    // connector walks decisions → prs → team again and surfaces the new ADR.
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0].type).toBe("decision");
+    expect(proposals[0].title).toBe("Fresh decision");
+  });
+});
+
+// --------------------------------------------------------------------------
+// Codex regression: collaborators 403 + rate-limit-remaining=0 must classify.
+// --------------------------------------------------------------------------
+
+describe("sync — collaborators 403 rate-limit classification (codex-flagged [P2])", () => {
+  it("403 with x-ratelimit-remaining=0 on collaborators throws RateLimitError", async () => {
+    const { fetch } = mockFetch({
+      "https://api.github.com/repos/ZethT/bbc/contents/docs/decisions": notFound(),
+      "https://api.github.com/repos/ZethT/bbc/contents/docs/adr": notFound(),
+      "https://api.github.com/repos/ZethT/bbc/pulls": jsonRoute([]),
+      "https://api.github.com/repos/ZethT/bbc/collaborators": () => ({
+        ok: false,
+        status: 403,
+        body: { message: "API rate limit exceeded" },
+        headers: {
+          "x-ratelimit-remaining": "0",
+          "x-ratelimit-reset": String(Math.floor(Date.now() / 1000) + 60),
+        },
+      }),
+    });
+    const connector = createGithubConnector({ getToken: async () => "pat", fetch });
+    const iter = connector.sync({
+      tenant_id: "t1",
+      external_account_id: "a",
+      cursor: null,
+      config: { owner: "ZethT", repo: "bbc" },
+    });
+    await expect((async () => {
+      for await (const _e of iter) void _e;
+    })()).rejects.toThrow(/rate_limited/);
+  });
+
+  it("non-rate-limit 403 on collaborators still swallows (fine-grained PAT)", async () => {
+    const { fetch } = mockFetch({
+      "https://api.github.com/repos/ZethT/bbc/contents/docs/decisions": notFound(),
+      "https://api.github.com/repos/ZethT/bbc/contents/docs/adr": notFound(),
+      "https://api.github.com/repos/ZethT/bbc/pulls": jsonRoute([]),
+      "https://api.github.com/repos/ZethT/bbc/collaborators": () => ({
+        ok: false,
+        status: 403,
+        body: { message: "Resource not accessible by personal access token" },
+        headers: { "x-ratelimit-remaining": "4999" },
+      }),
+    });
+    const { proposals } = await collectSync(fetch, { owner: "ZethT", repo: "bbc" });
+    expect(proposals.filter((p) => p.type === "team")).toHaveLength(0);
+  });
+});
+
 describe("github via runSync — dedup on re-run", () => {
   function makeDb(opts: { existingRefs?: Iterable<string> } = {}): {
     db: ConnectorDb;
