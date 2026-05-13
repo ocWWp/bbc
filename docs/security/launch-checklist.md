@@ -19,6 +19,12 @@ These items are external-account configuration the maintainer does outside the r
 - [ ] Dependabot enabled in repo settings (Security > Code security and analysis).
 - [ ] Branch protection on `main`: require PR review, require status checks (Semgrep + tests + type-check), require linear history.
 
+## Dependencies
+
+- [x] `pnpm audit --audit-level=high` — 0 findings (sweep 2026-05-13).
+- [ ] Re-run `pnpm audit --audit-level=high` immediately before each release; ship only when 0 high+critical.
+- [ ] One known moderate as of 2026-05-13: `postcss<8.5.10` transitive via `next` (XSS in CSS stringifier — not on a user-controlled path in this app). Upstream fix lands when Next bumps its bundled postcss; track via Dependabot.
+
 ## Secrets
 
 - [ ] `SEMGREP_APP_TOKEN` configured as a GitHub Actions secret (or the workflow runs the offline rule set — see workflow file for the alternate `--config` flags).
