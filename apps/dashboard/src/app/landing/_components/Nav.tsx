@@ -9,7 +9,7 @@ export function Nav() {
             <span className="brand-mark">bbc</span>
             <span>big brain company</span>
           </a>
-          <span className="nav-tag">v0.1 · phase L</span>
+          <span className="nav-tag">v1.5 · beta</span>
         </div>
         <div className="nav-right">
           <nav className="nav-links">

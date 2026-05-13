@@ -14,15 +14,15 @@ export function Hero() {
               <span className="dot" />
               <span>open source · AGPLv3 · self-hosted</span>
               <span style={{ color: "var(--rule-2)" }}>/</span>
-              <span>phase L</span>
+              <span>v1.5 beta</span>
             </div>
             <h1>
-              typed memory<br />
-              <span className="serif">for your team and</span><br />
-              your agents.
+              the company brain.<br />
+              <span className="serif">typed, cited,</span><br />
+              writing its own next page.
             </h1>
             <p className="hero-sub">
-              nine supertags. one Postgres row per memory. queryable by <em>type</em>, never by similarity — small enough to fit in your model&apos;s context, structured enough that an agent never asks twice.
+              nine supertags. one Postgres row per memory. queryable by <em>type</em>, never by similarity. humans review what goes in, agents read what comes out, and over time the brain quietly files proposals back about what your company should do next.
             </p>
             <div className="hero-ctas">
               <a className="btn btn-primary btn-lg" href="/auth/signin">

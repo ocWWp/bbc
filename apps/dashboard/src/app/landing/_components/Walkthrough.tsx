@@ -77,7 +77,7 @@ export function Walkthrough() {
             </h2>
           </div>
           <p className="section-blurb">
-            the entire path from &quot;a slack thread happened&quot; to &quot;an agent answers correctly&quot; is three deterministic steps. click through them.
+            the entire path from &quot;a slack thread happened&quot; to &quot;an agent answers correctly&quot; is three deterministic steps. click through them. <span className="serif">loop 3 — where the brain files its own proposals back</span> — ships in v1.5.1.
           </p>
         </div>
 
