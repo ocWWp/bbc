@@ -1,0 +1,84 @@
+---
+title: "Importing a skill"
+description: "Install a SKILL.md-BBC skill from a GitHub URL. Admin-only, preview-first, prompt-injection scanned."
+---
+
+BBC skills are Markdown files in a Git repo. To install one, paste its URL on the `/library` page. The flow is preview-first: you see the parsed manifest and any injection flags **before** the row is written.
+
+<Note>
+  Skill imports are **admin-only**. Non-admin members see installed skills but
+  cannot install new ones. See `requireRole(actor, "admin")` on the
+  `importSkill*` server actions.
+</Note>
+
+## Prerequisites
+
+- An admin role on your tenant.
+- A SKILL.md-BBC file in a public GitHub repo. The fetcher accepts `github.com/<owner>/<repo>/blob/<ref>/<path>` or the equivalent `raw.githubusercontent.com` URL.
+- Author wrote the manifest to the [SKILL.md-BBC spec](/build/skill-md-bbc). Missing `metadata.bbc.*` → reject.
+
+## Step 1 — Paste the URL
+
+On `/library`, click **Import skill**. Paste the GitHub URL.
+
+Acceptable shapes:
+
+```
+https://github.com/your-org/your-skills/blob/main/skills/launch-post.md
+https://raw.githubusercontent.com/your-org/your-skills/main/skills/launch-post.md
+```
+
+Off-allowlist hosts (anything other than `github.com` or `raw.githubusercontent.com`) are rejected before the body is read.
+
+## Step 2 — Preview
+
+Submit. BBC fetches the file, parses the frontmatter, and runs the prompt-injection scanner. You see a preview drawer:
+
+- **Manifest summary** — role, kind, label, hint, citation contract, output kind, number of first-use inputs.
+- **Source** — repo, ref, commit SHA pinned at import time, body sha256.
+- **Injection flags** — any patterns the scanner matched (`system-prompt-override`, `exfiltration`, `tool-misuse`). Empty = clean.
+
+If the parser rejected the file, you see a typed error code (`MISSING_FIELD`, `UNKNOWN_ROLE`, `BODY_TOO_LARGE`, etc.) and the field path. Fix the manifest in the source repo and re-paste.
+
+## Step 3 — Confirm
+
+If injection flags are empty, click **Install**. If any flags fired, the install button switches to **I've reviewed this — install anyway** (AT-PI-1 banner). You must explicitly accept the flags before the row writes.
+
+On success, the skill appears in `/library` under its role's filter and inside that role's Studio.
+
+## Re-importing (updates)
+
+Re-paste the same URL. If the commit SHA differs from the prior install, BBC soft-deletes the old `tenant_skills` row (sets `uninstalled_at`) and inserts a new active row. The skill identifier (`skill_name`) stays the same; runs reference the active row by name.
+
+If the commit SHA is unchanged, the import is a no-op.
+
+## Uninstalling
+
+Open the skill's detail drawer in `/library`. Click **Uninstall**. The row's `uninstalled_at` is stamped; the skill disappears from the Studio. Past run records keep their reference for audit.
+
+## Errors you might hit
+
+| Error                         | Cause                                                | Fix                                                       |
+|-------------------------------|------------------------------------------------------|-----------------------------------------------------------|
+| `OFF_ALLOWLIST`               | URL is not on `github.com` / `raw.githubusercontent.com` | Mirror to GitHub.                                          |
+| `BODY_TOO_LARGE`              | File > 256 KB                                        | Split into multiple skills or trim the body.              |
+| `MISSING_BBC_BLOCK`           | No `metadata.bbc` object                             | Add the `metadata.bbc.*` frontmatter block.               |
+| `MISSING_FIELD`               | Required field absent                                | The `field` payload tells you which. See [spec](/build/skill-md-bbc#required-fields). |
+| `UNKNOWN_ROLE`                | `role` outside the 5-enum                            | Use one of: marketing, founder, engineering, designer, support. |
+| `RATE_LIMITED`                | GitHub returned 429                                  | Wait `retryAfterSeconds` and retry.                       |
+| `FLAGGED_FOR_REVIEW`          | Injection scanner matched, you didn't accept         | Review the flagged spans, then re-confirm with **install anyway**. |
+
+## Security boundaries
+
+Imported skills do NOT receive:
+- Tenant secrets (`tenant_keys`, `external_accounts`, OAuth tokens).
+- Connector write access.
+- The ability to call BBC's MCP tools or shell scripts.
+
+They run with the same brain-summary slice the built-in studios use, plus the user's run-time `inputs`. The body is wrapped in BBC-controlled framing — author tags are not honored. See [Security model](/build/skill-md-bbc#security-model).
+
+## Related
+
+- [SKILL.md-BBC spec](/build/skill-md-bbc) — how to author skills.
+- [Studios](/concepts/studios) — where imported skills appear.
+- `apps/dashboard/src/app/library/skills/import-action.ts` — server action source.

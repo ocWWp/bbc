@@ -33,6 +33,14 @@
           {
             "group": "Run it",
             "pages": ["self-host", "integrate/mcp"]
+          },
+          {
+            "group": "Build",
+            "pages": [
+              "build/skill-md-bbc",
+              "build/import-skill",
+              "build/connector"
+            ]
           }
         ]
       }
