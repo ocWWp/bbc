@@ -99,6 +99,7 @@ export default async function QueuePage() {
 
   const counts = countProposals(pending);
   const isEmpty = pending.length === 0;
+  const isFileMode = (process.env.BBC_MODE ?? "file").toLowerCase() !== "db";
 
   return (
     <div className="container page">
@@ -133,14 +134,16 @@ export default async function QueuePage() {
         )}
       </header>
 
-      <div className="banner warn">
-        <span className="dot" />
-        <span style={{ flex: 1 }}>
-          <strong>dev-only:</strong> Accept and Reject buttons shell out to{" "}
-          <code>bash bbc/scripts/&#123;accept,reject&#125;.sh</code> on this machine.
-          Localhost single-user usage only.
-        </span>
-      </div>
+      {isFileMode && (
+        <div className="banner warn">
+          <span className="dot" />
+          <span style={{ flex: 1 }}>
+            <strong>file-mode:</strong> Accept and Reject buttons shell out to{" "}
+            <code>bash bbc/scripts/&#123;accept,reject&#125;.sh</code> on this machine.
+            Localhost single-user usage only.
+          </span>
+        </div>
+      )}
 
       {isEmpty ? (
         <div className="empty lg">

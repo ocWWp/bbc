@@ -1,14 +1,26 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState, useTransition } from "react";
 import type { PartialBlock } from "@blocknote/core";
-import { BlockEditor } from "@/components/memory/block-editor";
 import { TypedForm } from "@/components/memory/typed-form";
 import { TypeChip } from "@/components/memory/type-chip";
 import { RelationPicker } from "@/components/memory/relation-picker";
 import { archiveMemoryItem, publishMemoryItem, updateMemoryItem } from "../actions";
+
+// BlockNote pulls @blocknote/mantine which touches `window` at module
+// top-level. Load client-only so SSR doesn't trip a 500 on every visit.
+const BlockEditor = dynamic(
+  () => import("@/components/memory/block-editor").then((m) => m.BlockEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="min-h-[24rem] animate-pulse rounded-lg bg-muted/40" aria-hidden />
+    ),
+  },
+);
 import type { MemoryItemRow } from "../queries";
 import type { Supertag } from "@/lib/memory/types";
 import type { Database } from "@/lib/supabase/database.types";
@@ -107,6 +119,7 @@ export function EditorShell({ item, relations }: { item: MemoryItemRow; relation
               <TypedForm
                 type={type}
                 fields={(item.fields ?? {}) as never}
+                title={item.title ?? undefined}
                 onChange={(patch) => save({ fields: patch })}
               />
             </div>
