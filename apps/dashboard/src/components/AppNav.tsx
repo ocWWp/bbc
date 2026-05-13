@@ -2,25 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ThemeToggle } from "./theme-toggle";
+import { useEffect, useRef, useState } from "react";
+import { useTheme } from "next-themes";
 
 const ROUTES = [
-  { key: "studio",   label: "Studio",   match: (p: string) => p === "/studio" || p.startsWith("/studio/") },
-  { key: "memory",   label: "Memory",   match: (p: string) => p === "/memory" || p.startsWith("/memory/") || p === "/graph" },
-  { key: "queue",    label: "Queue",    match: (p: string) => p === "/" || p === "/queue" || p.startsWith("/queue/") },
-  { key: "library",  label: "Library",  match: (p: string) => p === "/library" || p.startsWith("/library/") || p === "/marketplace" || p.startsWith("/marketplace/") },
-  { key: "sources",  label: "Sources",  match: (p: string) => p === "/sources" || p.startsWith("/sources/") },
-  { key: "settings", label: "Settings", match: (p: string) => p === "/settings" || p.startsWith("/settings/") || p === "/team" || p === "/api-keys" || p === "/bindings" || p === "/tools" || p === "/skills" || p === "/log" },
+  { key: "studio",  label: "Studio",  href: "/studio",  match: (p: string) => p === "/studio"  || p.startsWith("/studio/") },
+  { key: "memory",  label: "Memory",  href: "/memory",  match: (p: string) => p === "/memory"  || p.startsWith("/memory/") || p === "/graph" || p === "/sources" || p.startsWith("/sources/") },
+  { key: "queue",   label: "Queue",   href: "/queue",   match: (p: string) => p === "/"        || p === "/queue"   || p.startsWith("/queue/") },
+  { key: "library", label: "Library", href: "/library", match: (p: string) => p === "/library" || p.startsWith("/library/") || p === "/marketplace" || p.startsWith("/marketplace/") },
 ] as const;
-
-const HREFS: Record<string, string> = {
-  studio: "/studio",
-  memory: "/memory",
-  queue: "/queue",
-  library: "/library",
-  sources: "/sources",
-  settings: "/settings",
-};
 
 type AppNavProps = {
   pendingCount: number;
@@ -54,7 +44,7 @@ export function AppNav({ pendingCount, user, workspace }: AppNavProps) {
             return (
               <Link
                 key={r.key}
-                href={HREFS[r.key]}
+                href={r.href}
                 className={`app-route ${active ? "is-active" : ""}`}
               >
                 {r.label}
@@ -71,23 +61,8 @@ export function AppNav({ pendingCount, user, workspace }: AppNavProps) {
             <span className="placeholder">search memory…</span>
             <span className="kbd">⌘K</span>
           </div>
-          <ThemeToggle />
           {user ? (
-            <>
-              <Link href="/settings/keys" className="app-avatar" title={user.label}>
-                {user.avatar ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={user.avatar} alt="" />
-                ) : (
-                  user.initial
-                )}
-              </Link>
-              <form action="/auth/signout" method="post">
-                <button type="submit" className="btn btn-ghost" style={{ height: 28, padding: "0 10px", fontSize: 12 }}>
-                  sign out
-                </button>
-              </form>
-            </>
+            <AvatarMenu user={user} />
           ) : (
             <Link href="/auth/signin" className="btn btn-ghost" style={{ height: 28, padding: "0 12px", fontSize: 12 }}>
               sign in
@@ -96,5 +71,95 @@ export function AppNav({ pendingCount, user, workspace }: AppNavProps) {
         </div>
       </div>
     </header>
+  );
+}
+
+function AvatarMenu({ user }: { user: NonNullable<AppNavProps["user"]> }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const { theme, setTheme } = useTheme();
+
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="avatar-menu" ref={wrapRef}>
+      <button
+        type="button"
+        className="app-avatar"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title={user.label}
+      >
+        {user.avatar ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={user.avatar} alt="" />
+        ) : (
+          user.initial
+        )}
+      </button>
+      {open && (
+        <div className="avatar-menu-pop" role="menu">
+          <div className="avatar-menu-id">
+            <div className="nm">{user.label}</div>
+          </div>
+          <Link
+            href="/settings"
+            className="avatar-menu-item"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+          >
+            <span>Settings</span>
+            <span className="mono hint">/settings</span>
+          </Link>
+          <Link
+            href="/settings/keys"
+            className="avatar-menu-item"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+          >
+            <span>API keys</span>
+            <span className="mono hint">/settings/keys</span>
+          </Link>
+          <div className="avatar-menu-sep" role="separator" />
+          <div className="avatar-menu-theme" role="group" aria-label="Theme">
+            <span className="lab">Theme</span>
+            <div className="theme-seg">
+              {(["light", "dark", "system"] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  className={`theme-seg-btn ${theme === v ? "is-on" : ""}`}
+                  onClick={() => setTheme(v)}
+                  aria-pressed={theme === v}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="avatar-menu-sep" role="separator" />
+          <form action="/auth/signout" method="post">
+            <button type="submit" className="avatar-menu-item is-danger" role="menuitem">
+              <span>Sign out</span>
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
   );
 }

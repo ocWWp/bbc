@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { MemoryTabs } from "@/components/MemoryTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -93,10 +94,13 @@ export default async function SourcesPage() {
 
   return (
     <div className="container page">
+      <MemoryTabs />
       <header className="page-head">
         <div className="page-head-left">
           <div className="page-crumb">
             <Link href="/queue">acme</Link>
+            <span className="sep">/</span>
+            <Link href="/memory">memory</Link>
             <span className="sep">/</span>
             <span className="current">sources</span>
           </div>

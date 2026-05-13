@@ -2,6 +2,7 @@ import Link from "next/link";
 import { listMemoryItems } from "./queries";
 import { SUPERTAGS, type Supertag } from "@/lib/memory/types";
 import { BrainView } from "@/components/memory/BrainView";
+import { MemoryTabs } from "@/components/MemoryTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,7 @@ export default async function MemoryIndex({ searchParams }: { searchParams: Sear
 
   return (
     <div className="container page">
+      <MemoryTabs />
       <header className="page-head">
         <div className="page-head-left">
           <div className="page-crumb">

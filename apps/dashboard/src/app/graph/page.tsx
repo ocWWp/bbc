@@ -3,6 +3,7 @@ import { getLayerTree, getFolderTree, getWorkflowGraph, layoutTree } from "@/lib
 import SvgTree from "@/components/SvgTree";
 import SvgWorkflow from "@/components/SvgWorkflow";
 import FolderList from "@/components/FolderList";
+import { MemoryTabs } from "@/components/MemoryTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -16,14 +17,26 @@ export default async function GraphPage({ searchParams }: PageProps) {
     viewParam === "folder" ? "folder" : viewParam === "workflow" ? "workflow" : "layers";
 
   return (
-    <>
-      <h1>Structure &amp; workflow</h1>
-      <p className="muted" style={{ marginBottom: 16 }}>
-        Three views of how BBC is wired. Hover any node for its meta line. SVG only — no graph
-        library; tree positions are computed server-side.
-      </p>
+    <div className="container page">
+      <MemoryTabs />
+      <header className="page-head">
+        <div className="page-head-left">
+          <div className="page-crumb">
+            <Link href="/queue">acme</Link>
+            <span className="sep">/</span>
+            <Link href="/memory">memory</Link>
+            <span className="sep">/</span>
+            <span className="current">graph</span>
+          </div>
+          <h1 className="page-title">Structure &amp; workflow</h1>
+          <p className="page-blurb">
+            Three views of how BBC is wired. Hover any node for its meta line. SVG only — no graph
+            library; tree positions are computed server-side.
+          </p>
+        </div>
+      </header>
 
-      <div className="tabs">
+      <div className="tabs" style={{ marginBottom: 16 }}>
         <Link href="/graph?view=layers" className={tabClass(view === "layers")}>Layer hierarchy</Link>
         <Link href="/graph?view=folder" className={tabClass(view === "folder")}>Folder tree</Link>
         <Link href="/graph?view=workflow" className={tabClass(view === "workflow")}>Queue workflow</Link>
@@ -41,7 +54,7 @@ export default async function GraphPage({ searchParams }: PageProps) {
         <span className="legend-pill" style={{ borderColor: "var(--line)", color: "var(--fg)" }}>Agent · folder · artifact</span>
         <span className="legend-pill" style={{ borderColor: "var(--muted)", color: "var(--muted)" }}>External pinned skill</span>
       </div>
-    </>
+    </div>
   );
 }
 

@@ -12,6 +12,7 @@ import type {
 import { ROLE_COLOR } from "../_data";
 import { Icons } from "./Icons";
 import { SchemaChip } from "./Cards";
+import { BrandIcon, hasBrandIcon } from "./BrandIcon";
 
 function isSkill(item: LibItem): item is SkillItem {
   return item.kind === "skill";
@@ -106,7 +107,13 @@ export function DetailDrawer({ item, installingId, onClose, onInstall }: DetailD
 
         <div className="lib-drawer-body">
           <div className="hero-card" style={style}>
-            <div className="glyph-lg">{item.glyph}</div>
+            <div className="glyph-lg">
+              {hasBrandIcon(item.name) ? (
+                <BrandIcon name={item.name} size={28} />
+              ) : (
+                item.glyph
+              )}
+            </div>
             <div>
               <h2>{item.name}</h2>
               <div className="sub">

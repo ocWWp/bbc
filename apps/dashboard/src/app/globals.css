@@ -76,8 +76,8 @@
   --paper-bg-3: #e8e4d8;
   --paper-ink: #15140f;
   --paper-ink-2: #2a2920;
-  --paper-muted: #6a6759;
-  --paper-muted-2: #908c7d;
+  --paper-muted: #5a5749;
+  --paper-muted-2: #6e6b5c;
   --paper-rule: #d9d4c4;
   --paper-rule-2: #c9c3b0;
   --paper: #fbf9f3;
@@ -109,10 +109,16 @@
   --bg:           var(--paper-bg);
   --bg-2:         var(--paper-bg-2);
   --bg-3:         var(--paper-bg-3);
+  /* Unify the shadcn body bg with the paper layer so editorial pages
+     and shadcn-styled surfaces share one warm off-white tone. */
+  --background:   var(--paper-bg);
   --ink:          var(--paper-ink);
   --ink-2:        var(--paper-ink-2);
-  --muted:        var(--paper-muted);
-  --muted-2:      var(--paper-muted-2);
+  /* NOTE: --muted / --muted-2 intentionally not aliased here. shadcn's
+     --muted is a *background* color (near-white), Claude-Design's was a
+     *text* color. To avoid the semantic collision, paper text colors are
+     referenced as --paper-muted / --paper-muted-2 directly throughout the
+     paper layer below. */
   --rule:         var(--paper-rule);
   --rule-2:       var(--paper-rule-2);
   --accent:       var(--paper-accent);
@@ -158,7 +164,7 @@
   --paper-ink: #f1ede0;
   --paper-ink-2: #d8d3c2;
   --paper-muted: #8a8676;
-  --paper-muted-2: #6b685b;
+  --paper-muted-2: #7a7666;
   --paper-rule: #2a2820;
   --paper-rule-2: #3a382e;
   --paper: #14130f;
@@ -173,6 +179,7 @@
   --t-skill:          #ef7a3a;
   --t-source_artifact:#a0a0a0;
   --t-note:           #d4b94a;
+  --background:   var(--paper-bg);
 }
 
 @layer base {
@@ -627,6 +634,106 @@
   text-decoration: none;
 }
 .app-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.app-avatar { border: none; padding: 0; }
+
+/* ---------- avatar dropdown menu ---------- */
+.avatar-menu { position: relative; }
+.avatar-menu-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 240px;
+  background: var(--paper);
+  border: 1px solid var(--paper-rule);
+  border-radius: 10px;
+  padding: 6px;
+  box-shadow: 0 12px 32px -16px rgba(20, 18, 12, 0.18);
+  z-index: 90;
+  animation: avatar-menu-in 0.14s ease-out;
+}
+@keyframes avatar-menu-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.avatar-menu-id {
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid var(--paper-rule);
+  margin-bottom: 6px;
+}
+.avatar-menu-id .nm {
+  font-family: var(--font-geist), sans-serif;
+  font-size: 12.5px;
+  color: var(--paper-ink);
+  letter-spacing: -0.005em;
+}
+.avatar-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 10px;
+  font-family: var(--font-geist), sans-serif;
+  font-size: 13px;
+  color: var(--paper-ink);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: left;
+}
+.avatar-menu-item:hover { background: var(--paper-bg-2); }
+.avatar-menu-item .hint {
+  font-size: 10.5px;
+  color: var(--paper-muted-2);
+  font-variant-numeric: tabular-nums;
+}
+.avatar-menu-item.is-danger { color: var(--paper-err); }
+.avatar-menu-item.is-danger:hover { background: color-mix(in oklab, var(--paper-err), transparent 92%); }
+.avatar-menu-sep {
+  height: 1px;
+  background: var(--paper-rule);
+  margin: 4px 0;
+}
+.avatar-menu-theme {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+}
+.avatar-menu-theme .lab {
+  font-family: var(--font-geist), sans-serif;
+  font-size: 13px;
+  color: var(--paper-ink);
+}
+.theme-seg {
+  display: inline-flex;
+  background: var(--paper-bg-2);
+  border: 1px solid var(--paper-rule);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+.theme-seg-btn {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 10.5px;
+  padding: 3px 8px;
+  border: none;
+  background: transparent;
+  color: var(--paper-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+}
+.theme-seg-btn:hover { color: var(--paper-ink); }
+.theme-seg-btn.is-on {
+  background: var(--paper);
+  color: var(--paper-ink);
+  box-shadow: 0 1px 2px rgba(20, 18, 12, 0.06);
+}
 
 .app-nav-burger {
   display: none;
@@ -2745,7 +2852,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 .rec-band-head .eyebrow {
   font-family: "Geist Mono", monospace;
   font-size: 11px;
-  color: var(--muted);
+  color: var(--paper-muted);
   letter-spacing: 0.04em;
   text-transform: lowercase;
   display: inline-flex; align-items: center; gap: 8px;
@@ -2761,13 +2868,13 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 }
 .rec-band-head .why {
   font-size: 12.5px;
-  color: var(--muted);
+  color: var(--paper-muted);
   margin-left: 14px;
 }
 .rec-band-head .collapse {
   font-family: "Geist Mono", monospace;
   font-size: 11px;
-  color: var(--muted);
+  color: var(--paper-muted);
   background: transparent;
   border: 1px solid var(--rule);
   border-radius: 6px;
@@ -2831,7 +2938,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 .rec-card .kind {
   font-family: "Geist Mono", monospace;
   font-size: 10.5px;
-  color: var(--muted);
+  color: var(--paper-muted);
   text-transform: lowercase;
 }
 .rec-card .why-line {
@@ -2861,7 +2968,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 .pack-card .pack-eyebrow {
   font-family: "Geist Mono", monospace;
   font-size: 10.5px;
-  color: var(--muted);
+  color: var(--paper-muted);
   letter-spacing: 0.04em;
   text-transform: lowercase;
 }
@@ -2873,7 +2980,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   color: var(--ink);
   margin: 0;
 }
-.pack-card .pack-desc { font-size: 13px; color: var(--muted); line-height: 1.5; margin: 0; }
+.pack-card .pack-desc { font-size: 13px; color: var(--paper-muted); line-height: 1.5; margin: 0; }
 .pack-card .pack-bundle {
   display: flex; flex-direction: column; gap: 1px;
   background: var(--rule);
@@ -2893,7 +3000,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   align-items: center;
 }
 .pack-card .pack-bundle .row .kind {
-  color: var(--muted);
+  color: var(--paper-muted);
   text-transform: lowercase;
 }
 .pack-card .pack-foot {
@@ -2901,7 +3008,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   padding-top: 10px;
   border-top: 1px solid var(--rule);
 }
-.pack-card .pack-foot .summary { font-family: "Geist Mono", monospace; font-size: 11px; color: var(--muted); }
+.pack-card .pack-foot .summary { font-family: "Geist Mono", monospace; font-size: 11px; color: var(--paper-muted); }
 
 /* ---------- LIB TOOLBAR ---------- */
 .lib-toolbar {
@@ -2930,12 +3037,12 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   font-size: 14px;
   color: var(--ink);
 }
-.lib-search input::placeholder { color: var(--muted-2); }
-.lib-search .lib-search-ic { color: var(--muted); }
+.lib-search input::placeholder { color: var(--paper-muted-2); }
+.lib-search .lib-search-ic { color: var(--paper-muted); }
 .lib-search .clear {
   background: var(--bg-2); border: 1px solid var(--rule);
   border-radius: 100px; width: 16px; height: 16px;
-  display: grid; place-items: center; color: var(--muted);
+  display: grid; place-items: center; color: var(--paper-muted);
   cursor: pointer; font-size: 9px;
 }
 
@@ -2959,7 +3066,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   color: var(--bg);
 }
 .lib-toolbar .installed-pill.is-on .box { background: var(--ink); border-color: var(--ink); }
-.lib-toolbar .installed-pill .ct { color: var(--muted); font-variant-numeric: tabular-nums; }
+.lib-toolbar .installed-pill .ct { color: var(--paper-muted); font-variant-numeric: tabular-nums; }
 
 @media (max-width: 760px) {
   .lib-toolbar { grid-template-columns: 1fr; }
@@ -2985,7 +3092,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   transition: all 0.12s;
 }
 .lib-chip:hover { background: var(--bg-2); border-color: var(--rule-2); }
-.lib-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--chip-color, var(--muted-2)); }
+.lib-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--chip-color, var(--paper-muted-2)); }
 .lib-chip.is-on {
   background: var(--ink);
   color: var(--bg);
@@ -2994,7 +3101,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 .lib-chip.is-on .dot { background: var(--bg); }
 .lib-chip .ct {
   font-size: 10.5px;
-  color: var(--muted);
+  color: var(--paper-muted);
   font-variant-numeric: tabular-nums;
 }
 .lib-chip.is-on .ct { color: color-mix(in oklab, var(--bg), transparent 30%); }
@@ -3023,7 +3130,12 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   text-decoration: none;
   color: var(--ink);
 }
-.lib-card:hover { border-color: var(--rule-2); }
+.lib-card { transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease; }
+.lib-card:hover {
+  border-color: var(--rule-2);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px -10px rgba(20, 18, 12, 0.18);
+}
 .lib-card:focus-visible { outline: 2px solid color-mix(in oklab, var(--accent), transparent 30%); outline-offset: 2px; }
 .lib-card.is-focused { border-color: var(--ink); }
 .lib-card .glyph {
@@ -3044,7 +3156,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 .lib-card .by {
   font-family: "Geist Mono", monospace;
   font-size: 11px;
-  color: var(--muted);
+  color: var(--paper-muted);
 }
 .lib-card .by .bb { color: var(--ink-2); }
 .lib-card .desc {
@@ -3063,7 +3175,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 .lib-card .schema .lab {
   font-family: "Geist Mono", monospace;
   font-size: 10.5px;
-  color: var(--muted);
+  color: var(--paper-muted);
   letter-spacing: 0.02em;
   margin-right: 4px;
   align-self: center;
@@ -3077,7 +3189,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 .lib-card .foot .meta {
   font-family: "Geist Mono", monospace;
   font-size: 11px;
-  color: var(--muted);
+  color: var(--paper-muted);
   display: inline-flex; align-items: center; gap: 10px;
 }
 .lib-card .foot .meta .sep { color: var(--rule-2); }
@@ -3101,7 +3213,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   border-color: color-mix(in oklab, var(--ok), transparent 55%);
 }
 .lib-card .install.is-installed:hover { background: color-mix(in oklab, var(--ok), transparent 90%); }
-.lib-card .install.is-installing { background: var(--bg-2); color: var(--muted); border-color: var(--rule); cursor: progress; }
+.lib-card .install.is-installing { background: var(--bg-2); color: var(--paper-muted); border-color: var(--rule); cursor: progress; }
 
 .lib-card .corner {
   position: absolute;
@@ -3137,7 +3249,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   white-space: nowrap;
 }
 .schema-chip .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--tag-color, var(--ink)); }
-.schema-chip .direction { color: var(--muted); margin-right: 2px; }
+.schema-chip .direction { color: var(--paper-muted); margin-right: 2px; }
 
 /* installing spinner */
 .lib-spinner {
@@ -3179,7 +3291,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 .lib-drawer-head .crumb {
   font-family: "Geist Mono", monospace;
   font-size: 11px;
-  color: var(--muted);
+  color: var(--paper-muted);
   flex: 1;
 }
 .lib-drawer-head .crumb strong { color: var(--ink); font-weight: 500; }
@@ -3228,7 +3340,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 .lib-drawer-body .hero-card .sub {
   font-family: "Geist Mono", monospace;
   font-size: 11.5px;
-  color: var(--muted);
+  color: var(--paper-muted);
   display: inline-flex; align-items: center; gap: 8px;
   flex-wrap: wrap;
 }
@@ -3251,7 +3363,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 .lib-section .lab {
   font-family: "Geist Mono", monospace;
   font-size: 10.5px;
-  color: var(--muted);
+  color: var(--paper-muted);
   letter-spacing: 0.04em;
   text-transform: lowercase;
   margin-bottom: 10px;
@@ -3265,7 +3377,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   font-family: "Geist Mono", monospace;
   font-size: 12.5px;
 }
-.lib-kv .k { color: var(--muted); padding: 4px 0; }
+.lib-kv .k { color: var(--paper-muted); padding: 4px 0; }
 .lib-kv .v { color: var(--ink); padding: 4px 0; }
 .lib-kv .v a { color: var(--accent); text-decoration: none; border-bottom: 1px solid color-mix(in oklab, var(--accent), transparent 60%); }
 .lib-kv .v code, .lib-kv .v .mono {
@@ -3296,9 +3408,9 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   font-size: 12px;
 }
 .lib-inputs li:last-child { border-bottom: none; }
-.lib-inputs li .n { color: var(--muted-2); }
+.lib-inputs li .n { color: var(--paper-muted-2); }
 .lib-inputs li .k { color: var(--ink); }
-.lib-inputs li .desc { color: var(--muted); }
+.lib-inputs li .desc { color: var(--paper-muted); }
 
 .lib-scope {
   display: grid;
@@ -3315,14 +3427,14 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 .lib-scope .col .h {
   font-family: "Geist Mono", monospace;
   font-size: 10.5px;
-  color: var(--muted);
+  color: var(--paper-muted);
   letter-spacing: 0.04em;
   text-transform: lowercase;
   margin-bottom: 8px;
   display: inline-flex; align-items: center; gap: 6px;
 }
 .lib-scope .col.allow .h { color: var(--ok); }
-.lib-scope .col.deny .h { color: var(--muted); }
+.lib-scope .col.deny .h { color: var(--paper-muted); }
 .lib-scope ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .lib-scope li {
   font-family: "Geist Mono", monospace;
@@ -3335,7 +3447,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   background: currentColor;
   margin-right: 2px; opacity: 0.45;
 }
-.lib-scope .col.deny li { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--rule-2); }
+.lib-scope .col.deny li { color: var(--paper-muted); text-decoration: line-through; text-decoration-color: var(--rule-2); }
 
 .lib-drawer-foot {
   display: flex; align-items: center; gap: 10px;
@@ -3347,7 +3459,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 .lib-drawer-foot .left {
   font-family: "Geist Mono", monospace;
   font-size: 11px;
-  color: var(--muted);
+  color: var(--paper-muted);
   flex: 1;
 }
 .lib-drawer-foot .left strong { color: var(--ink-2); font-weight: 500; }
@@ -3375,7 +3487,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 .lib-import-input .url-box .scheme {
   font-family: "Geist Mono", monospace;
   font-size: 12px;
-  color: var(--muted);
+  color: var(--paper-muted);
 }
 .lib-import-input .url-box input {
   flex: 1; border: none; outline: none; background: transparent;
@@ -3407,15 +3519,15 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   border: 1px solid var(--rule);
   display: grid; place-items: center;
   background: var(--bg);
-  color: var(--muted-2);
+  color: var(--paper-muted-2);
   font-size: 11px;
 }
 .lib-import-progress .step.done .n { background: var(--ok); border-color: var(--ok); color: var(--bg); }
 .lib-import-progress .step.run .n { background: var(--ink); border-color: var(--ink); color: var(--bg); }
 .lib-import-progress .step.err .n { background: var(--err, #b13a3a); border-color: var(--err, #b13a3a); color: var(--bg); }
 .lib-import-progress .step .lbl { color: var(--ink); }
-.lib-import-progress .step.idle .lbl { color: var(--muted-2); }
-.lib-import-progress .step .meta { color: var(--muted); font-size: 11px; }
+.lib-import-progress .step.idle .lbl { color: var(--paper-muted-2); }
+.lib-import-progress .step .meta { color: var(--paper-muted); font-size: 11px; }
 
 .lib-import-flag {
   display: grid;
@@ -3517,7 +3629,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 }
 .installing-banner .body { font-size: 13px; color: var(--ink-2); }
 .installing-banner .body strong { color: var(--ink); font-weight: 500; }
-.installing-banner .body .sub { font-family: "Geist Mono", monospace; font-size: 11px; color: var(--muted); margin-top: 2px; display: block; }
+.installing-banner .body .sub { font-family: "Geist Mono", monospace; font-size: 11px; color: var(--paper-muted); margin-top: 2px; display: block; }
 .installing-banner .right { display: inline-flex; align-items: center; gap: 8px; }
 
 /* ---------- ERROR BANNER ---------- */
@@ -3592,6 +3704,6 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   text-align: center;
   font-family: "Geist Mono", monospace;
   font-size: 11px;
-  color: var(--muted);
+  color: var(--paper-muted);
   margin-top: 8px;
 }

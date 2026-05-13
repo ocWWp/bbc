@@ -216,7 +216,10 @@ export function LibraryClient() {
                   style={{
                     marginLeft: 6,
                     fontSize: 11,
-                    color: tab === t.key ? "color-mix(in oklab, var(--bg), transparent 35%)" : "var(--muted)",
+                    color:
+                      tab === t.key
+                        ? "color-mix(in oklab, var(--ink), transparent 45%)"
+                        : "var(--muted)",
                   }}
                 >
                   {t.ct}

@@ -15,6 +15,7 @@ import {
   type Supertag,
 } from "../_data";
 import { Icons } from "./Icons";
+import { BrandIcon, hasBrandIcon } from "./BrandIcon";
 
 function isSkill(item: LibItem): item is SkillItem {
   return item.kind === "skill";
@@ -92,14 +93,20 @@ export function LibCard({ item, focused, installingId, onOpen, onInstall }: LibC
       {"badge" in item && item.badge ? (
         <span className={`corner ${item.badge}`}>{item.badge}</span>
       ) : null}
-      <div className="glyph">{item.glyph}</div>
+      <div className="glyph">
+        {hasBrandIcon(item.name) ? (
+          <BrandIcon name={item.name} size={20} />
+        ) : (
+          item.glyph
+        )}
+      </div>
       <div className="head">
         <div className="nm">{item.name}</div>
         <div className="by">
-          By <span className="bb">{item.author}</span>
+          <span className="bb">{item.author}</span>
           {isSkill(item) && <> · <span>{item.role}</span></>}
           {isConnector(item) && <> · <span>{item.source}</span></>}
-          {isProvider(item) && <> · <span>role: {item.role}</span></>}
+          {isProvider(item) && <> · <span>{item.role}</span></>}
         </div>
       </div>
 
@@ -196,7 +203,13 @@ export function RecCard({ item, why, onOpen, onInstall }: RecCardProps) {
   const style: RoleColorStyle = { "--role-color": roleColor };
   return (
     <div className="rec-card" style={style} onClick={() => onOpen(item)}>
-      <div className="glyph">{item.glyph}</div>
+      <div className="glyph">
+        {hasBrandIcon(item.name) ? (
+          <BrandIcon name={item.name} size={16} />
+        ) : (
+          item.glyph
+        )}
+      </div>
       <div>
         <div className="nm">
           {item.name}

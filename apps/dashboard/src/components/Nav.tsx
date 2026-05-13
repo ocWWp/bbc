@@ -8,11 +8,9 @@ import { AppNav } from "./AppNav";
  * Queue badge), then renders the client-side <AppNav /> which handles route
  * highlighting via `usePathname`.
  *
- * Nav chrome itself is now a 5-route shell (Studio · Memory · Queue · Sources
- * · Settings) ported from the Claude Design bundle — see app-nav primitives
- * in globals.css. Absorbed routes (skills, bindings, tools, log, team,
- * api-keys, graph) still resolve by URL but no longer occupy primary-nav
- * slots; they live under their parent section.
+ * Nav chrome is a 4-route shell (Studio · Memory · Queue · Library). Memory
+ * absorbs /sources and /graph as sub-tabs; Settings + theme + sign out live
+ * in the avatar dropdown. Absorbed routes still resolve by URL.
  */
 export default async function Nav() {
   const supabase = await getSupabaseServerClient();
