@@ -397,6 +397,44 @@ describe("sync", () => {
     expect((err as { retry_after_ms?: number }).retry_after_ms).toBe(12_000);
   });
 
+  it("stays in issues phase when cfg.issue_limit cuts pages off (codex [P2])", async () => {
+    // 50-issue page with hasNextPage=true and an explicit endCursor; tenant
+    // configured issue_limit=50 so iterateIssues returns after one page even
+    // though Linear has more.
+    const handlers: Record<string, GraphQLHandler> = {
+      projects: () => okData({ projects: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } } }),
+      cycles: () => okData({ cycles: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } } }),
+      issues: () =>
+        okData({
+          issues: {
+            nodes: Array.from({ length: 50 }, (_, i) => ({
+              id: `i${i}`,
+              identifier: `BBC-${i}`,
+              title: `t${i}`,
+              description: null,
+              url: `u${i}`,
+              updatedAt: "2026-05-12T00:00:00Z",
+              labels: { nodes: [] },
+              team: null,
+              project: null,
+            })),
+            pageInfo: { hasNextPage: true, endCursor: "after_page1" },
+          },
+        }),
+    };
+    const { fetch: f } = mockLinearFetch(handlers);
+    const c = createLinearConnector(baseDeps(f));
+    const events = await collect(c.sync(syncCtx({ config: { issue_limit: 50 } })));
+
+    const checkpoints = events
+      .filter((e): e is Extract<SyncEvent, { kind: "checkpoint" }> => e.kind === "checkpoint")
+      .map((e) => e.cursor);
+    const final = checkpoints[checkpoints.length - 1];
+    expect(final).toContain('"phase":"issues"');
+    expect(final).toContain("after_page1");
+    expect(checkpoints.some((c) => typeof c === "string" && c.includes('"phase":"done"'))).toBe(false);
+  });
+
   it("checkpoints inside the issues phase at PAGE_SIZE boundaries", async () => {
     let page = 0;
     const handlers: Record<string, GraphQLHandler> = {

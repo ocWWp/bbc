@@ -266,25 +266,43 @@ export function createLinearConnector(deps: LinearConnectorDeps): Connector {
       }
 
       // ---- Phase 3: issues --------------------------------------------
+      // Two ways this phase ends:
+      //   1. Linear has no more pages (pageInfo.hasNextPage=false) → fall
+      //      through and emit the phase:"done" checkpoint below.
+      //   2. cfg.issue_limit cuts us off while Linear still has more pages
+      //      (codex [P2]: previously we still emitted phase:"done" here,
+      //      which silently skipped the rest until the cursor was reset).
+      //      Stay in the issues phase at the last endCursor so the next
+      //      sync resumes from there.
+      let stoppedMidIssues = false;
+      let lastIssuesEndCursor: string | null = null;
       if (phase.phase === "projects" || phase.phase === "cycles" || phase.phase === "issues") {
         const startCursor = phase.phase === "issues" ? phase.endCursor : null;
         const decisionLabels = new Set(cfg.decision_labels.map((s) => s.toLowerCase()));
-        let lastEndCursor: string | null = null;
         let sinceCheckpoint = 0;
+        let lastPageInfo: LinearPageInfo | null = null;
         for await (const { node, pageInfo } of iterateIssues(token, startCursor, cfg.issue_limit)) {
           yield { kind: "proposal", proposal: issueToProposal(node, decisionLabels) };
           sinceCheckpoint++;
-          lastEndCursor = pageInfo.endCursor;
+          lastPageInfo = pageInfo;
           // Checkpoint at GraphQL page boundaries. We approximate by stamping
           // every PAGE_SIZE nodes — GraphQL cursors are stable so even if we
           // resume mid-page the next query re-fetches the remainder.
-          if (sinceCheckpoint >= PAGE_SIZE) {
-            yield { kind: "checkpoint", cursor: stringifyCursor({ phase: "issues", endCursor: lastEndCursor }) };
+          if (sinceCheckpoint >= PAGE_SIZE && pageInfo.endCursor) {
+            yield { kind: "checkpoint", cursor: stringifyCursor({ phase: "issues", endCursor: pageInfo.endCursor }) };
             sinceCheckpoint = 0;
           }
         }
+        if (lastPageInfo?.hasNextPage && lastPageInfo.endCursor) {
+          stoppedMidIssues = true;
+          lastIssuesEndCursor = lastPageInfo.endCursor;
+        }
       }
 
+      if (stoppedMidIssues) {
+        yield { kind: "checkpoint", cursor: stringifyCursor({ phase: "issues", endCursor: lastIssuesEndCursor }) };
+        return;
+      }
       yield { kind: "checkpoint", cursor: stringifyCursor({ phase: "done", endCursor: null }) };
     },
 
