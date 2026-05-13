@@ -15,11 +15,11 @@ import {
 import type { OverrideRule } from "@/lib/studio/templates/types";
 import { resolveLlmModel } from "@/lib/studio/resolve-model";
 import {
-  cleanBlockCitations,
   EMIT_OUTPUT_TOOL_INPUT_SCHEMA,
   emitOutputResponseSchema,
   type OutputBlock,
 } from "@/lib/studio/output-blocks";
+import { validateRun } from "@/lib/studio/validate-run";
 import "@/lib/studio/writebacks"; // side-effect: register emitters (incl. marketing audits)
 import {
   getWritebackEmitter,
@@ -370,21 +370,21 @@ export async function runWorkflow(
     };
   }
 
-  // Strip citations that point at memory not owned by this tenant. Also strip
-  // claimed cited_memory_ids that aren't in the tenant's brain. Both are
-  // defense in depth -- the LLM operates only on the brain summary we passed
-  // so cross-tenant references shouldn't occur, but we don't trust that.
-  let droppedCount = 0;
-  const cleanedBlocks: OutputBlock[] = parsed.data.blocks.map((b) => {
-    const { block, stripped } = cleanBlockCitations(b, knownMemoryIds);
-    droppedCount += stripped;
-    return block;
+  // Strip citations that point at memory not owned by this tenant. Defense
+  // in depth -- the LLM operates only on the brain summary we passed so
+  // cross-tenant references shouldn't occur, but we don't trust that.
+  const validated = validateRun({
+    blocks: parsed.data.blocks,
+    citedMemoryIds: parsed.data.cited_memory_ids,
+    knownMemoryIds,
+    citationContract: "encouraged",
   });
-  const validCitedIds = parsed.data.cited_memory_ids.filter((id) => knownMemoryIds.has(id));
-  const droppedIdsCount = parsed.data.cited_memory_ids.length - validCitedIds.length;
-  if (droppedCount > 0 || droppedIdsCount > 0) {
+  if (!validated.ok) return { ok: false, error: validated.error };
+  const cleanedBlocks = validated.blocks;
+  const validCitedIds = validated.citedMemoryIds;
+  if (validated.droppedCitations > 0 || validated.droppedIds > 0) {
     console.warn(
-      `studio.runWorkflow: stripped ${droppedCount} inline citations + ${droppedIdsCount} ids (tenant=${tenantId}, template=${templateId})`,
+      `studio.runWorkflow: stripped ${validated.droppedCitations} inline citations + ${validated.droppedIds} ids (tenant=${tenantId}, template=${templateId})`,
     );
   }
 
@@ -437,7 +437,7 @@ export async function runWorkflow(
     blocks: cleanedBlocks,
     citedMemoryIds: validCitedIds,
     citedMemories,
-    droppedCitationCount: droppedCount + droppedIdsCount,
+    droppedCitationCount: validated.droppedCitations + validated.droppedIds,
   };
 }
 

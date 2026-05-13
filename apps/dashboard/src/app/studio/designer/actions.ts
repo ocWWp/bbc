@@ -11,11 +11,11 @@ import "@/lib/studio/designer-templates";
 import { getDesignerTemplate } from "@/lib/studio/designer-templates/registry";
 import { resolveLlmModel } from "@/lib/studio/resolve-model";
 import {
-  cleanBlockCitations,
   EMIT_OUTPUT_TOOL_INPUT_SCHEMA,
   emitOutputResponseSchema,
   type OutputBlock,
 } from "@/lib/studio/output-blocks";
+import { validateRun } from "@/lib/studio/validate-run";
 
 /**
  * Designer Studio — fourth Loop 2 role agent. Visual specs, brand guideline
@@ -161,14 +161,17 @@ export async function runDesignerWorkflow(
     };
   }
 
-  let droppedCount = 0;
-  const cleanedBlocks: OutputBlock[] = parsed.data.blocks.map((b) => {
-    const { block, stripped } = cleanBlockCitations(b, knownMemoryIds);
-    droppedCount += stripped;
-    return block;
+  const validated = validateRun({
+    blocks: parsed.data.blocks,
+    citedMemoryIds: parsed.data.cited_memory_ids,
+    knownMemoryIds,
+    citationContract: "encouraged",
   });
-  const validCitedIds = parsed.data.cited_memory_ids.filter((id) => knownMemoryIds.has(id));
-  const droppedIdsCount = parsed.data.cited_memory_ids.length - validCitedIds.length;
+  if (!validated.ok) return { ok: false, error: validated.error };
+  const cleanedBlocks = validated.blocks;
+  const validCitedIds = validated.citedMemoryIds;
+  const droppedCount = validated.droppedCitations;
+  const droppedIdsCount = validated.droppedIds;
 
   const { data: inserted, error: insertErr } = await supabase
     .from("studio_runs")
