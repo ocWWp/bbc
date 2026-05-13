@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type CSSProperties } from "react";
 import { DUMP_TEXT, EXTRACTED, STUDIO } from "./data";
+import { LANDING_COPY } from "./copy";
 import { Tag } from "./Tag";
 import { SafeInline } from "./safe-render";
 import { ArrowIcon, CheckIcon } from "./icons";
@@ -77,7 +78,8 @@ export function Walkthrough() {
             </h2>
           </div>
           <p className="section-blurb">
-            the entire path from &quot;a slack thread happened&quot; to &quot;an agent answers correctly&quot; is three deterministic steps. click through them. <span className="serif">loop 3 — where the brain files its own proposals back</span> — ships in v1.5.1.
+            {LANDING_COPY.walkthrough.blurb_lead}{" "}
+            <span className="serif">{LANDING_COPY.walkthrough.loop3_promise}</span>
           </p>
         </div>
 
