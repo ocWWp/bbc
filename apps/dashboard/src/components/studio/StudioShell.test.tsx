@@ -93,4 +93,22 @@ describe("StudioShell — presentational slots", () => {
     expect(container.querySelector('[aria-label="prompt"]')).not.toBeNull();
     expect(container.querySelector('[aria-label="recent drafts"]')).not.toBeNull();
   });
+
+  it("omits the prompt region when promptSlot is undefined (v1.5 wrap pattern)", () => {
+    // Studios whose existing client renders its own prompt internally pass
+    // the entire client as bodySlot and leave promptSlot undefined. Shell
+    // should not render an empty prompt section in that case.
+    const { container } = render(
+      <StudioShell
+        role="marketing"
+        tenantName="acme"
+        templateSlug="marketing:tweet-thread"
+        accentColor="#f59e0b"
+        recentDraftsSlot={<div>D</div>}
+        bodySlot={<div data-testid="existing-client">existing client renders here</div>}
+      />,
+    );
+    expect(container.querySelector('[aria-label="prompt"]')).toBeNull();
+    expect(screen.getByTestId("existing-client")).toBeDefined();
+  });
 });

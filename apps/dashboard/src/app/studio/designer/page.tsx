@@ -6,6 +6,7 @@ import { listClientDesignerTemplates } from "@/lib/studio/designer-templates/reg
 
 import DesignerStudioClient, { type RecentDesignerRun } from "./DesignerStudioClient";
 import { RoleSwitcher } from "../_components/RoleSwitcher";
+import { StudioPageShell } from "@/components/studio/StudioPageShell";
 
 export const metadata = {
   title: "Designer Studio · BBC",
@@ -52,22 +53,24 @@ export default async function DesignerStudioPage() {
     }));
 
   return (
-    <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-12">
-      <RoleSwitcher active="designer" />
-      <header className="mb-8 sm:mb-12">
-        <div className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
-          Designer Studio
-        </div>
-        <h1 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight">
-          What needs designing?
-        </h1>
-        <p className="mt-2 text-muted-foreground text-base sm:text-lg max-w-2xl">
-          Visual specs, brand guideline entries, UI copy passes — drafted from
-          your brain&rsquo;s voice and product positioning.
-        </p>
-      </header>
+    <StudioPageShell role="designer">
+      <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-12">
+        <RoleSwitcher active="designer" />
+        <header className="mb-8 sm:mb-12">
+          <div className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
+            Designer Studio
+          </div>
+          <h1 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight">
+            What needs designing?
+          </h1>
+          <p className="mt-2 text-muted-foreground text-base sm:text-lg max-w-2xl">
+            Visual specs, brand guideline entries, UI copy passes — drafted from
+            your brain&rsquo;s voice and product positioning.
+          </p>
+        </header>
 
-      <DesignerStudioClient templates={templates} recentRuns={recentRuns} />
-    </main>
+        <DesignerStudioClient templates={templates} recentRuns={recentRuns} />
+      </main>
+    </StudioPageShell>
   );
 }

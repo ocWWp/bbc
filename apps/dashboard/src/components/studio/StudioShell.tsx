@@ -8,8 +8,11 @@ export type StudioShellProps = {
   templateSlug: string | null;
   /** CSS variable string (e.g. "#f59e0b" or "var(--accent)") applied as --studio-accent on the root. */
   accentColor: string;
-  /** Role-specific prompt UI. Each Studio's existing client renders its prompt here. */
-  promptSlot: ReactNode;
+  /** Role-specific prompt UI. Optional during the v1.5 wrap pass — Studios
+   *  whose existing client renders its own prompt internally can skip this
+   *  and put the entire client in `bodySlot`. Phase N extracts the prompt
+   *  per-role. When null/undefined the prompt region is omitted from the DOM. */
+  promptSlot?: ReactNode;
   /** Role-specific recent-drafts list. */
   recentDraftsSlot: ReactNode;
   /** Optional role-specific brain-context sidebar (voice summary, recent decisions, etc.). */
@@ -60,9 +63,11 @@ export function StudioShell({
       </header>
 
       <div className="studio-shell-grid">
-        <section className="studio-shell-prompt" aria-label="prompt">
-          {promptSlot}
-        </section>
+        {promptSlot ? (
+          <section className="studio-shell-prompt" aria-label="prompt">
+            {promptSlot}
+          </section>
+        ) : null}
 
         {sidebarSlot ? (
           <aside className="studio-shell-sidebar" aria-label="brain context">

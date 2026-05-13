@@ -6,6 +6,7 @@ import { listClientEngTemplates } from "@/lib/studio/eng-templates/registry";
 
 import EngStudioClient, { type RecentEngRun } from "./EngStudioClient";
 import { RoleSwitcher } from "../_components/RoleSwitcher";
+import { StudioPageShell } from "@/components/studio/StudioPageShell";
 
 export const metadata = {
   title: "Engineering Studio · BBC",
@@ -52,22 +53,24 @@ export default async function EngineeringStudioPage() {
     }));
 
   return (
-    <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-12">
-      <RoleSwitcher active="engineering" />
-      <header className="mb-8 sm:mb-12">
-        <div className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
-          Engineering Studio
-        </div>
-        <h1 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight">
-          What needs documenting?
-        </h1>
-        <p className="mt-2 text-muted-foreground text-base sm:text-lg max-w-2xl">
-          ADRs, vendor proposals, tech-debt reviews — drafted from your brain&rsquo;s
-          decisions and vendors, then handed back for your review.
-        </p>
-      </header>
+    <StudioPageShell role="engineering">
+      <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-12">
+        <RoleSwitcher active="engineering" />
+        <header className="mb-8 sm:mb-12">
+          <div className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
+            Engineering Studio
+          </div>
+          <h1 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight">
+            What needs documenting?
+          </h1>
+          <p className="mt-2 text-muted-foreground text-base sm:text-lg max-w-2xl">
+            ADRs, vendor proposals, tech-debt reviews — drafted from your brain&rsquo;s
+            decisions and vendors, then handed back for your review.
+          </p>
+        </header>
 
-      <EngStudioClient templates={templates} recentRuns={recentRuns} />
-    </main>
+        <EngStudioClient templates={templates} recentRuns={recentRuns} />
+      </main>
+    </StudioPageShell>
   );
 }
