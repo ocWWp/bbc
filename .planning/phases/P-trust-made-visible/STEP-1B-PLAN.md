@@ -34,19 +34,22 @@ Run commands from the repo root unless noted. Test command: `pnpm --filter @bbc/
 
 No UI changes. Build the server-side substrate the shared client will sit on, fully tested across all 8 roles.
 
-### Task 1.1: Centralize task-length limits
+### Task 1.1: Centralize task-length AND input-length limits
+
+The shared `previewPlan` must validate **like `run<Role>Workflow`**. The run actions cap both task length AND per-input length, and both differ by role — so both go in one shared map, and the 8 run actions repoint to it (preventing drift).
 
 **Files:**
 - Create: `apps/dashboard/src/lib/studio/task-limits.ts`
-- Modify: all 8 `apps/dashboard/src/app/studio/<role>/actions.ts` (replace local `MIN_TASK_LEN`/`MAX_TASK_LEN` consts)
+- Modify: all 8 `apps/dashboard/src/app/studio/<role>/actions.ts` (replace local `MIN_TASK_LEN`/`MAX_TASK_LEN` consts AND the per-value `.max(...)` in each `inputsRecordSchema`)
 
-**Step 1: Create the shared map**
+**Step 1: Create the shared maps**
 
 ```typescript
 // apps/dashboard/src/lib/studio/task-limits.ts
-// Single source of truth for studio task-input length bounds. Both the per-role
-// run actions and the shared previewPlan read from here so a plan can never be
-// previewed under looser bounds than the run will enforce.
+// Single source of truth for studio input length bounds. Both the per-role run
+// actions and the shared previewPlan read from here, so a plan can never be
+// previewed under looser bounds than the run will enforce. Values verified
+// against the current run actions — do not change without checking each.
 import type { StudioRole } from "@/lib/studio/template-id";
 
 export const TASK_MIN_LEN = 8;
@@ -61,11 +64,31 @@ export const TASK_MAX_LEN: Record<StudioRole, number> = {
   legal: 600,
   hr: 600,
 };
+
+// Per-value cap on each firstUseInput string, per role. Matches the current
+// `inputsRecordSchema` z.string().max(...) in each run action.
+export const INPUT_MAX_LEN: Record<StudioRole, number> = {
+  marketing: 2000,
+  engineering: 3000,
+  founder: 3000,
+  support: 3000,
+  designer: 5000,
+  finance: 5000,
+  legal: 5000,
+  hr: 5000,
+};
 ```
 
 **Step 2: Repoint each `actions.ts`**
 
-In each of the 8 `app/studio/<role>/actions.ts`: delete the local `const MIN_TASK_LEN = 8;` and `const MAX_TASK_LEN = <n>;` lines, add `import { TASK_MIN_LEN, TASK_MAX_LEN } from "@/lib/studio/task-limits";`, and replace usages: `MIN_TASK_LEN` → `TASK_MIN_LEN`, `MAX_TASK_LEN` → `TASK_MAX_LEN.<role>` (e.g. `TASK_MAX_LEN.engineering`). Use the `StudioRole` key for the role, not the route slug — note `engineering` (not `eng`).
+In each of the 8 `app/studio/<role>/actions.ts`:
+- delete the local `const MIN_TASK_LEN = 8;` and `const MAX_TASK_LEN = <n>;` lines,
+- add `import { TASK_MIN_LEN, TASK_MAX_LEN, INPUT_MAX_LEN } from "@/lib/studio/task-limits";`,
+- replace usages: `MIN_TASK_LEN` → `TASK_MIN_LEN`, `MAX_TASK_LEN` → `TASK_MAX_LEN.<role>` (e.g. `TASK_MAX_LEN.engineering`),
+- replace the per-value cap in that file's `inputsRecordSchema` (`z.record(z.string(), z.string().max(<n>))`) with `z.string().max(INPUT_MAX_LEN.<role>)`.
+- Use the `StudioRole` key, not the route slug — note `engineering` (not `eng`).
+
+Before editing, run `rg -n "inputsRecordSchema|MAX_TASK_LEN|MIN_TASK_LEN" apps/dashboard/src/app/studio/*/actions.ts` and confirm the current `.max(...)` value in each file matches `INPUT_MAX_LEN` above. If any differs, **the file is the source of truth** — fix the map, not the file.
 
 **Step 3: Verify**
 
@@ -76,7 +99,7 @@ Expected: PASS. Then `pnpm --filter @bbc/dashboard exec vitest run src/app/studi
 
 ```bash
 git add apps/dashboard/src/lib/studio/task-limits.ts apps/dashboard/src/app/studio/*/actions.ts
-git commit -m "refactor(studio): centralize task-length limits in one shared map"
+git commit -m "refactor(studio): centralize task + input length limits in one shared map"
 ```
 
 ---
@@ -208,7 +231,14 @@ One `previewPlan` for all 8 roles. It must validate **like `run<Role>Workflow`**
 - `lib/studio/plan-preview.ts` — the `PlanPreview` shape (do not change it).
 - `app/studio/marketing/preview-plan.test.ts` — the mocking pattern to copy (mock `@/lib/auth/require-user`, `@/lib/supabase/server`; dynamic `await import()` inside each `it`).
 
-**Step 2: Write the failing test**
+**Step 2: Pick test fixtures from the real registries**
+
+Before writing the test, run `rg -n "id:|firstUseInputs|required: true" apps/dashboard/src/lib/studio/eng-templates apps/dashboard/src/lib/studio/legal-templates` and pick, by reading the actual template files:
+- `NO_REQ_ID` — a real template id whose `firstUseInputs` has **no** `required: true` entry (so `previewPlan(id, task, {})` is expected to succeed). Could be from any role.
+- `REQ_ID` — a real template id that **does** have at least one `required: true` firstUseInput (so `previewPlan(id, task, {})` is expected to be rejected).
+Substitute these into the test below. **Do not assume `eng:adr-draft` has no required inputs — it does.**
+
+**Step 3: Write the failing test**
 
 ```typescript
 // apps/dashboard/src/lib/studio/preview-plan-action.test.ts
@@ -220,12 +250,17 @@ vi.mock("@/lib/auth/require-user", async (importOriginal) => ({
   requireActor: () => requireActorMock(),
 }));
 
-// Minimal supabase stub: loadBrainSummary issues one .from("memory_files") query.
+// loadBrainSummary chain: .from().select().eq().eq().order().limit() -> { data }.
+// This mock MUST match brain-summary.ts exactly or it throws before assertions.
 vi.mock("@/lib/supabase/server", () => ({
   getSupabaseServerClient: async () => ({
     from: () => ({
       select: () => ({
-        eq: () => ({ eq: () => ({ limit: async () => ({ data: [], error: null }) }) }),
+        eq: () => ({
+          eq: () => ({
+            order: () => ({ limit: async () => ({ data: [], error: null }) }),
+          }),
+        }),
       }),
     }),
   }),
@@ -235,19 +270,22 @@ function memberActor() {
   return { ok: true as const, actor: { user_id: "u1", tenant_id: "t1", role: "member", identifier: "u@x.com" } };
 }
 
+// Substitute real ids picked in Step 2:
+const NO_REQ_ID = "<template id with no required firstUseInputs>";
+const REQ_ID = "<template id with a required firstUseInput>";
+
 beforeEach(() => {
   requireActorMock.mockReset();
   requireActorMock.mockResolvedValue(memberActor());
 });
 
 describe("previewPlan (shared)", () => {
-  it("resolves a non-marketing template and returns a plan", async () => {
+  it("resolves a template with no required inputs and returns a plan", async () => {
     const { previewPlan } = await import("./preview-plan-action");
-    // pick a real engineering template id from the registry
-    const res = await previewPlan("eng:adr-draft", "decide whether to keep Vercel or move", {});
+    const res = await previewPlan(NO_REQ_ID, "decide whether to keep Vercel or move", {});
     expect(res.ok).toBe(true);
     if (res.ok) {
-      expect(res.plan.templateId).toBe("eng:adr-draft");
+      expect(res.plan.templateId).toBe(NO_REQ_ID);
       expect(res.plan.templateLabel).toBeTruthy();
       expect(Array.isArray(res.plan.candidateMemories)).toBe(true);
       expect(Array.isArray(res.plan.alwaysOnContext)).toBe(true);
@@ -261,54 +299,50 @@ describe("previewPlan (shared)", () => {
 
   it("rejects a too-short task", async () => {
     const { previewPlan } = await import("./preview-plan-action");
-    expect((await previewPlan("eng:adr-draft", "hi", {})).ok).toBe(false);
+    expect((await previewPlan(NO_REQ_ID, "hi", {})).ok).toBe(false);
   });
 
   it("rejects when a required first-use input is missing", async () => {
     const { previewPlan } = await import("./preview-plan-action");
-    // choose a template id whose registry entry has a required firstUseInput;
-    // confirm one exists when implementing — if none across a role, note it.
-    const res = await previewPlan("legal:nda", "draft an NDA for a new contractor", {});
-    // a legal template with a required input must be rejected with empty inputs
-    expect(res.ok).toBe(false);
+    expect((await previewPlan(REQ_ID, "a valid length task here", {})).ok).toBe(false);
   });
 
   it("rejects an unauthorized actor", async () => {
     requireActorMock.mockResolvedValueOnce({ ok: false, output: "nope" });
     const { previewPlan } = await import("./preview-plan-action");
-    expect((await previewPlan("eng:adr-draft", "a valid length task", {})).ok).toBe(false);
+    expect((await previewPlan(NO_REQ_ID, "a valid length task", {})).ok).toBe(false);
   });
 });
 ```
 
-> When implementing, pick **real** template ids for the test (open the registries). For the "required input" test, find a template that actually declares a `required: true` firstUseInput; if a role has none, that's fine — just use one that does. If no template anywhere has a required input, drop that test case and note it in the commit.
+> If no template anywhere has a `required: true` firstUseInput, drop the "required input missing" test and note it in the commit. (Confirm by grepping; one almost certainly exists.)
 
-**Step 3: Run — expect FAIL.**
+**Step 4: Run — expect FAIL.**
 
-**Step 4: Implement `preview-plan-action.ts`**
+**Step 5: Implement `preview-plan-action.ts`**
+
+The candidate-memory assembly and the `planSummary` copy are **lifted verbatim from the current `app/studio/marketing/actions.ts` `previewPlan`** (the version corrected in PR #9, commit `e7de654`) — do NOT paraphrase the trust copy. The only changes vs. marketing's version: `getTemplate` → `resolveTemplate` (cross-registry), and per-role `TASK_MAX_LEN`/`INPUT_MAX_LEN`.
 
 ```typescript
 // apps/dashboard/src/lib/studio/preview-plan-action.ts
 "use server";
 // Shared plan-before-run preview for ALL 8 studios. Does NOT call the LLM.
-// Validates like run<Role>Workflow (task bounds + required first-use inputs)
-// so a previewed plan can never be confirmed into a run that predictably fails.
+// Validates like run<Role>Workflow (task bounds + per-role input caps + required
+// first-use inputs) so a previewed plan can never be confirmed into a run that
+// predictably fails. Candidate-memory + planSummary copy lifted verbatim from
+// marketing/actions.ts previewPlan (PR #9 / e7de654) — keep the trust copy exact.
 
 import { z } from "zod";
 import { requireActor, requireRole } from "@/lib/auth/require-user";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { loadBrainSummary } from "@/lib/studio/brain-summary";
 import { resolveTemplate } from "@/lib/studio/resolve-template";
-import { TASK_MIN_LEN, TASK_MAX_LEN } from "@/lib/studio/task-limits";
+import { TASK_MIN_LEN, TASK_MAX_LEN, INPUT_MAX_LEN } from "@/lib/studio/task-limits";
 import type { PlanPreview } from "@/lib/studio/plan-preview";
 
 export type PreviewPlanResult =
   | { ok: true; plan: PlanPreview }
   | { ok: false; error: string };
-
-// Generous shared cap; the per-role run action still enforces its own input
-// caps. The point here is shape validation, not the run-time enforcement.
-const inputsSchema = z.record(z.string(), z.string().max(5000));
 
 export async function previewPlan(
   templateId: string,
@@ -316,12 +350,12 @@ export async function previewPlan(
   inputs: Record<string, string>,
 ): Promise<PreviewPlanResult> {
   const a = await requireActor();
-  if (!a.ok) return { ok: false, error: "Not authorized." };
+  if (!a.ok) return { ok: false, error: a.output };
   const r = requireRole(a.actor, "member");
   if (!r.ok) return { ok: false, error: r.output };
 
   const resolved = resolveTemplate(templateId);
-  if (!resolved) return { ok: false, error: "Unknown template." };
+  if (!resolved) return { ok: false, error: `Unknown template: ${templateId}` };
   const { role, template } = resolved;
 
   const trimmed = (task ?? "").trim();
@@ -329,10 +363,11 @@ export async function previewPlan(
     return { ok: false, error: `Describe the task in at least ${TASK_MIN_LEN} characters.` };
   }
   if (trimmed.length > TASK_MAX_LEN[role]) {
-    return { ok: false, error: `Task too long — keep it under ${TASK_MAX_LEN[role]} characters.` };
+    return { ok: false, error: `Task too long -- keep it under ${TASK_MAX_LEN[role]} characters.` };
   }
 
-  const parsedInputs = inputsSchema.safeParse(inputs ?? {});
+  // Per-role input cap — matches the run action's inputsRecordSchema for `role`.
+  const parsedInputs = z.record(z.string(), z.string().max(INPUT_MAX_LEN[role])).safeParse(inputs ?? {});
   if (!parsedInputs.success) return { ok: false, error: "Invalid inputs." };
   for (const fi of template.firstUseInputs) {
     if (fi.required && !(parsedInputs.data[fi.id] ?? "").trim()) {
@@ -355,15 +390,26 @@ export async function previewPlan(
     ...(brain.comp_bands ?? []).map((c) => ({ id: c.id, kind: "comp_band", label: `${c.label}: ${c.range}` })),
   ];
 
+  // voice + product feed every template's prompt but carry no id -- always-on
+  // context, surfaced separately so a voice-only tenant never sees "nothing matched".
   const alwaysOnContext: string[] = [];
   if (brain.voice) alwaysOnContext.push("Voice");
   if (brain.product) alwaysOnContext.push("Product positioning");
 
+  // planSummary — VERBATIM from marketing/actions.ts previewPlan (e7de654).
   const n = candidateMemories.length;
+  const docKind = template.kind.replace(/_/g, " ");
+  const grounding =
+    n > 0
+      ? `grounded in ${n} ${n === 1 ? "piece" : "pieces"} of your company memory` +
+        (alwaysOnContext.length > 0 ? " plus your always-on voice and product context" : "")
+      : alwaysOnContext.length > 0
+        ? "drawing on your always-on voice and product context"
+        : "based only on the task and inputs you typed";
   const planSummary =
-    `Generate a ${template.kind.replace(/_/g, " ")} using the "${template.label}" template, ` +
-    `grounded in ${n} ${n === 1 ? "piece" : "pieces"} of your company memory. ` +
-    `Output goes to the review queue — nothing is sent, published, or written back to memory until you approve it.`;
+    `Generate a ${docKind} using the "${template.label}" template, ${grounding}. ` +
+    `The draft goes to your review queue -- nothing is sent, published, or written ` +
+    `back to memory until you approve it.`;
 
   return {
     ok: true,
@@ -372,11 +418,11 @@ export async function previewPlan(
 }
 ```
 
-> Confirm `requireRole`'s signature and the marketing `previewPlan`'s exact `planSummary` wording against the live file; match the trust copy already corrected in PR #9 (commit `e7de654`).
+> Open `app/studio/marketing/actions.ts` `previewPlan` (lines ~288-354) and diff your `grounding`/`planSummary` against it — they must be character-identical. Confirm `requireRole`'s signature and `a.output` on the not-ok branch.
 
-**Step 5: Run the test — expect PASS.**
+**Step 6: Run the test — expect PASS.**
 
-**Step 6: Commit**
+**Step 7: Commit**
 
 ```bash
 git add apps/dashboard/src/lib/studio/preview-plan-action.ts apps/dashboard/src/lib/studio/preview-plan-action.test.ts
@@ -588,7 +634,8 @@ Port `EngStudioClient.tsx`'s structure. Concretely:
   - `requestPlan(inputs)` — configuring → calls the **imported** shared `previewPlan(template.id, task, inputs)` → on ok, → `plan-confirming`; on error, `setError`. (Mirror marketing's `handleRequestPlan`.)
   - `confirmPlan()` — plan-confirming → `running` → calls `config.runWorkflow(...)` → on ok → `reviewing`; on error → back to `configuring` + setError. (Mirror marketing's `handleConfirmPlan`.)
   - `backToConfigure()` — plan-confirming → configuring.
-  - `reset()` — → idle, clear task/inputs.
+  - `reset()` — → idle, clear task/inputs, **and clear deep-link params** (see below).
+- **Deep-link URL cleanup:** the client may boot from `initialSeed` (a `?template=&task=` deep link). Once the user diverges from that seed — picks a *different* template, or `reset()` — strip the stale params so a refresh/back doesn't resurrect them. Import `useRouter` + `usePathname` from `next/navigation`; in `pickTemplate` (when `t.id !== initialSeed?.templateId`) and in `reset()`, call `router.replace(pathname)`. Editing the task in place does **not** need a URL rewrite (the seed task is only read on mount). Keep it to those two call sites — do not over-engineer a sync.
 - Render: task textarea (`config.copy.taskLabel` / `taskPlaceholder`, char counter against `TASK_MAX_LEN[config.role]` from `@/lib/studio/task-limits`), template grid (each card shows `config.templateBadge?.(t)` if provided), configuring section (inputs form — render `<select>` for `select`/`tone` kinds and `<textarea>` for `text`, like marketing's `FirstUseInputField`; show `config.templateConfigureNote?.(template)` if provided; `ActiveOverridesPill` if `config.overrides`), the `plan-confirming` branch (`<PlanConfirmStage plan={stage.plan} onConfirm={confirmPlan} onBack={backToConfigure} disabled={pending} />`), running skeleton, and `ReviewView`.
 - `ReviewView`: renders `<OutputBlocks>`. If `config.overrides` → render `<EditWorkflowChat>` with `config.overrides.proposeAction`/`saveAction`. If `config.review.kind === "full"` → render Approve/Reject buttons wired to `config.review.acceptAction`/`rejectAction` + pass `config.review.authorHint` to `<OutputBlocks>`; else render the light "New run" button.
 - Empty-state guard: if `config.templates.length === 0`, render the support-style empty section.
@@ -706,7 +753,7 @@ Move `TriageChip` + `TRIAGE_STYLE` out of the old `LegalStudioClient.tsx` into t
 
 Marketing's `StudioClient` becomes a wrapper over `TemplateFirstStudioClient`. It **loses** the bespoke `proposing`/`picking` task-first stages (that logic relocates to the router in Step 6) and **keeps**, via config: `plan-confirm`, overrides, the **full** review (Approve/Reject + author hint), and `?rerun=` boot.
 
-> Intermediate state note: between Step 4 and Step 6, marketing is template-first with no in-app task-first shortcut. This is a coherent intermediate state (marketing still works; it has the `custom` template for free-form work), not a regression — the router restores task-first for all 8 in Step 6.
+> **Intermediate-state / deploy note:** between the Step 4 commit and the Step 6 commit, marketing is template-first with no in-app task-first shortcut (it still works — it has the `custom` template for free-form work — but the "type a task, get suggestions" entry is gone until the router lands). This is fine **as long as Steps 4–6 are not deployed independently.** The whole arc is one branch → one PR (as Step 1 was PR #9); the Step 4–6 commits land together and the router restores task-first for all 8 before merge. **Do not cut a release between the Step 4 and Step 6 commits.**
 
 ### Task 4.1: Rewrite marketing's `StudioClient.tsx` as a wrapper
 
@@ -755,7 +802,7 @@ export default function StudioClient({ templates, authorHint, rerunSeed }: Props
 }
 ```
 
-**Step 2:** In `marketing/page.tsx`, change the prop name passed to `<StudioClient>` if needed so the resolved rerun seed reaches `rerunSeed` (the page already builds it). No logic change to the rerun resolution itself.
+**Step 2:** Fix `marketing/page.tsx` for the new seed shape. It currently builds `rerunSeed = { templateId, label, task, inputs }`, but `StudioSeed` (and therefore the re-typed `RerunSeed`) has **no `label`** — the shared client resolves the label from the template by id. So in `marketing/page.tsx`: **drop `label` from the object it builds** (`{ templateId: r.template_id, task: r.task, inputs: r.inputs ?? {} }`), and drop the now-unused `templates.find(...).label` lookup if it was only feeding `label`. Keep the `templates.find(...)` existence check (a rerun whose template no longer exists must still be ignored). `type-check` will catch it if `label` is left in.
 
 **Step 3:** Rewrite `StudioClient.test.tsx` — `// @vitest-environment jsdom`, mock `./actions` wholesale (as today) and `@/lib/studio/preview-plan-action`. Assert: renders the template grid; `initialSeed`/`rerunSeed` boots into configuring; the full review path (Approve/Reject) is wired. Delete assertions about `proposing`/`picking` (those stages no longer exist here).
 
@@ -814,12 +861,21 @@ describe("resolveStudioEntry", () => {
   it("returns undefined when no template param is present", () => {
     expect(resolveStudioEntry("engineering", {})).toBeUndefined();
   });
+  it("normalizes repeated search params (string[]) to the first value", () => {
+    const seed = resolveStudioEntry("engineering", {
+      template: ["eng:adr-draft", "eng:rfc-draft"],
+      task: ["first", "second"],
+    });
+    expect(seed).toEqual({ templateId: "eng:adr-draft", task: "first", inputs: {} });
+  });
 });
 ```
 
 **Step 2: Run — expect FAIL.**
 
 **Step 3: Implement**
+
+Next.js search params can arrive as `string | string[] | undefined` (repeated keys) — normalize before use.
 
 ```typescript
 // apps/dashboard/src/lib/studio/resolve-studio-entry.ts
@@ -832,15 +888,19 @@ import { TASK_MAX_LEN } from "@/lib/studio/task-limits";
 import type { StudioRole } from "@/lib/studio/template-id";
 import type { StudioSeed } from "@/components/studio/template-first-config";
 
+type RawParam = string | string[] | undefined;
+const first = (p: RawParam): string | undefined => (Array.isArray(p) ? p[0] : p);
+
 export function resolveStudioEntry(
   pageRole: StudioRole,
-  params: { template?: string; task?: string },
+  params: { template?: RawParam; task?: RawParam },
 ): StudioSeed | undefined {
-  if (!params.template) return undefined;
-  const resolved = resolveTemplate(params.template);
+  const templateId = first(params.template);
+  if (!templateId) return undefined;
+  const resolved = resolveTemplate(templateId);
   if (!resolved || resolved.role !== pageRole) return undefined;
-  const task = (params.task ?? "").slice(0, TASK_MAX_LEN[pageRole]);
-  return { templateId: params.template, task, inputs: {} };
+  const task = (first(params.task) ?? "").slice(0, TASK_MAX_LEN[pageRole]);
+  return { templateId, task, inputs: {} };
 }
 ```
 
@@ -1069,12 +1129,13 @@ git commit -m "feat(gallery): show cross-studio recent runs in the gallery foote
 **Files:**
 - Modify: `apps/dashboard/src/components/studio/StudioShell.tsx:52` — breadcrumb `href="/studio"` → `href="/gallery"`.
 - Modify: `apps/dashboard/src/components/studio/RoleSwitcher.tsx:27` — the "← all" pill `href="/studio"` → `href="/gallery"` (and reconsider the "← all" label — "← gallery" is more accurate; keep minimal, label change optional).
+- Modify: `apps/dashboard/src/app/studio/runs/[id]/page.tsx` (~line 139) — the run-detail breadcrumb links to `/studio`; repoint to `/gallery`.
 - Modify: `apps/dashboard/src/app/gallery/GalleryClient.tsx` — remove the `<Link href="/studio">browse by studio</Link>` (the gallery *is* the browse surface now; the department chips are "by studio").
 - Modify: `apps/dashboard/src/components/AppNav.tsx` — in `ADMIN_ROUTES`, replace `STUDIO_ROUTE` with `GALLERY_ROUTE`; in `OPERATOR_ROUTES`, remove `STUDIO_ROUTE` (`GALLERY_ROUTE` is already there). Leave `memberRoutes()` alone (it already uses a per-member `/studio/<slug>` link, not the index).
 - Delete: `apps/dashboard/src/app/studio/page.tsx`.
 - Tests: `apps/dashboard/test/nav-role-visibility.test.tsx` and `apps/dashboard/test/role-aware-root.test.ts` — update any assertions that expect a "Studio" index entry for admin/operator.
 
-**Step 1:** Make all the link rewrites + the AppNav route-list edits.
+**Step 1:** Make all the link rewrites + the AppNav route-list edits. Before starting, run `rg -n "[\"\\\`]/studio[\"\\\`]|href=\"/studio\"" apps/dashboard/src` to get the authoritative current list of bare-`/studio` references — the four files above should be the complete set, but trust the grep over this list.
 
 **Step 2:** Update the nav tests first (they should now expect Gallery, not the Studio index, for admin/operator). Run them — expect FAIL until Step 3.
 
