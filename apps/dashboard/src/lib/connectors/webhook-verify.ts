@@ -212,10 +212,19 @@ export function resolvePath(root: unknown, path: string): unknown {
     if (token.startsWith("[") && token.endsWith("]")) {
       const idx = parseInt(token.slice(1, -1), 10);
       if (!Number.isInteger(idx) || idx < 0 || !Array.isArray(current)) return undefined;
-      current = current[idx];
+      const element: unknown = current[idx];
+      current = element;
     } else {
       if (typeof current !== "object" || Array.isArray(current)) return undefined;
-      current = (current as Record<string, unknown>)[token];
+      // Never resolve prototype-chain keys, even if a payload carries one as an
+      // own property — and own properties only, so we never walk the chain.
+      if (token === "__proto__" || token === "constructor" || token === "prototype") {
+        return undefined;
+      }
+      const obj = current as Record<string, unknown>;
+      if (!Object.hasOwn(obj, token)) return undefined;
+      const value: unknown = obj[token];
+      current = value;
     }
   }
   return current;

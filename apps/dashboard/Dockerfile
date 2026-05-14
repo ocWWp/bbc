@@ -50,10 +50,14 @@ ENV PORT=3000
 # Standalone output bundles a minimal server.js + only the deps the app
 # actually imports. The monorepo's outputFileTracingRoot is set to the
 # repo root, so the standalone tree mirrors that layout under /app.
-COPY --from=builder /app/apps/dashboard/.next/standalone ./
-COPY --from=builder /app/apps/dashboard/.next/static ./apps/dashboard/.next/static
+COPY --from=builder --chown=node:node /app/apps/dashboard/.next/standalone ./
+COPY --from=builder --chown=node:node /app/apps/dashboard/.next/static ./apps/dashboard/.next/static
 
 EXPOSE 3000
+
+# Drop root — the standalone server only reads its own bundle and binds :3000.
+# node:22-alpine ships a non-root `node` user (uid 1000).
+USER node
 
 # server.js is emitted by the standalone build at the app's own folder.
 CMD ["node", "apps/dashboard/server.js"]

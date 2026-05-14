@@ -54,7 +54,7 @@ export function encryptSecret(plaintext: string): EncryptedSecret {
   }
   const key = loadKey();
   const iv = randomBytes(IV_BYTES);
-  const cipher = createCipheriv(ALGORITHM, key, iv);
+  const cipher = createCipheriv(ALGORITHM, key, iv, { authTagLength: TAG_BYTES });
   const ciphertext = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
   const tag = cipher.getAuthTag();
   return { ciphertext, iv, tag };
@@ -68,7 +68,8 @@ export function decryptSecret(input: EncryptedSecret): string {
     throw new Error(`decryptSecret: tag must be ${TAG_BYTES} bytes`);
   }
   const key = loadKey();
-  const decipher = createDecipheriv(ALGORITHM, key, input.iv);
+  // Pin the GCM auth-tag length so a short tag can't be silently accepted.
+  const decipher = createDecipheriv(ALGORITHM, key, input.iv, { authTagLength: TAG_BYTES });
   decipher.setAuthTag(input.tag);
   // Tamper detection: decipher.final() throws if the tag doesn't match.
   const plaintext = Buffer.concat([decipher.update(input.ciphertext), decipher.final()]);

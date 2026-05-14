@@ -41,7 +41,7 @@ async function main() {
 
   const body = await res.json();
   if (!res.ok) {
-    console.error(`HTTP ${res.status}:`, body);
+    console.error("HTTP error:", res.status, body);
     process.exit(1);
   }
 

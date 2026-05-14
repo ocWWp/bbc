@@ -28,6 +28,12 @@ def _env(name: str) -> str:
 BBC_URL = _env("BBC_URL").rstrip("/")
 BBC_API_KEY = _env("BBC_API_KEY")
 
+# Reject anything that isn't an HTTP(S) endpoint — urllib also speaks file://,
+# so a stray BBC_URL like "/etc/passwd" would otherwise read a local file.
+if not BBC_URL.startswith(("http://", "https://")):
+    print("BBC_URL must start with http:// or https://", file=sys.stderr)
+    sys.exit(1)
+
 
 def _post_mcp(method: str, params: dict | None = None) -> dict:
     """Send a JSON-RPC request to /api/mcp and return result. Raises on error."""
@@ -44,6 +50,8 @@ def _post_mcp(method: str, params: dict | None = None) -> dict:
         },
     )
     try:
+        # BBC_URL is operator-supplied config, validated above to be http(s).
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
         with urllib.request.urlopen(req) as resp:
             envelope = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
