@@ -13,6 +13,10 @@ import type {
 
 export type { Template, FirstUseInput, BrainSummary, BuildPromptArgs, OverrideRule };
 
+// Merge active tenant customizations into the prompt body. Designer reuses the
+// marketing helper unchanged -- an override rule is role-agnostic.
+export { overridesClause } from "../templates/types";
+
 export function voiceClause(voice: BrainSummary["voice"]): string {
   if (!voice) {
     return "Voice: not documented. Default to neutral, direct, no marketing jargon.";

@@ -2,9 +2,18 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { EditWorkflowChat } from "@/components/studio/EditWorkflowChat";
+import { ActiveOverridesPill } from "@/components/studio/ActiveOverridesPill";
 import type { OutputBlock } from "@/lib/studio/output-blocks";
 import type { ClientDesignerTemplate } from "@/lib/studio/designer-templates/registry";
-import { runDesignerWorkflow, type CitedMemoryRef } from "./actions";
+import {
+  deactivateDesignerStudioOverride,
+  listActiveDesignerOverrides,
+  proposeDesignerOverride,
+  runDesignerWorkflow,
+  saveDesignerStudioTemplateOverride,
+  type CitedMemoryRef,
+} from "./actions";
 import { OutputBlocks } from "@/components/studio/OutputBlocks";
 
 type Props = {
@@ -74,6 +83,7 @@ export default function DesignerStudioClient({ templates }: Props) {
         task={stage.task}
         blocks={stage.blocks}
         cited={stage.cited}
+        runId={stage.runId}
         onReset={reset}
       />
     );
@@ -133,9 +143,16 @@ export default function DesignerStudioClient({ templates }: Props) {
 
       {stage.kind === "configuring" && selected && (
         <section className="rounded-lg border border-border p-5 space-y-4">
-          <div>
-            <div className="font-medium">{selected.label}</div>
-            <div className="text-xs text-muted-foreground mt-1">{selected.hint}</div>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="font-medium">{selected.label}</div>
+              <div className="text-xs text-muted-foreground mt-1">{selected.hint}</div>
+            </div>
+            <ActiveOverridesPill
+              templateId={selected.id}
+              listAction={listActiveDesignerOverrides}
+              deactivateAction={deactivateDesignerStudioOverride}
+            />
           </div>
           {selected.firstUseInputs.map((fi) => (
             <div key={fi.id}>
@@ -210,26 +227,42 @@ function ReviewView({
   task,
   blocks,
   cited,
+  runId,
   onReset,
 }: {
   template: ClientDesignerTemplate;
   task: string;
   blocks: OutputBlock[];
   cited: CitedMemoryRef[];
+  runId: string;
   onReset: () => void;
 }) {
   return (
     <div className="space-y-6">
-      <header className="flex items-center justify-between">
+      <header className="flex items-center justify-between gap-3">
         <div>
-          <div className="text-xs text-muted-foreground uppercase tracking-wide">
-            {template.label}
+          <div className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+            <span>{template.label}</span>
+            <ActiveOverridesPill
+              templateId={template.id}
+              listAction={listActiveDesignerOverrides}
+              deactivateAction={deactivateDesignerStudioOverride}
+            />
           </div>
           <h2 className="text-lg font-medium mt-1">{task}</h2>
         </div>
-        <Button variant="outline" onClick={onReset}>
-          New run
-        </Button>
+        <div className="flex items-center gap-2">
+          <EditWorkflowChat
+            templateId={template.id}
+            templateLabel={template.label}
+            sourceRunId={runId}
+            proposeAction={proposeDesignerOverride}
+            saveAction={saveDesignerStudioTemplateOverride}
+          />
+          <Button variant="outline" onClick={onReset}>
+            New run
+          </Button>
+        </div>
       </header>
 
       <OutputBlocks blocks={blocks} citedMemories={cited} />

@@ -2,6 +2,7 @@ import {
   voiceClause,
   productClause,
   decisionsClause,
+  overridesClause,
   DESIGN_CITATION_INSTRUCTION,
   OUTPUT_AS_PLAIN_MARKDOWN,
   type Template,
@@ -36,7 +37,7 @@ const template: Template = {
       kind: "text",
     },
   ],
-  buildPrompt({ task, brain, inputs }) {
+  buildPrompt({ task, brain, inputs, overrides }) {
     return [
       "You are drafting a visual specification for a startup's product designer + engineer.",
       productClause(brain.product),
@@ -80,6 +81,7 @@ const template: Template = {
       "- All copy must match the team's voice (per the voice memory).",
       "- If a prior decision constrains the visual treatment, cite it.",
       "- Don't invent component names that conflict with shadcn/Material/iOS HIG vocabulary.",
+      overridesClause(overrides ?? []),
       DESIGN_CITATION_INSTRUCTION,
       "",
       OUTPUT_AS_PLAIN_MARKDOWN,
