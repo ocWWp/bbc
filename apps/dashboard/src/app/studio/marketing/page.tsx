@@ -50,11 +50,12 @@ export default async function MarketingStudioPage({
         task: string;
         inputs: Record<string, string> | null;
       };
+      // Existence check only -- a rerun whose template no longer exists is
+      // ignored. The shared client resolves the label from the template by id.
       const tpl = templates.find((t) => t.id === r.template_id);
       if (tpl) {
         rerunSeed = {
           templateId: tpl.id,
-          label: tpl.label,
           task: r.task,
           inputs: r.inputs ?? {},
         };

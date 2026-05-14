@@ -14,7 +14,6 @@ import {
   listTemplateSummaries,
 } from "@/lib/studio/templates/registry";
 import type { OverrideRule } from "@/lib/studio/templates/types";
-import type { PlanPreview } from "@/lib/studio/plan-preview";
 import { resolveLlmModel } from "@/lib/studio/resolve-model";
 import {
   EMIT_OUTPUT_TOOL_INPUT_SCHEMA,
@@ -269,88 +268,6 @@ const EMIT_OUTPUT_TOOL = {
 };
 
 const inputsRecordSchema = z.record(z.string(), z.string().max(INPUT_MAX_LEN.marketing));
-
-// ---- Plan-before-run (Phase P) -------------------------------------------
-// previewPlan is the trust checkpoint shown after Configure, before
-// generation. It resolves the actor + RBAC, validates the task, and reports
-// the candidate memory a run could draw on. It does NOT call the LLM and does
-// NOT build the prompt -- that only happens in runWorkflow on confirm.
-//
-// The PlanPreview type lives in @/lib/studio/plan-preview so the client
-// PlanConfirmStage component can import it without pulling in this module.
-export type { PlanPreview };
-
-export type PreviewPlanResult =
-  | { ok: true; plan: PlanPreview }
-  | { ok: false; error: string };
-
-export async function previewPlan(
-  templateId: string,
-  task: string,
-  inputs: Record<string, string>,
-): Promise<PreviewPlanResult> {
-  const a = await requireActor();
-  if (!a.ok) return { ok: false, error: a.output };
-  const r = requireRole(a.actor, "member");
-  if (!r.ok) return { ok: false, error: r.output };
-
-  const trimmed = (task ?? "").trim();
-  if (trimmed.length < TASK_MIN_LEN) {
-    return { ok: false, error: `Describe the task in at least ${TASK_MIN_LEN} characters.` };
-  }
-  if (trimmed.length > TASK_MAX_LEN.marketing) {
-    return { ok: false, error: `Task too long -- keep it under ${TASK_MAX_LEN.marketing} characters.` };
-  }
-
-  const template = getTemplate(templateId);
-  if (!template) return { ok: false, error: `Unknown template: ${templateId}` };
-
-  const supabase = await getSupabaseServerClient();
-  const brain = await loadBrainSummary(supabase, a.actor.tenant_id);
-
-  const candidateMemories: PlanPreview["candidateMemories"] = [
-    ...brain.recent_decisions.map((d) => ({ id: d.id, kind: "decision", label: d.title })),
-    ...brain.vendors.map((v) => ({ id: v.id, kind: "vendor", label: `${v.name} (${v.role})` })),
-    ...brain.team.map((t) => ({ id: t.id, kind: "team", label: `${t.name} (${t.role})` })),
-    ...(brain.glossary?.terms ?? []).map((g) => ({ id: g.id, kind: "glossary", label: g.term })),
-  ];
-
-  // voice + product feed every template's prompt but carry no id -- they are
-  // always-on context, surfaced separately from the itemized candidates so the
-  // plan-confirm screen never tells a voice-only tenant "nothing matched".
-  const alwaysOnContext: string[] = [];
-  if (brain.voice) alwaysOnContext.push("Voice");
-  if (brain.product) alwaysOnContext.push("Product positioning");
-
-  const n = candidateMemories.length;
-  const docKind = template.kind.replace(/_/g, " ");
-  const grounding =
-    n > 0
-      ? `grounded in ${n} ${n === 1 ? "piece" : "pieces"} of your company memory` +
-        (alwaysOnContext.length > 0
-          ? " plus your always-on voice and product context"
-          : "")
-      : alwaysOnContext.length > 0
-        ? "drawing on your always-on voice and product context"
-        : "based only on the task and inputs you typed";
-  const planSummary =
-    `Generate a ${docKind} using the "${template.label}" template, ${grounding}. ` +
-    `The draft goes to your review queue -- nothing is sent, published, or written ` +
-    `back to memory until you approve it.`;
-
-  return {
-    ok: true,
-    plan: {
-      templateId,
-      templateLabel: template.label,
-      task: trimmed,
-      inputs,
-      planSummary,
-      candidateMemories,
-      alwaysOnContext,
-    },
-  };
-}
 
 export async function runWorkflow(
   templateId: string,

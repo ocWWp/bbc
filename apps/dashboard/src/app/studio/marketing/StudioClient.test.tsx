@@ -4,24 +4,31 @@ import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/re
 import StudioClient, { type RerunSeed } from "./StudioClient";
 import type { ClientTemplate } from "@/lib/studio/templates/registry";
 
-// All of ./actions is mocked: the plan-confirming stage must call previewPlan
-// (not runWorkflow) on submit, and runWorkflow only on explicit confirm.
+// StudioClient is now a thin wrapper over TemplateFirstStudioClient. The shared
+// client calls previewPlan from @/lib/studio/preview-plan-action (not ./actions)
+// and uses next/navigation for deep-link URL cleanup -- both are mocked here.
+const previewPlan = vi.fn();
+vi.mock("@/lib/studio/preview-plan-action", () => ({
+  previewPlan: (...a: unknown[]) => previewPlan(...a),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+  usePathname: () => "/studio/marketing",
+}));
+
+const runWorkflow = vi.fn();
+const acceptStudioRun = vi.fn();
+const rejectStudioRun = vi.fn();
 vi.mock("./actions", () => ({
-  previewPlan: vi.fn(),
-  runWorkflow: vi.fn(),
-  proposeWorkflows: vi.fn(),
-  acceptStudioRun: vi.fn(),
-  rejectStudioRun: vi.fn(),
+  runWorkflow: (...a: unknown[]) => runWorkflow(...a),
+  acceptStudioRun: (...a: unknown[]) => acceptStudioRun(...a),
+  rejectStudioRun: (...a: unknown[]) => rejectStudioRun(...a),
   proposeOverride: vi.fn(),
   saveStudioTemplateOverride: vi.fn(),
   listActiveOverrides: vi.fn(async () => ({ ok: true, overrides: [] })),
   deactivateStudioOverride: vi.fn(async () => ({ ok: true })),
 }));
-
-import { previewPlan, runWorkflow } from "./actions";
-
-const previewPlanMock = previewPlan as ReturnType<typeof vi.fn>;
-const runWorkflowMock = runWorkflow as ReturnType<typeof vi.fn>;
 
 const TEMPLATES: ClientTemplate[] = [
   {
@@ -35,19 +42,17 @@ const TEMPLATES: ClientTemplate[] = [
 
 const SEED: RerunSeed = {
   templateId: "marketing:single-x-post",
-  label: "Single X post",
   task: "draft a launch tweet",
   inputs: {},
 };
 
-const PLAN_SUMMARY =
-  "Generate an x post grounded in 0 pieces of your company memory.";
+const PLAN_SUMMARY = "Generate an x post grounded in 0 pieces of your company memory.";
 
 afterEach(cleanup);
 beforeEach(() => {
-  previewPlanMock.mockReset();
-  runWorkflowMock.mockReset();
-  previewPlanMock.mockResolvedValue({
+  previewPlan.mockReset();
+  runWorkflow.mockReset();
+  previewPlan.mockResolvedValue({
     ok: true,
     plan: {
       templateId: "marketing:single-x-post",
@@ -59,7 +64,7 @@ beforeEach(() => {
       alwaysOnContext: [],
     },
   });
-  runWorkflowMock.mockResolvedValue({
+  runWorkflow.mockResolvedValue({
     ok: true,
     runId: "run-1",
     blocks: [],
@@ -69,30 +74,35 @@ beforeEach(() => {
   });
 });
 
-describe("StudioClient — plan-confirming stage", () => {
-  it("submitting from configure calls previewPlan, not runWorkflow", async () => {
-    render(<StudioClient templates={TEMPLATES} rerunSeed={SEED} />);
-    fireEvent.click(screen.getByRole("button", { name: /run workflow/i }));
-    expect(await screen.findByText(PLAN_SUMMARY)).toBeTruthy();
-    expect(previewPlanMock).toHaveBeenCalledTimes(1);
-    expect(runWorkflowMock).not.toHaveBeenCalled();
+describe("StudioClient (marketing wrapper)", () => {
+  it("renders the template grid", () => {
+    render(<StudioClient templates={TEMPLATES} />);
+    expect(screen.getByText("What do you want to make?")).toBeTruthy();
+    expect(screen.getByText("Single X post")).toBeTruthy();
   });
 
-  it("'Confirm & generate' runs the workflow and advances past the plan", async () => {
+  it("boots into configuring from rerunSeed", () => {
     render(<StudioClient templates={TEMPLATES} rerunSeed={SEED} />);
-    fireEvent.click(screen.getByRole("button", { name: /run workflow/i }));
+    // the seeded task is in the textarea, and the Generate button is present
+    expect(screen.getByDisplayValue("draft a launch tweet")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Generate" })).toBeTruthy();
+  });
+
+  it("submitting calls previewPlan, not runWorkflow", async () => {
+    render(<StudioClient templates={TEMPLATES} rerunSeed={SEED} />);
+    fireEvent.click(screen.getByRole("button", { name: "Generate" }));
+    expect(await screen.findByText(PLAN_SUMMARY)).toBeTruthy();
+    expect(previewPlan).toHaveBeenCalledTimes(1);
+    expect(runWorkflow).not.toHaveBeenCalled();
+  });
+
+  it("confirming the plan runs the workflow and wires the full Approve/Reject review", async () => {
+    render(<StudioClient templates={TEMPLATES} rerunSeed={SEED} />);
+    fireEvent.click(screen.getByRole("button", { name: "Generate" }));
     await screen.findByText(PLAN_SUMMARY);
     fireEvent.click(screen.getByRole("button", { name: /confirm & generate/i }));
-    await waitFor(() => expect(runWorkflowMock).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(screen.queryByText(PLAN_SUMMARY)).toBeNull());
-  });
-
-  it("'Back' returns to configure without running the workflow", async () => {
-    render(<StudioClient templates={TEMPLATES} rerunSeed={SEED} />);
-    fireEvent.click(screen.getByRole("button", { name: /run workflow/i }));
-    await screen.findByText(PLAN_SUMMARY);
-    fireEvent.click(screen.getByRole("button", { name: /^back$/i }));
-    expect(await screen.findByRole("button", { name: /run workflow/i })).toBeTruthy();
-    expect(runWorkflowMock).not.toHaveBeenCalled();
+    await waitFor(() => expect(runWorkflow).toHaveBeenCalledTimes(1));
+    expect(await screen.findByRole("button", { name: /approve/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /reject/i })).toBeTruthy();
   });
 });
