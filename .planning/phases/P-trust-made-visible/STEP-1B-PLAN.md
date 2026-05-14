@@ -549,6 +549,13 @@ import type { TemplateFirstConfig, StudioClientTemplate } from "./template-first
 const previewPlan = vi.fn();
 vi.mock("@/lib/studio/preview-plan-action", () => ({ previewPlan: (...a: unknown[]) => previewPlan(...a) }));
 
+// TemplateFirstStudioClient uses useRouter/usePathname (deep-link URL cleanup).
+// Without this mock, render() hits Next's app-router invariant before assertions.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+  usePathname: () => "/studio/engineering",
+}));
+
 const TPL: StudioClientTemplate = {
   id: "eng:adr-draft", label: "Draft an ADR", hint: "decision record", kind: "plain",
   firstUseInputs: [],
@@ -804,7 +811,7 @@ export default function StudioClient({ templates, authorHint, rerunSeed }: Props
 
 **Step 2:** Fix `marketing/page.tsx` for the new seed shape. It currently builds `rerunSeed = { templateId, label, task, inputs }`, but `StudioSeed` (and therefore the re-typed `RerunSeed`) has **no `label`** — the shared client resolves the label from the template by id. So in `marketing/page.tsx`: **drop `label` from the object it builds** (`{ templateId: r.template_id, task: r.task, inputs: r.inputs ?? {} }`), and drop the now-unused `templates.find(...).label` lookup if it was only feeding `label`. Keep the `templates.find(...)` existence check (a rerun whose template no longer exists must still be ignored). `type-check` will catch it if `label` is left in.
 
-**Step 3:** Rewrite `StudioClient.test.tsx` — `// @vitest-environment jsdom`, mock `./actions` wholesale (as today) and `@/lib/studio/preview-plan-action`. Assert: renders the template grid; `initialSeed`/`rerunSeed` boots into configuring; the full review path (Approve/Reject) is wired. Delete assertions about `proposing`/`picking` (those stages no longer exist here).
+**Step 3:** Rewrite `StudioClient.test.tsx` — `// @vitest-environment jsdom`, mock `./actions` wholesale (as today), `@/lib/studio/preview-plan-action`, **and `next/navigation`** (`useRouter: () => ({ replace: vi.fn(), push: vi.fn() })`, `usePathname: () => "/studio/marketing"`) — the shared client uses the router for deep-link URL cleanup, so an unmocked `next/navigation` throws the app-router invariant before any assertion. Assert: renders the template grid; `initialSeed`/`rerunSeed` boots into configuring; the full review path (Approve/Reject) is wired. Delete assertions about `proposing`/`picking` (those stages no longer exist here).
 
 **Step 4:** Delete now-dead marketing code: in `marketing/actions.ts` remove `previewPlan` + `PreviewPlanResult` + the `export type { PlanPreview }` line (the shared `previewPlan` replaces it; the shared client imports `PlanPreview` from `lib/studio/plan-preview` directly). **Leave `proposeWorkflows` + `PROPOSE_TOOL` + `PROPOSE_MODEL` + `listTemplateSummaries` in place** — Step 6 relocates them. Delete `marketing/preview-plan.test.ts` (superseded by `preview-plan-action.test.ts`).
 
