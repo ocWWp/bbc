@@ -4,6 +4,8 @@
 import "./adr-draft";
 import "./vendor-swap";
 import "./tech-debt-review";
+import "./incident-retro";
+import "./rfc-draft";
 
 export {
   getEngTemplate,
