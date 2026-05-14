@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import type { OutputBlock } from "@/lib/studio/output-blocks";
 import type { ClientDesignerTemplate } from "@/lib/studio/designer-templates/registry";
 import { runDesignerWorkflow, type CitedMemoryRef } from "./actions";
-import { CitationChip } from "@/components/studio/CitationChip";
+import { OutputBlocks } from "@/components/studio/OutputBlocks";
 
 export type RecentDesignerRun = {
   id: string;
@@ -245,14 +245,6 @@ function ReviewView({
   cited: CitedMemoryRef[];
   onReset: () => void;
 }) {
-  const text = blocks
-    .map((b) => {
-      if (b.kind === "plain") return b.props.text;
-      if (b.kind === "blog_draft") return b.props.body_markdown;
-      return JSON.stringify(b, null, 2);
-    })
-    .join("\n\n");
-
   return (
     <div className="space-y-6">
       <header className="flex items-center justify-between">
@@ -267,29 +259,7 @@ function ReviewView({
         </Button>
       </header>
 
-      <article className="prose prose-sm max-w-none dark:prose-invert rounded-lg border border-border bg-background p-6">
-        <pre className="whitespace-pre-wrap font-mono text-sm">{text}</pre>
-      </article>
-
-      {cited.length > 0 && (
-        <section>
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-            Cited memories ({cited.length})
-          </h3>
-          <ul className="flex flex-wrap gap-2">
-            {cited.map((c, i) => (
-              <li key={c.id}>
-                <CitationChip
-                  memoryId={c.id}
-                  type={c.type}
-                  label={c.title}
-                  citationNumber={i + 1}
-                />
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <OutputBlocks blocks={blocks} citedMemories={cited} />
     </div>
   );
 }
