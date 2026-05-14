@@ -1,6 +1,7 @@
 import {
   decisionsClause,
   vendorsClause,
+  overridesClause,
   ENG_CITATION_INSTRUCTION,
   OUTPUT_AS_PLAIN_MARKDOWN,
   type Template,
@@ -28,7 +29,7 @@ const template: Template = {
       kind: "text",
     },
   ],
-  buildPrompt({ task, brain, inputs }) {
+  buildPrompt({ task, brain, inputs, overrides }) {
     return [
       "You are drafting an Architecture Decision Record (ADR) for a software team.",
       decisionsClause(brain.recent_decisions),
@@ -61,6 +62,7 @@ const template: Template = {
       "- Be specific. Avoid generic ADR cliches ('this gives us flexibility').",
       "- If two options are genuinely close, say so in the Decision section and pick a tiebreaker.",
       "- Reference prior decisions by title when this ADR builds on or contradicts one.",
+      overridesClause(overrides ?? []),
       ENG_CITATION_INSTRUCTION,
       "",
       OUTPUT_AS_PLAIN_MARKDOWN,

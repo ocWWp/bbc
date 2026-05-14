@@ -1,6 +1,7 @@
 import {
   decisionsClause,
   vendorsClause,
+  overridesClause,
   ENG_CITATION_INSTRUCTION,
   OUTPUT_AS_PLAIN_MARKDOWN,
   type Template,
@@ -28,7 +29,7 @@ const template: Template = {
       kind: "text",
     },
   ],
-  buildPrompt({ task, brain, inputs }) {
+  buildPrompt({ task, brain, inputs, overrides }) {
     return [
       "You are reviewing a software team's tech debt in a specific subsystem.",
       decisionsClause(brain.recent_decisions),
@@ -62,6 +63,7 @@ const template: Template = {
       "- Avoid generic findings ('add more tests', 'refactor for readability'). Be specific to the subsystem.",
       "- If a prior decision codified this debt deliberately, acknowledge it -- don't recommend reversing a deliberate choice without strong evidence.",
       "- Don't suggest rewrites unless the math is overwhelming.",
+      overridesClause(overrides ?? []),
       ENG_CITATION_INSTRUCTION,
       "",
       OUTPUT_AS_PLAIN_MARKDOWN,

@@ -22,12 +22,16 @@ export { voiceClause, overridesClause, CITATION_INSTRUCTION } from "../templates
 // Format the glossary section for a support prompt. Canonical terms the model
 // must use exactly -- "labels not tags", "brain not knowledge base" -- so the
 // reply doesn't drift from product vocabulary. Capped to keep the prompt tight.
+//
+// Each line leads with the memory's uuid in [brackets] so the model can emit a
+// valid <cite mem_id="..."/> tag -- without the id in context the citation
+// contract is dead (validateRun drops any id the model never actually saw).
 export function glossaryClause(glossary: BrainSummary["glossary"]): string {
   if (!glossary || glossary.terms.length === 0) return "Glossary: (none recorded).";
   const lines = glossary.terms
     .slice(0, 12)
-    .map((g) => `- ${g.term}: ${g.definition}`);
-  return `Canonical product vocabulary (use these terms exactly, do not rephrase):\n${lines.join("\n")}`;
+    .map((g) => `- [${g.id}] ${g.term}: ${g.definition}`);
+  return `Canonical product vocabulary (use these terms exactly, do not rephrase; cite the bracketed mem_id when material):\n${lines.join("\n")}`;
 }
 
 // Format the decisions section for a support prompt. Used by churn-save,
@@ -36,8 +40,8 @@ export function glossaryClause(glossary: BrainSummary["glossary"]): string {
 // most, not the full ADR history.
 export function supportDecisionsClause(decisions: BrainSummary["recent_decisions"]): string {
   if (!decisions || decisions.length === 0) return "Prior decisions: (none recorded).";
-  const lines = decisions.slice(0, 4).map((d) => `- ${d.title}: ${d.decision}`);
-  return `Prior decisions (cite mem_id when material to the reply):\n${lines.join("\n")}`;
+  const lines = decisions.slice(0, 4).map((d) => `- [${d.id}] ${d.title}: ${d.decision}`);
+  return `Prior decisions (cite the bracketed mem_id when material to the reply):\n${lines.join("\n")}`;
 }
 
 // Format the product clause for a support prompt. Grounds the model in what

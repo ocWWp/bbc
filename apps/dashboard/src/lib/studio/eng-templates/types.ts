@@ -13,19 +13,29 @@ import type {
 
 export type { Template, FirstUseInput, BrainSummary, BuildPromptArgs, OverrideRule };
 
+// Merge active tenant customizations into the prompt body. Re-exported from
+// the marketing helper -- an override rule is role-agnostic. Until this was
+// re-exported the eng templates had no way to apply overrides at all, so the
+// "Edit this workflow" flow saved overrides that never reached a prompt.
+export { overridesClause } from "../templates/types";
+
 // Format the recent decisions section for an eng prompt. Engineering templates
 // lean heavily on prior decisions -- this is the "what has the company already
 // decided" context an ADR or proposal must respect.
+//
+// Each line leads with the memory's uuid in [brackets] so the model can emit a
+// valid <cite mem_id="..."/> tag -- without the id in context the citation
+// contract is dead (validateRun drops any id the model never actually saw).
 export function decisionsClause(decisions: BrainSummary["recent_decisions"]): string {
   if (!decisions || decisions.length === 0) return "Prior decisions: (none recorded).";
-  const lines = decisions.slice(0, 5).map((d) => `- ${d.title}: ${d.decision}`);
-  return `Prior decisions (cite mem_id when material):\n${lines.join("\n")}`;
+  const lines = decisions.slice(0, 5).map((d) => `- [${d.id}] ${d.title}: ${d.decision}`);
+  return `Prior decisions (cite the bracketed mem_id when material):\n${lines.join("\n")}`;
 }
 
 export function vendorsClause(vendors: BrainSummary["vendors"]): string {
   if (!vendors || vendors.length === 0) return "Vendors: (none recorded).";
-  const lines = vendors.slice(0, 8).map((v) => `- ${v.name} (${v.role})`);
-  return `Active vendors:\n${lines.join("\n")}`;
+  const lines = vendors.slice(0, 8).map((v) => `- [${v.id}] ${v.name} (${v.role})`);
+  return `Active vendors (cite the bracketed mem_id when material):\n${lines.join("\n")}`;
 }
 
 export const ENG_CITATION_INSTRUCTION = `

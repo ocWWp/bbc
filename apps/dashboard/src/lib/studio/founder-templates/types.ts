@@ -21,16 +21,19 @@ export function productClause(product: BrainSummary["product"]): string {
   return `Product: ${product.positioning} Target user: ${product.target_user}.${diff}`;
 }
 
+// Each line leads with the memory's uuid in [brackets] so the model can emit a
+// valid <cite mem_id="..."/> tag -- without the id in context the citation
+// contract is dead (validateRun drops any id the model never actually saw).
 export function decisionsClause(decisions: BrainSummary["recent_decisions"]): string {
   if (!decisions?.length) return "Recent decisions: (none recorded).";
-  const lines = decisions.slice(0, 5).map((d) => `- ${d.title}: ${d.decision}`);
-  return `Recent decisions (cite mem_id when material):\n${lines.join("\n")}`;
+  const lines = decisions.slice(0, 5).map((d) => `- [${d.id}] ${d.title}: ${d.decision}`);
+  return `Recent decisions (cite the bracketed mem_id when material):\n${lines.join("\n")}`;
 }
 
 export function teamClause(team: BrainSummary["team"]): string {
   if (!team?.length) return "Team: (not yet documented).";
-  const lines = team.slice(0, 8).map((m) => `- ${m.name} (${m.role})`);
-  return `Team:\n${lines.join("\n")}`;
+  const lines = team.slice(0, 8).map((m) => `- [${m.id}] ${m.name} (${m.role})`);
+  return `Team (cite the bracketed mem_id when material):\n${lines.join("\n")}`;
 }
 
 export const FOUNDER_CITATION_INSTRUCTION = `
