@@ -1,6 +1,7 @@
 import {
   decisionsClause,
   vendorsClause,
+  overridesClause,
   ENG_CITATION_INSTRUCTION,
   OUTPUT_AS_PLAIN_MARKDOWN,
   type Template,
@@ -35,7 +36,7 @@ const template: Template = {
       kind: "text",
     },
   ],
-  buildPrompt({ task, brain, inputs }) {
+  buildPrompt({ task, brain, inputs, overrides }) {
     return [
       "You are drafting a vendor swap proposal for a startup's engineering team.",
       decisionsClause(brain.recent_decisions),
@@ -72,6 +73,7 @@ const template: Template = {
       "- If a prior decision locks the current vendor in, surface that and recommend keeping unless the new",
       "  evidence overwhelms it.",
       "- Cite team-level memory (vendors, prior decisions) where it shapes the recommendation.",
+      overridesClause(overrides ?? []),
       ENG_CITATION_INSTRUCTION,
       "",
       OUTPUT_AS_PLAIN_MARKDOWN,

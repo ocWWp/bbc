@@ -536,13 +536,21 @@ export async function deactivateEngStudioOverride(
   if (!RUN_ID_RE.test(overrideId)) return { ok: false, error: "Invalid override id." };
 
   const supabase = await getSupabaseServerClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("studio_template_overrides")
     .update({ active: false })
     .eq("id", overrideId)
     .eq("tenant_id", a.actor.tenant_id)
-    .eq("created_by", a.actor.user_id);
+    .eq("created_by", a.actor.user_id)
+    .select("id");
   if (error) return { ok: false, error: error.message };
+  // The pill lists every active override for the tenant, but the update is
+  // scoped to rows this user created. A zero-row update means the override
+  // belongs to a teammate -- report failure so the pill doesn't drop it
+  // locally while the next run still applies it.
+  if (!data || data.length === 0) {
+    return { ok: false, error: "You can only deactivate customizations you created." };
+  }
   revalidatePath("/studio/engineering");
   return { ok: true };
 }
