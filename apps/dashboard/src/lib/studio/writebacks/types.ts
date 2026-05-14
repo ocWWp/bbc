@@ -74,6 +74,15 @@ export function blocksToMarkdown(blocks: OutputBlock[]): string {
   return blocks
     .map((b) => {
       if (b.kind === "plain") return b.props.text;
+      if (b.kind === "doc") {
+        const secs = b.props.sections?.length
+          ? "\n\n" +
+            b.props.sections
+              .map((s) => `## ${s.heading}\n\n${s.body_markdown}`)
+              .join("\n\n")
+          : "";
+        return `# ${b.props.title}\n\n_${b.props.doc_type}_\n\n${b.props.body_markdown}${secs}`;
+      }
       return JSON.stringify(b);
     })
     .join("\n\n");

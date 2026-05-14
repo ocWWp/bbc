@@ -4,6 +4,7 @@ export { ThreadsPostCard } from "./ThreadsPostCard";
 export { LinkedInCard } from "./LinkedInCard";
 export { BlogDraftCard } from "./BlogDraftCard";
 export { ScriptCard } from "./ScriptCard";
+export { DocCard } from "./DocCard";
 export { PlainCard } from "./PlainCard";
 export { CitedText, makeCitationContext, type CitationContext } from "./CitedText";
 export { Avatar } from "./Avatar";

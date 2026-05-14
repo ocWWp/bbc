@@ -9,6 +9,7 @@ export type PreviewKind =
   | "linkedin_post"
   | "blog_draft"
   | "script"
+  | "doc"
   | "plain";
 
 export type FirstUseInputKind = "text" | "select" | "tone";

@@ -6,6 +6,7 @@ import Link from "next/link";
 import type { OutputBlock } from "@/lib/studio/output-blocks";
 import {
   BlogDraftCard,
+  DocCard,
   LinkedInCard,
   PlainCard,
   ScriptCard,
@@ -87,6 +88,16 @@ function BlockRenderer({
           hook={block.props.hook}
           beats={block.props.beats}
           cta={block.props.cta}
+          ctx={ctx}
+        />
+      );
+    case "doc":
+      return (
+        <DocCard
+          title={block.props.title}
+          doc_type={block.props.doc_type}
+          body_markdown={block.props.body_markdown}
+          sections={block.props.sections}
           ctx={ctx}
         />
       );

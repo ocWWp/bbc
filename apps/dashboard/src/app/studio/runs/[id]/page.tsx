@@ -56,6 +56,16 @@ function blocksToRendered(blocks: OutputBlock[]): RenderedBlock[] {
         body: `**Hook:** ${b.props.hook}\n\n${beats}${cta}`,
       };
     }
+    if (b.kind === "doc") {
+      const secs = b.props.sections?.length
+        ? "\n\n" +
+          b.props.sections.map((s) => `## ${s.heading}\n\n${s.body_markdown}`).join("\n\n")
+        : "";
+      return {
+        channel: `doc · ${b.props.doc_type}`,
+        body: `# ${b.props.title}\n\n${b.props.body_markdown}${secs}`,
+      };
+    }
     const unknownBlock = b as { kind: string; props: unknown };
     return {
       channel: unknownBlock.kind,
