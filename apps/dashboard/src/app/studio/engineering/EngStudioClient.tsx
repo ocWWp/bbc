@@ -16,18 +16,8 @@ import {
   type CitedMemoryRef,
 } from "./actions";
 
-export type RecentEngRun = {
-  id: string;
-  templateId: string;
-  task: string;
-  inputs: Record<string, string>;
-  status: string;
-  createdAt: string;
-};
-
 type Props = {
   templates: ClientEngTemplate[];
-  recentRuns: RecentEngRun[];
 };
 
 type Stage =
@@ -44,7 +34,7 @@ type Stage =
     }
   | { kind: "error"; message: string };
 
-export default function EngStudioClient({ templates, recentRuns }: Props) {
+export default function EngStudioClient({ templates }: Props) {
   const [stage, setStage] = useState<Stage>({ kind: "idle" });
   const [task, setTask] = useState("");
   const [selected, setSelected] = useState<ClientEngTemplate | null>(null);
@@ -218,25 +208,6 @@ export default function EngStudioClient({ templates, recentRuns }: Props) {
         </section>
       )}
 
-      {recentRuns.length > 0 && stage.kind === "idle" && (
-        <section className="pt-6 border-t border-border">
-          <h2 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground mb-3">
-            Recent runs
-          </h2>
-          <ul className="space-y-2">
-            {recentRuns.map((r) => (
-              <li key={r.id} className="text-sm">
-                <span className="text-muted-foreground">{r.templateId}</span>
-                <span className="mx-2">·</span>
-                <span>{r.task.slice(0, 100)}</span>
-                <span className="ml-2 text-xs text-muted-foreground">
-                  ({r.status})
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
     </div>
   );
 }

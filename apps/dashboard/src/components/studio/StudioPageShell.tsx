@@ -45,7 +45,16 @@ export async function StudioPageShell({ role, children }: StudioPageShellProps) 
       tenantName={a.actor.tenant_slug}
       templateSlug={a.actor.templateSlug}
       accentColor={shape.accentColor}
-      recentDraftsSlot={<RecentDrafts items={drafts} />}
+      recentDraftsSlot={
+        <RecentDrafts
+          items={drafts}
+          // Marketing's client can reopen a past run pre-filled with its task +
+          // inputs; other Studios just link to the read-only run page.
+          rerunHref={
+            role === "marketing" ? (id) => `/studio/marketing?rerun=${id}` : undefined
+          }
+        />
+      }
       sidebarSlot={<BrainSidebar shape={shape} brain={brain} />}
       bodySlot={children}
     />
