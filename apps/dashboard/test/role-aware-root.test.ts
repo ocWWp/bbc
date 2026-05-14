@@ -1,9 +1,9 @@
-// Task 12 of v1.5 launch polish. The root route should route by role:
+// Task 12 of v1.5 launch polish; updated in Phase P (Task A4). The root route
+// routes by role:
 //   unauth          -> /queue        (existing behavior; /queue bounces to /auth/signin)
 //   empty brain     -> /welcome      (existing empty-brain gate; runs before role split)
 //   admin           -> /home
-//   operator/member -> /studio/<templateSlug>
-//   no templateSlug -> /studio/marketing (default)
+//   operator/member -> /gallery      (the browse-first home screen, Phase P)
 //
 // We mock requireActor + the Supabase client. redirect() throws — we capture
 // the thrown URL to assert the destination.
@@ -102,24 +102,24 @@ describe("Root route — role-aware redirect", () => {
     expect(dest).toBe("/home");
   });
 
-  it("operator + templateSlug=marketing → /studio/marketing", async () => {
+  it("operator + populated → /gallery", async () => {
     requireActorMock.mockResolvedValueOnce(actorOf("operator", "marketing"));
     withMemoryCount(42);
     const dest = await captureRedirect();
-    expect(dest).toBe("/studio/marketing");
+    expect(dest).toBe("/gallery");
   });
 
-  it("member + templateSlug=engineering → /studio/engineering", async () => {
+  it("member + populated → /gallery", async () => {
     requireActorMock.mockResolvedValueOnce(actorOf("member", "engineering"));
     withMemoryCount(42);
     const dest = await captureRedirect();
-    expect(dest).toBe("/studio/engineering");
+    expect(dest).toBe("/gallery");
   });
 
-  it("templateSlug=null → /studio/marketing (fallback)", async () => {
+  it("member with no templateSlug → /gallery (templateSlug no longer routes)", async () => {
     requireActorMock.mockResolvedValueOnce(actorOf("member", null));
     withMemoryCount(42);
     const dest = await captureRedirect();
-    expect(dest).toBe("/studio/marketing");
+    expect(dest).toBe("/gallery");
   });
 });

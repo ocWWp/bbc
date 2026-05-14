@@ -10,8 +10,8 @@ export const dynamic = "force-dynamic";
  *   2. Authenticated + empty brain → /welcome (preserves the onboarding gate;
  *      fresh tenants without any memories should not land on /home).
  *   3. Admin → /home.
- *   4. Operator / member → /studio/<templateSlug> (defaulting to 'marketing'
- *      when the actor has no template assigned).
+ *   4. Operator / member → /gallery (Phase P) — the browse-first home screen.
+ *      Role studios are still reachable from the nav.
  */
 export default async function Root() {
   const a = await requireActor();
@@ -26,6 +26,5 @@ export default async function Root() {
 
   if (a.actor.role === "admin") redirect("/home");
 
-  const slug = (a.actor.templateSlug ?? "marketing").toLowerCase();
-  redirect(`/studio/${slug}`);
+  redirect("/gallery");
 }

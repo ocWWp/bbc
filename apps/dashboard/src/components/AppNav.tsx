@@ -21,6 +21,12 @@ const HOME_ROUTE: Route = {
   href: "/home",
   match: (p) => p === "/home" || p.startsWith("/home/"),
 };
+const GALLERY_ROUTE: Route = {
+  key: "gallery",
+  label: "Gallery",
+  href: "/gallery",
+  match: (p) => p === "/gallery" || p.startsWith("/gallery/"),
+};
 const STUDIO_ROUTE: Route = {
   key: "studio",
   label: "Studio",
@@ -77,6 +83,7 @@ const ADMIN_ROUTES: ReadonlyArray<Route> = [
   SETTINGS_ROUTE,
 ];
 const OPERATOR_ROUTES: ReadonlyArray<Route> = [
+  GALLERY_ROUTE,
   STUDIO_ROUTE,
   MEMORY_ROUTE,
   QUEUE_ROUTE,
@@ -91,7 +98,7 @@ function memberRoutes(templateSlug: string | null): ReadonlyArray<Route> {
     href: `/studio/${slug}`,
     match: (p) => p === `/studio/${slug}` || p.startsWith(`/studio/${slug}/`),
   };
-  return [studio, BRAIN_ROUTE, INBOX_ROUTE];
+  return [GALLERY_ROUTE, studio, BRAIN_ROUTE, INBOX_ROUTE];
 }
 
 function routesForRole(role: string | null, templateSlug: string | null): ReadonlyArray<Route> {

@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// Task 13 of v1.5 launch polish. AppNav renders different route lists
-// per role:
+// Task 13 of v1.5 launch polish; updated in Phase P (Task A4). AppNav renders
+// different route lists per role:
 //   admin     -> Home, Studio, Memory, Queue, Library, Settings
-//   operator  -> Studio, Memory, Queue, Library, Settings  (same minus Home)
-//   member    -> Studio (/studio/<slug>), Brain, Inbox      (3 routes only)
+//   operator  -> Gallery, Studio, Memory, Queue, Library, Settings
+//   member    -> Gallery, Studio (/studio/<slug>), Brain, Inbox
 //
 // This is UI chrome, not authorization — RLS at the SQL layer (ADR-0012,
 // migration 0042) is the real gate. Nav hiding is the visible part.
@@ -55,7 +55,7 @@ describe("AppNav — role-aware route visibility", () => {
     expect(within(nav).queryByText("Inbox")).toBeNull();
   });
 
-  it("operator sees admin nav minus Home", () => {
+  it("operator sees Gallery + admin nav minus Home", () => {
     render(
       <AppNav
         pendingCount={0}
@@ -65,6 +65,7 @@ describe("AppNav — role-aware route visibility", () => {
     );
     const nav = getNav();
     expect(within(nav).queryByText("Home")).toBeNull();
+    expect(within(nav).getByText("Gallery")).toBeDefined();
     expect(within(nav).getByText("Studio")).toBeDefined();
     expect(within(nav).getByText("Memory")).toBeDefined();
     expect(within(nav).getByText("Queue")).toBeDefined();
@@ -73,7 +74,7 @@ describe("AppNav — role-aware route visibility", () => {
     expect(within(nav).queryByText("Brain")).toBeNull();
   });
 
-  it("member sees only Studio + Brain + Inbox", () => {
+  it("member sees only Gallery + Studio + Brain + Inbox", () => {
     render(
       <AppNav
         pendingCount={0}
@@ -82,6 +83,7 @@ describe("AppNav — role-aware route visibility", () => {
       />,
     );
     const nav = getNav();
+    expect(within(nav).getByText("Gallery")).toBeDefined();
     expect(within(nav).getByText("Studio")).toBeDefined();
     expect(within(nav).getByText("Brain")).toBeDefined();
     expect(within(nav).getByText("Inbox")).toBeDefined();
