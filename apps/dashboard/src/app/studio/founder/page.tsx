@@ -6,7 +6,6 @@ import { listClientFounderTemplates } from "@/lib/studio/founder-templates/regis
 
 import FounderStudioClient, { type RecentFounderRun } from "./FounderStudioClient";
 import { RoleSwitcher } from "../_components/RoleSwitcher";
-import { StudioPageShell } from "@/components/studio/StudioPageShell";
 
 export const metadata = {
   title: "Founder Studio · BBC",
@@ -53,24 +52,22 @@ export default async function FounderStudioPage() {
     }));
 
   return (
-    <StudioPageShell role="founder">
-      <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-12">
-        <RoleSwitcher active="founder" />
-        <header className="mb-8 sm:mb-12">
-          <div className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
-            Founder Studio
-          </div>
-          <h1 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight">
-            What needs writing?
-          </h1>
-          <p className="mt-2 text-muted-foreground text-base sm:text-lg max-w-2xl">
-            Strategic memos, board updates, weekly recaps — drafted from your
-            brain&rsquo;s decisions, product positioning, and team.
-          </p>
-        </header>
+    <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-12">
+      <RoleSwitcher active="founder" />
+      <header className="mb-8 sm:mb-12">
+        <div className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
+          Founder Studio
+        </div>
+        <h1 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight">
+          What needs writing?
+        </h1>
+        <p className="mt-2 text-muted-foreground text-base sm:text-lg max-w-2xl">
+          Strategic memos, board updates, weekly recaps — drafted from your
+          brain&rsquo;s decisions, product positioning, and team.
+        </p>
+      </header>
 
-        <FounderStudioClient templates={templates} recentRuns={recentRuns} />
-      </main>
-    </StudioPageShell>
+      <FounderStudioClient templates={templates} recentRuns={recentRuns} />
+    </main>
   );
 }

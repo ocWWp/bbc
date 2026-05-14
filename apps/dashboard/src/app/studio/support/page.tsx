@@ -6,7 +6,6 @@ import { listClientSupportTemplates } from "@/lib/studio/support-templates/regis
 
 import SupportStudioClient, { type RecentSupportRun } from "./SupportStudioClient";
 import { RoleSwitcher } from "../_components/RoleSwitcher";
-import { StudioPageShell } from "@/components/studio/StudioPageShell";
 
 export const metadata = {
   title: "Support Studio · BBC",
@@ -53,25 +52,23 @@ export default async function SupportStudioPage() {
     }));
 
   return (
-    <StudioPageShell role="support">
-      <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-12">
-        <RoleSwitcher active="support" />
-        <header className="mb-8 sm:mb-12">
-          <div className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
-            Support Studio
-          </div>
-          <h1 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight">
-            What needs a reply?
-          </h1>
-          <p className="mt-2 text-muted-foreground text-base sm:text-lg max-w-2xl">
-            Customer replies, churn-save responses, incident updates &mdash; drafted in your
-            voice, grounded in your product&rsquo;s decisions and glossary, handed back for
-            your review.
-          </p>
-        </header>
+    <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-12">
+      <RoleSwitcher active="support" />
+      <header className="mb-8 sm:mb-12">
+        <div className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
+          Support Studio
+        </div>
+        <h1 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight">
+          What needs a reply?
+        </h1>
+        <p className="mt-2 text-muted-foreground text-base sm:text-lg max-w-2xl">
+          Customer replies, churn-save responses, incident updates &mdash; drafted in your
+          voice, grounded in your product&rsquo;s decisions and glossary, handed back for
+          your review.
+        </p>
+      </header>
 
-        <SupportStudioClient templates={templates} recentRuns={recentRuns} />
-      </main>
-    </StudioPageShell>
+      <SupportStudioClient templates={templates} recentRuns={recentRuns} />
+    </main>
   );
 }
