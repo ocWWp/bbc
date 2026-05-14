@@ -4675,3 +4675,254 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   color: var(--paper-muted);
   margin-top: 8px;
 }
+
+/* ============================================================
+   GALLERY (/gallery) — search · chips · template grid
+   Ported from the Claude Design "studio.html" bundle.
+   ============================================================ */
+
+/* ---- search field (big, prominent — first interactive thing) ---- */
+.gal-search {
+  display: flex; align-items: center; gap: 12px;
+  height: 56px;
+  padding: 0 18px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--paper);
+  margin-bottom: 16px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.gal-search:focus-within { border-color: var(--ink); }
+.gal-search .ic { color: var(--paper-muted); flex-shrink: 0; display: inline-flex; }
+.gal-search input {
+  flex: 1; min-width: 0;
+  border: none; outline: none; background: transparent;
+  font-family: "Geist", sans-serif;
+  font-size: 18px;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.gal-search input::placeholder {
+  color: var(--paper-muted-2);
+  font-style: italic;
+}
+.gal-search input::-webkit-search-cancel-button { -webkit-appearance: none; }
+.gal-search .kbd {
+  font-size: 11px;
+  padding: 2px 7px;
+}
+.gal-search .clear {
+  width: 20px; height: 20px;
+  border-radius: 100px;
+  background: var(--bg-2);
+  border: 1px solid var(--rule);
+  color: var(--paper-muted);
+  display: grid; place-items: center;
+  cursor: pointer;
+  font-size: 10px;
+}
+.gal-search .clear:hover { color: var(--ink); }
+
+/* ---- filter-chip row (one All + one per department) ---- */
+.gal-chips {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding-bottom: 22px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid var(--rule);
+}
+.gal-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: "Geist Mono", monospace;
+  font-size: 12px;
+  padding: 6px 12px 6px 10px;
+  border-radius: 100px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.gal-chip:hover { background: var(--bg-2); border-color: var(--rule-2); }
+.gal-chip .dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--chip-color, var(--paper-muted-2));
+}
+.gal-chip .ct {
+  font-size: 11px;
+  color: var(--paper-muted);
+  font-variant-numeric: tabular-nums;
+}
+.gal-chip.is-on {
+  background: color-mix(in oklab, var(--chip-color, var(--ink)), transparent 86%);
+  border-color: color-mix(in oklab, var(--chip-color, var(--ink)), transparent 55%);
+  color: color-mix(in oklab, var(--chip-color, var(--ink)), var(--ink) 35%);
+}
+.gal-chip.is-on .ct { color: color-mix(in oklab, var(--chip-color, var(--ink)), var(--paper-muted) 50%); }
+.gal-chip.all.is-on {
+  background: var(--ink);
+  color: var(--bg);
+  border-color: var(--ink);
+}
+.gal-chip.all.is-on .ct { color: color-mix(in oklab, var(--bg), transparent 30%); }
+
+/* ---- result meta line ---- */
+.gal-result-line {
+  display: flex; align-items: baseline; justify-content: space-between;
+  font-family: "Geist Mono", monospace;
+  font-size: 11.5px;
+  color: var(--paper-muted);
+  margin-bottom: 14px;
+}
+.gal-result-line .ink { color: var(--ink); font-weight: 500; }
+.gal-result-line .clear-link {
+  font-family: "Geist Mono", monospace;
+  font-size: 11px;
+  background: transparent; border: none;
+  color: var(--paper-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  padding: 0;
+}
+.gal-result-line .clear-link:hover { color: var(--ink); }
+
+/* ---- template grid ---- */
+.gal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+}
+@media (max-width: 540px) {
+  .gal-grid { grid-template-columns: 1fr; }
+}
+
+/* ---- template card ---- */
+.tpl-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 14px;
+  padding: 18px 18px 16px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--paper);
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s, background 0.15s;
+  text-decoration: none;
+  color: var(--ink);
+}
+.tpl-card:hover {
+  border-color: color-mix(in oklab, var(--role-color, var(--ink)), transparent 55%);
+  background: color-mix(in oklab, var(--paper), var(--role-color, var(--ink)) 4%);
+}
+.tpl-card:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent), transparent 30%);
+  outline-offset: 2px;
+}
+.tpl-card .glyph {
+  grid-row: 1 / span 3;
+  width: 40px; height: 40px;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--role-color, var(--ink)), transparent 88%);
+  color: var(--role-color, var(--ink));
+  display: grid; place-items: center;
+  font-family: "Geist Mono", monospace;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: 1px solid color-mix(in oklab, var(--role-color, var(--ink)), transparent 72%);
+  letter-spacing: -0.02em;
+}
+.tpl-card .out {
+  grid-column: 2;
+  display: flex; align-items: center; gap: 8px;
+  font-family: "Geist Mono", monospace;
+  font-size: 10.5px;
+  color: var(--paper-muted);
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+.tpl-card .out .pill {
+  background: var(--bg-2);
+  border: 1px solid var(--rule);
+  color: var(--ink-2);
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10.5px;
+}
+.tpl-card .nm {
+  grid-column: 2;
+  font-family: "Geist", sans-serif;
+  font-size: 15.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  margin: 2px 0 0;
+  line-height: 1.25;
+}
+.tpl-card .desc {
+  grid-column: 2;
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.5;
+  margin: 6px 0 12px;
+  text-wrap: pretty;
+}
+.tpl-card .foot {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule);
+  font-family: "Geist Mono", monospace;
+  font-size: 11px;
+  color: var(--paper-muted);
+  flex-wrap: wrap;
+}
+.tpl-card .foot .dept {
+  display: inline-flex; align-items: center; gap: 5px;
+  color: var(--ink-2);
+}
+.tpl-card .foot .dept .ddot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--dept-color, var(--paper-muted-2));
+}
+.tpl-card .foot .sep { color: var(--rule-2); }
+
+/* ---- empty result state (calm, never blank) ---- */
+.gal-empty {
+  display: flex; flex-direction: column; gap: 12px;
+  align-items: flex-start;
+  padding: 40px 28px;
+  border: 1px dashed var(--rule-2);
+  border-radius: 12px;
+  background: var(--paper);
+  max-width: 640px;
+  margin-top: 12px;
+}
+.gal-empty .e-eyebrow {
+  font-family: "Geist Mono", monospace;
+  font-size: 11px;
+  color: var(--paper-muted);
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+.gal-empty h3 {
+  font-family: "Geist", sans-serif;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0;
+  line-height: 1.15;
+}
+.gal-empty h3 .serif {
+  font-family: var(--font-instrument-serif), "Cormorant Garamond", Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+}
+.gal-empty p {
+  font-size: 14px;
+  color: var(--paper-muted);
+  line-height: 1.55;
+  margin: 0;
+  max-width: 480px;
+}
