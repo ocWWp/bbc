@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
+import { InboxBell } from "./InboxBell";
+import type { InboxItem } from "@/lib/inbox/read-inbox";
 
 type Route = {
   key: string;
@@ -113,9 +115,19 @@ type AppNavProps = {
   pendingCount: number;
   user: { label: string; avatar: string | null; initial: string } | null;
   workspace: { name: string; role: string; templateSlug: string | null } | null;
+  /** Unread from_bbc count for the bell badge. Defaults to 0 when unset. */
+  inboxUnread?: number;
+  /** Top items for the bell slide-out. Defaults to empty when unset. */
+  inboxPreview?: ReadonlyArray<InboxItem>;
 };
 
-export function AppNav({ pendingCount, user, workspace }: AppNavProps) {
+export function AppNav({
+  pendingCount,
+  user,
+  workspace,
+  inboxUnread = 0,
+  inboxPreview = [],
+}: AppNavProps) {
   const pathname = usePathname() || "";
   const routes = routesForRole(workspace?.role ?? null, workspace?.templateSlug ?? null);
 
@@ -159,7 +171,10 @@ export function AppNav({ pendingCount, user, workspace }: AppNavProps) {
             <span className="kbd">⌘K</span>
           </div>
           {user ? (
-            <AvatarMenu user={user} />
+            <>
+              <InboxBell unreadCount={inboxUnread} preview={inboxPreview} />
+              <AvatarMenu user={user} />
+            </>
           ) : (
             <Link href="/auth/signin" className="btn btn-ghost" style={{ height: 28, padding: "0 12px", fontSize: 12 }}>
               sign in

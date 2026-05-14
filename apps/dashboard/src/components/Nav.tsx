@@ -1,5 +1,6 @@
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { listPending } from "@/lib/read-queue";
+import { readInbox } from "@/lib/inbox/read-inbox";
 import { AppNav } from "./AppNav";
 
 /**
@@ -59,5 +60,29 @@ export default async function Nav() {
     pendingCount = 0;
   }
 
-  return <AppNav pendingCount={pendingCount} user={userProps} workspace={workspaceProps} />;
+  // Inbox view for the bell badge + slide-out. Fail-open same as queue —
+  // the bell hides itself when unauth (the AppNav renders no bell unless
+  // user is set).
+  let inboxUnread = 0;
+  let inboxPreview: Awaited<ReturnType<typeof readInbox>>["from_bbc"] = [];
+  if (user) {
+    try {
+      const inbox = await readInbox(5);
+      inboxUnread = inbox.from_bbc_unread;
+      inboxPreview = inbox.from_bbc;
+    } catch {
+      inboxUnread = 0;
+      inboxPreview = [];
+    }
+  }
+
+  return (
+    <AppNav
+      pendingCount={pendingCount}
+      user={userProps}
+      workspace={workspaceProps}
+      inboxUnread={inboxUnread}
+      inboxPreview={inboxPreview}
+    />
+  );
 }
