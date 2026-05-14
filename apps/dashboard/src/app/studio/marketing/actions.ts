@@ -270,6 +270,71 @@ const EMIT_OUTPUT_TOOL = {
 
 const inputsRecordSchema = z.record(z.string(), z.string().max(2000));
 
+// ---- Plan-before-run (Phase P) -------------------------------------------
+// previewPlan is the trust checkpoint shown after Configure, before
+// generation. It resolves the actor + RBAC, validates the task, and reports
+// the candidate memory a run could draw on. It does NOT call the LLM and does
+// NOT build the prompt -- that only happens in runWorkflow on confirm.
+
+export type PlanPreview = {
+  templateId: string;
+  templateLabel: string;
+  task: string;
+  inputs: Record<string, string>;
+  planSummary: string; // plain-language, human-readable
+  // Brain rows in scope for this run -- intended retrieval scope, NOT final
+  // citations. Covers the id-bearing memory types; voice/product are always-on
+  // context and are not itemized here.
+  candidateMemories: Array<{ id: string; kind: string; label: string }>;
+};
+
+export type PreviewPlanResult =
+  | { ok: true; plan: PlanPreview }
+  | { ok: false; error: string };
+
+export async function previewPlan(
+  templateId: string,
+  task: string,
+  inputs: Record<string, string>,
+): Promise<PreviewPlanResult> {
+  const a = await requireActor();
+  if (!a.ok) return { ok: false, error: a.output };
+  const r = requireRole(a.actor, "member");
+  if (!r.ok) return { ok: false, error: r.output };
+
+  const trimmed = (task ?? "").trim();
+  if (trimmed.length < MIN_TASK_LEN) {
+    return { ok: false, error: `Describe the task in at least ${MIN_TASK_LEN} characters.` };
+  }
+  if (trimmed.length > MAX_TASK_LEN) {
+    return { ok: false, error: `Task too long -- keep it under ${MAX_TASK_LEN} characters.` };
+  }
+
+  const template = getTemplate(templateId);
+  if (!template) return { ok: false, error: `Unknown template: ${templateId}` };
+
+  const supabase = await getSupabaseServerClient();
+  const brain = await loadBrainSummary(supabase, a.actor.tenant_id);
+
+  const candidateMemories: PlanPreview["candidateMemories"] = [
+    ...brain.recent_decisions.map((d) => ({ id: d.id, kind: "decision", label: d.title })),
+    ...brain.vendors.map((v) => ({ id: v.id, kind: "vendor", label: `${v.name} (${v.role})` })),
+    ...brain.team.map((t) => ({ id: t.id, kind: "team", label: `${t.name} (${t.role})` })),
+    ...(brain.glossary?.terms ?? []).map((g) => ({ id: g.id, kind: "glossary", label: g.term })),
+  ];
+
+  const n = candidateMemories.length;
+  const planSummary =
+    `Generate a ${template.kind.replace(/_/g, " ")} using the "${template.label}" template, ` +
+    `grounded in ${n} ${n === 1 ? "piece" : "pieces"} of your company memory. ` +
+    `Output goes to the review queue -- nothing is saved or sent until you approve it.`;
+
+  return {
+    ok: true,
+    plan: { templateId, templateLabel: template.label, task: trimmed, inputs, planSummary, candidateMemories },
+  };
+}
+
 export async function runWorkflow(
   templateId: string,
   task: string,
