@@ -1,0 +1,54 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "BBC",
+  "description": "The company brain. Three loops on one typed memory schema. AGPLv3, BYOK, self-hostable.",
+  "colors": {
+    "primary": "#0F172A",
+    "light": "#E2E8F0",
+    "dark": "#0F172A"
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Docs",
+        "groups": [
+          {
+            "group": "Get started",
+            "pages": ["introduction", "quickstart", "byok"]
+          },
+          {
+            "group": "Concepts",
+            "pages": [
+              "concepts/three-loops",
+              "concepts/typed-memory",
+              "concepts/memory-types",
+              "concepts/memory-schema",
+              "concepts/role-tool-bundle",
+              "concepts/studios",
+              "concepts/writeback-flywheel"
+            ]
+          },
+          {
+            "group": "Run it",
+            "pages": ["self-host", "integrate/mcp"]
+          },
+          {
+            "group": "Build",
+            "pages": [
+              "build/skill-md-bbc",
+              "build/import-skill",
+              "build/connector"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/ZethT/bbc"
+    }
+  }
+}

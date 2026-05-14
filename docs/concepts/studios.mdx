@@ -1,0 +1,59 @@
+---
+title: "Studios"
+description: "Role-scoped agents that read your brain and produce work. Five shipped: Marketing, Engineering, Founder, Designer, Support."
+---
+
+A studio is a role-scoped agent. It reads your brain, applies a hand-authored prompt template, and produces a draft you review before anything reaches a customer or hits the codebase.
+
+Studios live at `/studio/<role>` in the dashboard. Each one has the brain pre-loaded; you don't paste context every run.
+
+## The five studios
+
+| Studio | What it drafts | Brain memory it leans on |
+|---|---|---|
+| **Marketing** | X posts, threads, LinkedIn announcements, blog drafts, reel scripts | voice (primary), product, glossary |
+| **Engineering** | ADRs, vendor swap proposals, tech-debt reviews | decisions (primary), vendors, team |
+| **Founder** | Strategic memos, board updates, weekly recaps | product, decisions, team |
+| **Designer** | Visual specs, brand guideline entries, UI copy passes | voice, product |
+| **Support** | Customer replies, churn-save, incident posts, bug acks, feature-request triage | voice + product + glossary + decisions |
+
+Templates within a studio are hand-authored TypeScript modules (under `apps/dashboard/src/lib/studio/<role>-templates/`). The studio doesn't pick a template for you — you pick from a list. Every template emits a single `OutputBlock` of `kind: 'plain'` carrying markdown (engineering documents), or a typed kind like `x_post` / `linkedin_post` for platform-shaped output.
+
+## How a run works
+
+1. **Describe the task.** One sentence. The studio uses it to frame the draft.
+2. **Pick a workflow.** Each studio shows its templates as cards with one-line hints.
+3. **Fill in the per-template inputs.** Varies — Customer ticket text, severity, allowed offers, ADR options under consideration, etc.
+4. **Generate.** The studio loads a `BrainSummary` of your tenant's memory (deterministic SQL, no embedding lookup), assembles the prompt, calls Claude with a tool-use schema, and writes the result to `studio_runs` with `status='pending_review'`.
+5. **Review at `/studio/runs/<id>`.** Read the draft, see which memories were cited, edit or accept.
+6. **Accept** flips `status='accepted'` and runs the [writeback flywheel](/concepts/writeback-flywheel) — the studio may file follow-up proposals to your `/queue` based on what was just accepted.
+
+## Conversational overrides
+
+If a draft is consistently wrong in a specific way (uses a banned phrase, signs off as the wrong name, picks the wrong tone for severity), the **Edit** chat next to each draft converts your correction into a persistent prompt override. The override applies to every future run of that template until you deactivate it from the chip above the draft.
+
+Four override kinds, all matched by an LLM dispatch step that converts free-form text into a structured rule:
+
+- `add_constraint` — "always sign off as oc"
+- `forbid_pattern` — "never use 'sorry for the inconvenience'"
+- `add_example` — pin a concrete reference phrase
+- `replace_section` — swap a section of the prompt
+
+Overrides are per (tenant, template); cap is 10 active per template.
+
+## Per-role API keys
+
+You can issue an API key bound to a role (e.g. `support-writer`). The MCP server and REST shim enforce a memory-type allowlist matching that role: a `support-writer` key sees `voice + product + glossary + vendor + decision + note`, not `team` / `skill` / `source_artifact`. Bind from `/api-keys` (admin only) or via SQL on `api_keys.role`.
+
+See the [/api-keys](/integrate/mcp) page for the dropdown and the memory-type matrix per role.
+
+## What's not a studio
+
+- **Brain Editor** at `/memory` — direct edits to memory rows. No LLM, no template; this is the Loop 1 ingest path.
+- **Queue** at `/queue` — review pending proposals (some filed by studios, some by hand, some by the future Loop 3 watcher). Accept/reject moves them to `_accepted/` or `_rejected/`.
+
+## Why studios, not one chat
+
+A chat thread conflates planning, drafting, review, and writeback into one stream. A studio separates them: planning happens when you pick the template; drafting is a single LLM call with a stable prompt; review has its own UI with citations and accept/reject; writeback has its own queue. Each surface has the right cost profile and the right human-in-the-loop ratio.
+
+Most importantly: every studio run produces a discrete, reviewable artifact (an ADR, a reply, an incident post). The artifact is the unit. Chat threads aren't.

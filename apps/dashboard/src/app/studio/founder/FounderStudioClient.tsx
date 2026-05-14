@@ -1,0 +1,295 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { Button } from "@/components/ui/button";
+import type { OutputBlock } from "@/lib/studio/output-blocks";
+import type { ClientFounderTemplate } from "@/lib/studio/founder-templates/registry";
+import { runFounderWorkflow, type CitedMemoryRef } from "./actions";
+import { CitationChip } from "@/components/studio/CitationChip";
+
+export type RecentFounderRun = {
+  id: string;
+  templateId: string;
+  task: string;
+  inputs: Record<string, string>;
+  status: string;
+  createdAt: string;
+};
+
+type Props = {
+  templates: ClientFounderTemplate[];
+  recentRuns: RecentFounderRun[];
+};
+
+type Stage =
+  | { kind: "idle" }
+  | { kind: "configuring"; template: ClientFounderTemplate; task: string }
+  | { kind: "running"; template: ClientFounderTemplate; task: string }
+  | {
+      kind: "reviewing";
+      template: ClientFounderTemplate;
+      task: string;
+      blocks: OutputBlock[];
+      cited: CitedMemoryRef[];
+      runId: string;
+    }
+  | { kind: "error"; message: string };
+
+export default function FounderStudioClient({ templates, recentRuns }: Props) {
+  const [stage, setStage] = useState<Stage>({ kind: "idle" });
+  const [task, setTask] = useState("");
+  const [selected, setSelected] = useState<ClientFounderTemplate | null>(null);
+  const [inputs, setInputs] = useState<Record<string, string>>({});
+  const [pending, startTransition] = useTransition();
+
+  const pickTemplate = (t: ClientFounderTemplate) => {
+    setSelected(t);
+    setInputs(
+      Object.fromEntries(t.firstUseInputs.map((fi) => [fi.id, fi.default ?? ""])),
+    );
+    setStage({ kind: "configuring", template: t, task });
+  };
+
+  const run = () => {
+    if (!selected) return;
+    setStage({ kind: "running", template: selected, task });
+    startTransition(async () => {
+      const res = await runFounderWorkflow(selected.id, task, inputs);
+      if (!res.ok) {
+        setStage({ kind: "error", message: res.error });
+        return;
+      }
+      setStage({
+        kind: "reviewing",
+        template: selected,
+        task,
+        blocks: res.blocks,
+        cited: res.citedMemories,
+        runId: res.runId,
+      });
+    });
+  };
+
+  const reset = () => {
+    setStage({ kind: "idle" });
+    setSelected(null);
+    setInputs({});
+    setTask("");
+  };
+
+  if (stage.kind === "reviewing") {
+    return (
+      <ReviewView
+        template={stage.template}
+        task={stage.task}
+        blocks={stage.blocks}
+        cited={stage.cited}
+        onReset={reset}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <section>
+        <label className="block text-sm font-medium mb-2">
+          What are you working on?
+        </label>
+        <textarea
+          className="w-full min-h-[100px] rounded-md border border-input bg-background p-3 text-sm"
+          placeholder="e.g. Drafting our November investor update — we just hit $50k MRR and shipped the OSS launch."
+          value={task}
+          onChange={(e) => setTask(e.target.value)}
+          disabled={pending}
+        />
+        <p className="mt-1 text-xs text-muted-foreground">
+          {task.length} / 800 chars
+        </p>
+      </section>
+
+      <section>
+        <h2 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground mb-3">
+          Pick a workflow
+        </h2>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {templates.map((t) => {
+            const isSelected = selected?.id === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => pickTemplate(t)}
+                disabled={pending || task.trim().length < 8}
+                className={
+                  "text-left rounded-lg border p-4 transition-colors " +
+                  (isSelected
+                    ? "border-foreground bg-accent"
+                    : "border-border hover:bg-accent/50") +
+                  " disabled:opacity-50 disabled:cursor-not-allowed"
+                }
+              >
+                <div className="font-medium">{t.label}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{t.hint}</div>
+              </button>
+            );
+          })}
+        </div>
+        {task.trim().length < 8 && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Describe the task first, then pick a workflow.
+          </p>
+        )}
+      </section>
+
+      {stage.kind === "configuring" && selected && (
+        <section className="rounded-lg border border-border p-5 space-y-4">
+          <div>
+            <div className="font-medium">{selected.label}</div>
+            <div className="text-xs text-muted-foreground mt-1">{selected.hint}</div>
+          </div>
+          {selected.firstUseInputs.map((fi) => (
+            <div key={fi.id}>
+              <label className="block text-sm font-medium mb-1">
+                {fi.label}
+                {fi.required && <span className="text-red-500 ml-1">*</span>}
+              </label>
+              <p className="text-xs text-muted-foreground mb-2">{fi.hint}</p>
+              <textarea
+                className="w-full min-h-[60px] rounded-md border border-input bg-background p-2 text-sm"
+                value={inputs[fi.id] ?? ""}
+                onChange={(e) => setInputs((s) => ({ ...s, [fi.id]: e.target.value }))}
+                disabled={pending}
+              />
+            </div>
+          ))}
+          <div className="flex items-center gap-3 pt-2">
+            <Button onClick={run} disabled={pending || !canRun(selected, inputs, task)}>
+              {pending ? "Generating…" : "Generate"}
+            </Button>
+            <button
+              type="button"
+              onClick={reset}
+              className="text-xs text-muted-foreground hover:text-foreground"
+              disabled={pending}
+            >
+              Reset
+            </button>
+          </div>
+        </section>
+      )}
+
+      {stage.kind === "running" && (
+        <section className="rounded-lg border border-border p-5">
+          <div className="text-sm text-muted-foreground">
+            Drafting {stage.template.label.toLowerCase()}… reading your brain.
+          </div>
+          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
+            <div className="h-full w-1/3 animate-pulse bg-foreground/60" />
+          </div>
+        </section>
+      )}
+
+      {stage.kind === "error" && (
+        <section className="rounded-lg border border-red-500/40 bg-red-500/5 p-5 space-y-2">
+          <div className="font-medium">Generation failed</div>
+          <div className="text-sm text-muted-foreground">{stage.message}</div>
+          <Button variant="outline" onClick={reset}>
+            Try again
+          </Button>
+        </section>
+      )}
+
+      {recentRuns.length > 0 && stage.kind === "idle" && (
+        <section className="pt-6 border-t border-border">
+          <h2 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground mb-3">
+            Recent runs
+          </h2>
+          <ul className="space-y-2">
+            {recentRuns.map((r) => (
+              <li key={r.id} className="text-sm">
+                <span className="text-muted-foreground">{r.templateId}</span>
+                <span className="mx-2">·</span>
+                <span>{r.task.slice(0, 100)}</span>
+                <span className="ml-2 text-xs text-muted-foreground">({r.status})</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function canRun(
+  t: ClientFounderTemplate,
+  inputs: Record<string, string>,
+  task: string,
+): boolean {
+  if (task.trim().length < 8) return false;
+  for (const fi of t.firstUseInputs) {
+    if (fi.required && !(inputs[fi.id] ?? "").trim()) return false;
+  }
+  return true;
+}
+
+function ReviewView({
+  template,
+  task,
+  blocks,
+  cited,
+  onReset,
+}: {
+  template: ClientFounderTemplate;
+  task: string;
+  blocks: OutputBlock[];
+  cited: CitedMemoryRef[];
+  onReset: () => void;
+}) {
+  const text = blocks
+    .map((b) => {
+      if (b.kind === "plain") return b.props.text;
+      if (b.kind === "blog_draft") return b.props.body_markdown;
+      return JSON.stringify(b, null, 2);
+    })
+    .join("\n\n");
+
+  return (
+    <div className="space-y-6">
+      <header className="flex items-center justify-between">
+        <div>
+          <div className="text-xs text-muted-foreground uppercase tracking-wide">
+            {template.label}
+          </div>
+          <h2 className="text-lg font-medium mt-1">{task}</h2>
+        </div>
+        <Button variant="outline" onClick={onReset}>
+          New run
+        </Button>
+      </header>
+
+      <article className="prose prose-sm max-w-none dark:prose-invert rounded-lg border border-border bg-background p-6">
+        <pre className="whitespace-pre-wrap font-mono text-sm">{text}</pre>
+      </article>
+
+      {cited.length > 0 && (
+        <section>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+            Cited memories ({cited.length})
+          </h3>
+          <ul className="flex flex-wrap gap-2">
+            {cited.map((c, i) => (
+              <li key={c.id}>
+                <CitationChip
+                  memoryId={c.id}
+                  type={c.type}
+                  label={c.title}
+                  citationNumber={i + 1}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  );
+}

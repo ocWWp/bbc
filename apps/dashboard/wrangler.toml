@@ -1,0 +1,27 @@
+name = "bbc-dashboard"
+main = ".open-next/worker.js"
+compatibility_date = "2026-04-01"
+compatibility_flags = ["nodejs_compat"]
+
+# OpenNext outputs static + dynamic assets here.
+assets = { directory = ".open-next/assets", binding = "ASSETS" }
+
+# Custom domain. Requires the bigbraincompany.online zone to be Active in
+# Cloudflare before `wrangler deploy` runs — wrangler provisions the custom
+# domain (and its TLS cert) on first deploy. The Next.js app serves both the
+# landing page (/landing) and the dashboard from this single origin.
+routes = [
+  { pattern = "bigbraincompany.online", custom_domain = true },
+]
+
+# Env vars set in the Cloudflare Workers dashboard (Settings → Variables):
+#   NEXT_PUBLIC_SUPABASE_URL
+#   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+#   SUPABASE_SERVICE_ROLE_KEY
+#   ANTHROPIC_API_KEY            (optional; tenants can BYOK at /settings/keys)
+#   BBC_SECRET_ENCRYPTION_KEY    (REQUIRED; openssl rand -base64 32)
+#   BBC_SIGNUP_MODE              (open | invite_only)
+#   BBC_HOSTED_DEMO_MODE         (true on the hosted demo, false elsewhere)
+#
+# These are NOT inlined here on purpose — keep secrets in the dashboard's
+# encrypted env, not in the repo. wrangler reads them at deploy time.

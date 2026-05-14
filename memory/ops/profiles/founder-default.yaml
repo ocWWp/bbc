@@ -1,0 +1,55 @@
+---
+id: profile_founder-default
+profile_id: founder-default
+type: ranker-profile
+scope: org
+applies_to:
+  leaves: [dashboard]
+  task_classes: [strategic-memo, board-update, weekly-recap]
+contract_version: 1
+status: accepted
+layer: main
+owning_layer: main
+created: 2026-05-12T00:00:00Z
+updated: 2026-05-12T00:00:00Z
+tags: [profile, founder]
+inherits: _org-policy
+---
+
+# Profile: founder-default
+
+Used by Founder Studio for strategic memos, board updates, and weekly recaps.
+These are low-volume, high-stakes outputs — the founder reads every word
+before it leaves the house. Quality dominates cost.
+
+## Hard constraints
+
+- max_cost_per_call_usd: 1.50         # board updates may pull a lot of brain context
+- max_latency_p95_ms: 60000           # 60s — these aren't interactive, willing to wait
+- min_uptime_sla_pct: 99.0            # not customer-facing; tolerant of brief outages
+
+## Soft preferences
+
+preferred_providers: []
+region_preference: us-east-1
+vibe_descriptors: [direct, no-hedging, founder-voice]
+
+## Ranker weights
+
+weights:
+  cost: 0.10                           # cost barely matters at this volume
+  latency: 0.10                        # neither does latency
+  trust: 0.50                          # quality and reliability dominate
+  outcome_history: 0.25                # we learn from which drafts the founder shipped vs rewrote
+  preference_match: 0.05
+
+## Outcome attribution window
+
+outcome_window_days: 30                # founder docs have slow signal — weekly review cycles
+
+## Notes
+
+Founder Studio runs ~weekly per template, not per-day. The cost ceiling exists
+to prevent runaway prompts (the brain summary plus 5-decision context can be
+heavy), not to force cheap models. Trust + outcome history dominate because
+the founder will swap providers if drafts consistently miss the voice.

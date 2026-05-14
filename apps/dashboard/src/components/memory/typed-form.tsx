@@ -9,10 +9,11 @@ import type { Supertag } from "@/lib/memory/types";
 type FormProps = {
   type: Supertag;
   fields: Record<string, unknown>;
+  title?: string;
   onChange: (next: Record<string, unknown>) => void;
 };
 
-export function TypedForm({ type, fields, onChange }: FormProps) {
+export function TypedForm({ type, fields, title, onChange }: FormProps) {
   const stateRef = useRef<Record<string, unknown>>({ ...fields });
   const emit = (patch: Record<string, unknown>) => {
     stateRef.current = { ...stateRef.current, ...patch };
@@ -27,7 +28,7 @@ export function TypedForm({ type, fields, onChange }: FormProps) {
     case "voice":
       return <VoiceForm fields={fields} emit={emit} />;
     case "decision":
-      return <DecisionForm fields={fields} emit={emit} />;
+      return <DecisionForm fields={fields} title={title} emit={emit} />;
     case "glossary":
       return <GlossaryForm fields={fields} emit={emit} />;
     case "vendor":
@@ -38,6 +39,12 @@ export function TypedForm({ type, fields, onChange }: FormProps) {
       return <TeamForm fields={fields} emit={emit} />;
     case "skill":
       return <SkillForm fields={fields} emit={emit} />;
+    case "source_artifact":
+      return <SourceArtifactForm fields={fields} emit={emit} />;
+    case "note":
+      return <NoteForm fields={fields} emit={emit} />;
+    default:
+      return <p className="text-xs text-muted-foreground">No properties for this type.</p>;
   }
 }
 
@@ -169,18 +176,20 @@ function VoiceForm({ fields, emit }: SubProps) {
   );
 }
 
-function DecisionForm({ fields, emit }: SubProps) {
+function DecisionForm({ fields, emit, title }: SubProps & { title?: string }) {
+  const parsedFromTitle = title?.match(/ADR[-\s]?(\d+)/i)?.[1];
+  const numberDefault = (fields.number as number | undefined) ?? (parsedFromTitle ? Number(parsedFromTitle) : "");
   return (
     <div className="space-y-3">
-      <Field label="ADR number">
+      <Field label="ADR number" hint={fields.number === undefined && parsedFromTitle ? "derived from title — edit to override" : undefined}>
         <Input
           type="number"
-          defaultValue={(fields.number as number) ?? ""}
+          defaultValue={numberDefault}
           onChange={(e) => emit({ number: e.target.value ? Number(e.target.value) : undefined })}
-          placeholder="0001"
+          placeholder="e.g. 7"
         />
       </Field>
-      <Field label="Date">
+      <Field label="Date" hint={!fields.date ? "leave blank if undated" : undefined}>
         <Input
           type="date"
           defaultValue={(fields.date as string) ?? ""}
@@ -450,6 +459,71 @@ function SkillForm({ fields, emit }: SubProps) {
           <option value="active">Active</option>
           <option value="deprecated">Deprecated</option>
         </Select>
+      </Field>
+    </div>
+  );
+}
+
+function SourceArtifactForm({ fields, emit }: SubProps) {
+  return (
+    <div className="space-y-3">
+      <Field label="Source kind">
+        <Select
+          defaultValue={(fields.source_kind as string) ?? "text"}
+          onChange={(e) => emit({ source_kind: e.target.value })}
+        >
+          <option value="text">Text</option>
+          <option value="url">URL</option>
+          <option value="file">File</option>
+        </Select>
+      </Field>
+      <Field label="URL">
+        <Input
+          type="url"
+          defaultValue={(fields.url as string) ?? ""}
+          onChange={(e) => emit({ url: e.target.value })}
+          placeholder="https://"
+        />
+      </Field>
+      <Field label="Filename">
+        <Input
+          defaultValue={(fields.filename as string) ?? ""}
+          onChange={(e) => emit({ filename: e.target.value })}
+        />
+      </Field>
+      <Field label="Snapshot date">
+        <Input
+          type="date"
+          defaultValue={(fields.snapshot_at as string) ?? ""}
+          onChange={(e) => emit({ snapshot_at: e.target.value })}
+        />
+      </Field>
+      <Field label="Summary">
+        <Textarea
+          defaultValue={(fields.summary as string) ?? ""}
+          onChange={(e) => emit({ summary: e.target.value })}
+          rows={3}
+        />
+      </Field>
+    </div>
+  );
+}
+
+function NoteForm({ fields, emit }: SubProps) {
+  return (
+    <div className="space-y-3">
+      <Field label="Topic" hint="Optional category">
+        <Input
+          defaultValue={(fields.topic as string) ?? ""}
+          onChange={(e) => emit({ topic: e.target.value })}
+        />
+      </Field>
+      <Field label="Body" hint="Short free-form note. The block editor on the left is for richer content.">
+        <Textarea
+          defaultValue={(fields.body as string) ?? ""}
+          onChange={(e) => emit({ body: e.target.value })}
+          rows={5}
+        />
       </Field>
     </div>
   );

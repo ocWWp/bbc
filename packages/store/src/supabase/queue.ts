@@ -1,5 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Proposal, ProposalStatus, QueueStore, WriteResult } from "../interfaces";
+import type {
+  FileProposalInput,
+  FileProposalResult,
+  Proposal,
+  ProposalStatus,
+  QueueStore,
+  WriteResult,
+} from "../interfaces";
 
 type QueueRow = {
   proposal_id: string;
@@ -70,6 +77,26 @@ export class SupabaseQueueStore implements QueueStore {
     if (error) throw new Error(`SupabaseQueueStore.getById: ${error.message}`);
     if (!data) return null;
     return rowToProposal(data as QueueRow);
+  }
+
+  /**
+   * DB-mode fileProposal: invokes the propose_change SQL function via RPC.
+   * Authorization (tenant membership) is enforced inside the function.
+   * Returns the generated text proposal_id on success.
+   */
+  async fileProposal(input: FileProposalInput): Promise<FileProposalResult> {
+    const { data, error } = await this.client.rpc("propose_change", {
+      p_tenant_id: input.tenant_id,
+      p_target_file: input.target_file,
+      p_change_kind: input.change_kind,
+      p_summary: input.summary,
+      p_body: input.body,
+      p_source_memory_id: input.source_memory_id ?? null,
+      p_target_layer: input.target_layer ?? "main",
+    });
+    if (error) return { ok: false, output: error.message };
+    const id = data as string;
+    return { ok: true, output: `filed ${id}`, id };
   }
 
   /**

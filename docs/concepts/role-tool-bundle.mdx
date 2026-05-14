@@ -1,0 +1,51 @@
+---
+title: "Role-tool-bundle"
+description: "Role agents come pre-equipped. Each role declares which tools it brings."
+---
+
+A **role-tool-bundle** is the unit of agent deployment in BBC. It binds three things together:
+
+1. **A role** — what the agent does (`marketing-writer`, `engineering-reviewer`, `founder-thinker`).
+2. **A tool kit** — what providers the role is allowed to call (LLM, design tool, billing, analytics, integration adapters).
+3. **A profile** — hard constraints (max cost, max latency, min uptime) and soft preferences (cost vs trust weights).
+
+The canonical reference is [ADR-0008](https://github.com/ZethT/bbc/blob/main/memory/decisions/0008-three-loop-architecture.md).
+
+## Why bundle, not pick at runtime
+
+Picking a tool at runtime sounds flexible. In practice it leaks vendor names into prompts, makes audit impossible, and forces every agent to re-implement provider selection.
+
+A bundle settles the choice once. The agent knows it has an `llm-provider` role to call — it doesn't know if that's Anthropic or self-hosted vLLM. Swapping the binding swaps the implementation for every agent that uses that role.
+
+## File-mode layout
+
+```
+memory/ops/
+  providers/                 # the catalog of available providers
+    anthropic-claude-sonnet.yaml
+    cloudflare-workers.yaml
+    posthog.yaml
+    ...
+  profiles/                  # ranker profiles
+    engineering-default.yaml
+    marketing-default.yaml
+    _org-policy.yaml
+  bindings.yaml              # current role -> provider table
+```
+
+## DB-mode layout
+
+- `provider_adapters` — same catalog, rows with `tenant_id IS NULL` are globals, tenant-scoped rows let a tenant register their own.
+- `bindings` — per-tenant role → provider mapping.
+
+RLS makes tenants see globals + their own. See [migration 0027](https://github.com/ZethT/bbc/blob/main/apps/dashboard/supabase/migrations/0027_provider_adapters.sql).
+
+## Switching a binding
+
+The `/bindings` route in the dashboard shows the current role→provider table. Switching the active provider for a role retires the old binding and activates the new one with an audit row. Marketing Studio's next run uses the new provider; no agent code changes.
+
+## What this unlocks
+
+- **Tenant-specific tools.** A tenant adds their own self-hosted Llama endpoint, binds `llm-provider` to it, and Studio uses it.
+- **Vendor swaps without churn.** Replacing Anthropic with another provider is a binding flip.
+- **Per-role specialization.** The engineering bundle prioritizes trust; the marketing bundle prioritizes cost. Both call the same `llm-provider` role but resolve to different concrete adapters.

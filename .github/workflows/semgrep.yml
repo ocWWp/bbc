@@ -1,0 +1,33 @@
+name: Semgrep
+on:
+  pull_request: {}
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 9 * * 1"
+
+jobs:
+  semgrep:
+    name: semgrep/ci
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    if: (github.actor != 'dependabot[bot]')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Semgrep
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+        run: |
+          if [ -n "$SEMGREP_APP_TOKEN" ]; then
+            # Connected to Semgrep AppSec Platform: pulls hosted rule sets.
+            semgrep ci
+          else
+            # Offline fallback: explicit OWASP + secrets + JS/TS rule packs.
+            semgrep ci \
+              --config p/default \
+              --config p/owasp-top-ten \
+              --config p/javascript \
+              --config p/typescript \
+              --config p/secrets
+          fi

@@ -1,0 +1,46 @@
+---
+title: "Typed memory"
+description: "BBC's brain is a typed schema, not a blob of embeddings. Here's why."
+---
+
+The brain is a set of typed memory records. Each record has:
+
+- A **type** (one of nine supertags below)
+- A **title**
+- A **fields** object whose shape is defined per type
+- **Relations** to other memories
+- Provenance (who wrote it, which ingestion ran extracted it)
+
+## The nine supertags
+
+| Type | What it captures |
+|---|---|
+| `decision` | A choice the team made, with rationale |
+| `voice` | How the team writes — do/don't words, register, example phrases |
+| `glossary` | Words this team uses with specific meaning |
+| `vendor` | An external service the team depends on, and the role it fills |
+| `product` | Positioning, target user, differentiators |
+| `team` | A person on the team and their role |
+| `skill` | A capability the team has internalized (with optional inheritance) |
+| `source_artifact` | A PDF, URL, transcript, or file the brain references |
+| `note` | A free-form note that doesn't fit elsewhere |
+
+Each type has a Zod-style field schema in `apps/dashboard/src/lib/memory/types.ts`. Adding a new supertag is intentionally heavy — it's a schema change, not a tag.
+
+## Why typed, not vector
+
+Vector stores answer fuzzy similarity questions. They don't answer:
+
+- "What did we decide about authentication, ranked by recency?"
+- "Which vendors are active vs deprecated?"
+- "Who on the team owns the marketing voice?"
+
+Typed memory answers all three with one SQL query. The trade-off: extraction has to be deliberate. BBC's Loop 1 does the extraction, you review it before it lands.
+
+Vector lookup is still useful for free-text recall and is on the roadmap as a complement, not a replacement.
+
+## Citations
+
+When a Studio run produces output, each sentence that was materially shaped by a memory carries an inline `<cite mem_id="..."/>` tag. The UI turns these into footnotes pointing back at the typed record. If you reject the citation, the run can be regenerated without that memory.
+
+This is the "audit trail" property typed memory gives you. A vector store can't tell you which document caused which sentence.

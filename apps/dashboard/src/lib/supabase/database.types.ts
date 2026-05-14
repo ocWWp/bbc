@@ -103,12 +103,15 @@ export type Database = {
       create_invitation: { Args: { p_identifier: string; p_provider: string; p_template_slug?: string }; Returns: string }
       create_tenant_with_seed: { Args: { p_name: string; p_owner_user_id: string; p_slug: string }; Returns: string }
       is_member_of: { Args: { p_tenant_id: string }; Returns: boolean }
+      is_operator_of: { Args: { p_tenant_id: string }; Returns: boolean }
       reject_proposal: { Args: { p_proposal_id: string; p_reason: string }; Returns: undefined }
       remove_member: { Args: { p_user_id: string }; Returns: undefined }
       resolve_api_key: { Args: { p_token: string }; Returns: { out_key_id: string; out_scope: Database["public"]["Enums"]["api_key_scope"]; out_tenant_id: string }[] }
+      reset_demo_tenant: { Args: { p_owner_user_id: string }; Returns: string }
       resolve_invitation_token: { Args: { p_token: string }; Returns: { out_consumed: boolean; out_email: string; out_provider: string; out_role: Database["public"]["Enums"]["tenant_role"]; out_tenant_name: string; out_tenant_slug: string }[] }
       revoke_api_key: { Args: { p_key_id: string }; Returns: undefined }
       revoke_invitation: { Args: { p_invitation_id: string }; Returns: undefined }
+      seed_demo_tenant: { Args: { p_owner_user_id: string }; Returns: string }
       setup_self_serve_tenant: { Args: { p_email: string; p_name: string; p_slug: string }; Returns: string }
     }
     Enums: {
@@ -117,7 +120,7 @@ export type Database = {
       memory_status: "draft" | "active" | "archived"
       memory_type: "voice" | "decision" | "glossary" | "vendor" | "product" | "team" | "skill"
       queue_status: "pending" | "accepted" | "rejected"
-      tenant_role: "admin" | "member" | "viewer"
+      tenant_role: "admin" | "operator" | "member" | "viewer"
     }
     CompositeTypes: { [_ in never]: never }
   }

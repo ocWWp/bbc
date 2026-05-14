@@ -1,0 +1,100 @@
+---
+title: "Memory schema"
+description: "The frontmatter contract every memory record obeys. Stable, hand-written, lightly validated."
+---
+
+Every BBC memory has YAML frontmatter that matches this schema. In **file-mode** (single-tenant self-host) these are `.md` files under `memory/`; in **DB-mode** the same shape lives in the `memory_files` table. Same contract.
+
+The canonical source is [`memory/_schema.md`](https://github.com/ZethT/bbc/blob/main/memory/_schema.md). This page mirrors and explains it.
+
+## Frontmatter
+
+```yaml
+---
+id: mem_2026-05-12_default-llm-binding   # stable, unique, sortable
+type: decision                            # one of nine supertags (see /memory-types)
+scope: org                                # org | product:tenant | repo:<name> | leaf:<name>
+layer: main                               # main | manager | distribution
+source: human:zeth                        # human:<who> | leaf:<name> | manager | external:<url>
+created: 2026-05-12T00:00:00Z             # ISO-8601 UTC
+updated: 2026-05-12T00:00:00Z             # ISO-8601 UTC
+owning_layer: main                        # who can directly mutate without proposal
+supersedes: []                            # optional list of replaced memory ids
+provenance: [prop_2026-05-12_xyz]         # optional, appended on accept
+tags: [llm, binding]                      # free-form
+status: accepted                          # accepted | proposed | superseded | archived
+---
+```
+
+## Field rules
+
+| Field | What it does |
+|---|---|
+| `id` | Stable, unique, sortable. `mem_<YYYY-MM-DD>_<short-slug>`. Never changes once published. |
+| `type` | One of the nine supertags — see [memory types](/concepts/memory-types). |
+| `scope` | How broadly the fact applies. `org` (company-wide), `product:<tenant>`, `repo:<name>`, `leaf:<name>`. |
+| `layer` | Where in the trust hierarchy this file lives. `main` (top), `manager` (middle), `distribution` (per-leaf). |
+| `source` | Where the fact came from. `human:<name>`, `leaf:<name>`, `manager`, `external:<url>`. Lets you re-derive provenance. |
+| `owning_layer` | Who can directly mutate without going through the queue. Usually equals `layer`. |
+| `supersedes` | If this record replaces older ones, list their ids. Replaced files get `status: superseded` and stay in place — never deleted. |
+| `provenance` | Appended automatically by `scripts/accept.sh` (file-mode) or the accept SQL function (DB-mode) when a proposal modifies this file. |
+| `status` | `accepted` for direct writes; queue-born files start `proposed` and become `accepted` on dequeue. |
+| `tags` | Free-form. Used for filtering; no enforced vocabulary. |
+
+## Body
+
+After the frontmatter, write Markdown freely. Headings, lists, code blocks, `[[wikilinks]]` to other memories.
+
+**Convention:** keep one fact per record when possible. It makes diffs cleaner and supersession simpler. A 4,000-word "team values" doc collapses every change into a single revision; eight typed `decision` records track the same content with clearer history.
+
+## File naming (file-mode)
+
+```
+memory/<category>/<short-kebab-slug>.md
+```
+
+Categories: `product`, `design`, `tech`, `ops`, `people`, `glossary`, `decisions`. The slug is human-readable; the `id` field above is the machine identifier.
+
+## Relations (cross-references)
+
+Memories can reference each other via `[[wikilinks]]` in the body OR via a `memory_relations` table (DB-mode) / `relations.yaml` join (file-mode). Five canonical relation kinds:
+
+| Relation | Meaning |
+|---|---|
+| `derives_from` | This memory was extracted from / inspired by the target. |
+| `contradicts` | This memory deliberately contradicts the target (typically before supersession). |
+| `cites` | This memory references the target as evidence. |
+| `implements` | This memory is the implementation of the target (decision → code, etc.). |
+| `superseded_by` | The reverse pointer auto-populated when another memory lists this one in its `supersedes`. |
+
+Loop 1's extractor automatically proposes `derives_from` relations from any brain-dump that produced multiple memories.
+
+## Lifecycle
+
+```
+proposed  ──accept──▶  accepted  ──supersede──▶  superseded
+   │                       │
+   └──── reject ─────▶  rejected (kept in queue/_rejected/)
+```
+
+A memory never gets deleted. Even rejected proposals stay in `queue/_rejected/`. The whole brain is append-only at the record level; that's the audit trail.
+
+## Validation
+
+V1 validation is informal — humans and LLMs check the schema. A formal validator (`scripts/validate-memory.sh` reading `_schema.md` + frontmatter) is a follow-on task. Until then:
+
+- The Loop 1 extractor emits valid frontmatter by construction.
+- Direct writes (file-mode CLI, DB-mode dashboard form) use templates that pre-fill required fields.
+- Queue-born proposals get a schema check during `accept` in the SQL function / bash script.
+
+## Adding a new supertag
+
+Adding a new memory type is a **schema change**, not a tag. The steps:
+
+1. Propose a new ADR explaining why the existing 9 supertags don't fit.
+2. Update the `memory_type` enum in both `_schema.md` and the corresponding migration.
+3. Add a field schema in `apps/dashboard/src/lib/memory/types.ts`.
+4. Update the extractor to emit the new type when relevant.
+5. Update [memory types](/concepts/memory-types) docs.
+
+Don't add a supertag for "things I want to remember but they don't fit." That's what `note` is for.

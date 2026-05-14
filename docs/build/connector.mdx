@@ -1,0 +1,181 @@
+---
+title: "Building a connector"
+description: "Implement the Connector interface to ingest a new source into typed memory."
+---
+
+A **connector** ingests data from an external system (Notion, Linear, Gmail, Drive, GitHub) and emits `MemoryProposal` rows into the typed memory schema. BBC ships five connectors out of the box; this page is how you write a sixth.
+
+If you only need to import a single skill or template, see [Importing a skill](/build/import-skill) — that's a much lighter path. Connectors are for **streams of facts**, not one-shot imports.
+
+## What a connector does
+
+A connector is a TypeScript module that implements the `Connector` interface in `apps/dashboard/src/lib/connectors/framework.ts`. The framework's `runSync()` orchestrator handles the operational glue every connector shares:
+
+- Token refresh < 24h before OAuth expiry.
+- 429 backoff with exponential delay + jitter.
+- Cursor persistence in `tenant_connectors.sync_state`.
+- Partial-failure commit (proposals collected before an error stay; status becomes `partial`).
+- `source_ref` dedup against `memory_files.fields.source_ref`.
+- `max_proposals_per_sync` cap.
+
+You write the OAuth handshake, the API walk, and the mapping from provider records to typed memories. The framework writes the rest.
+
+## The interface
+
+```ts
+export interface Connector {
+  id: string;
+  name: string;
+  description: string;
+  writes_to: Supertag[];
+  oauth_scopes?: string[];
+  permission_summary: string;
+
+  authenticate(tenant_id: string, redirect_url: string): Promise<AuthURL>;
+  complete_auth(tenant_id: string, code: string): Promise<{ external_account_id: string }>;
+  refresh_token?(external_account_id: string): Promise<void>;
+
+  sync(ctx: SyncContext): AsyncIterable<SyncEvent>;
+  preview?(ctx: SyncContext): Promise<MemoryProposal[]>;
+
+  sync_schedule: "on_demand" | { interval_minutes: number };
+  max_proposals_per_sync: number;
+  rate_limit_strategy: RateLimitStrategy;
+}
+```
+
+## Required steps
+
+### 1. OAuth handshake
+
+Implement `authenticate(tenant_id, redirect_url)` and `complete_auth(tenant_id, code)`. Use the shared `google-oauth.ts` helper if you're integrating a Google product; otherwise mirror the provider's authorize-then-exchange flow.
+
+Store the token in `external_accounts` and return its `external_account_id`. The framework will call `refresh_token(external_account_id)` automatically when expiry is < 24h away — implement it if your provider issues short-lived tokens.
+
+```ts
+async authenticate(tenant_id, redirect_url) {
+  const state = encodeState(tenant_id);
+  return {
+    url: `https://provider.com/oauth/authorize?...&state=${state}`,
+    state,
+  };
+}
+```
+
+### 2. The sync generator
+
+`sync(ctx)` is an `AsyncIterable<SyncEvent>`. Yield three event kinds:
+
+- `{ kind: "proposal", proposal }` — a `MemoryProposal` to commit.
+- `{ kind: "checkpoint", cursor }` — persist the cursor so a mid-sync failure resumes from here.
+- `{ kind: "rate_limit", retry_after_ms }` — pause the iterator. The framework sleeps with backoff + jitter and resumes.
+
+```ts
+async *sync(ctx) {
+  let cursor = ctx.cursor;
+  while (true) {
+    const page = await fetchPage(cursor, ctx);
+    if (page.rateLimited) {
+      yield { kind: "rate_limit", retry_after_ms: page.retryAfterMs };
+      continue;
+    }
+    for (const item of page.items) {
+      yield { kind: "proposal", proposal: mapToProposal(item) };
+    }
+    cursor = page.nextCursor;
+    yield { kind: "checkpoint", cursor };
+    if (!cursor) break;
+  }
+}
+```
+
+<Note>
+  Rate-limit signaling is **yield-based**, not throw-based. Throwing exhausts an
+  async generator and can't resume. Yield `rate_limit` events instead.
+</Note>
+
+### 3. Map to typed memories
+
+Each `MemoryProposal` carries:
+
+```ts
+type MemoryProposal = {
+  type: Supertag;              // 'decision' | 'voice' | 'glossary' | ...
+  title: string;
+  body: string;
+  fields: Record<string, unknown>;
+  source_ref: string;          // provider's stable ID; framework dedupes on this
+};
+```
+
+Map provider fields to the typed schema. Default to `note` if you can't infer a stronger supertag — never invent supertags. The 9-supertag enum is fixed; see [memory types](/concepts/memory-types).
+
+Use a stable, opaque provider ID for `source_ref`. Examples:
+
+- Notion: `notion:page:<page_id>`
+- Linear: `linear:issue:<issue_id>`
+- Gmail: `gmail:thread:<thread_id>` or `gmail:contact:<email>` for team rows
+- GitHub: `github:<owner>/<repo>:<sha>:<path>`
+
+The framework dedupes `(tenant_id, source_ref)` before commit. If the row already exists, the proposal is skipped silently.
+
+### 4. Register in the catalog
+
+Add the connector descriptor to `memory/ops/connectors/` (file-mode) or `connector_catalog` (DB-mode):
+
+```yaml
+id: your-connector
+name: "Your Provider"
+description: "What the connector does, one sentence."
+permission_summary: "What we read; what we don't touch."
+writes_to: [decision, note]
+oauth_scopes:
+  - read:resource
+sync_schedule:
+  interval_minutes: 60
+```
+
+The `permission_summary` is the line shown on the install card. Lead with **what we read**; be explicit about **what we don't touch** (e.g., "we do not read DMs", "we do not modify files").
+
+### 5. Wire the route
+
+Add an entry to `src/app/api/connectors/[id]/route.ts` (OAuth callback) and `src/lib/connectors/index.ts` (registry export). The framework's `installConnector()` handles the admin gate.
+
+## Testing
+
+Mirror the existing connector tests:
+
+- `apps/dashboard/src/lib/connectors/<your>.test.ts` — unit tests with an injected fetch.
+- Use the `ConnectorDb` port from `framework.ts` to test against an in-memory implementation; no Supabase needed.
+- Cover: empty result page, paginated walk, 429 backoff, auth-expired error, partial failure mid-sync.
+
+Five reference connectors live in `apps/dashboard/src/lib/connectors/`:
+
+- `notion.ts` — non-expiring tokens, opaque cursor.
+- `linear.ts` — GraphQL, issue→decision mapping.
+- `gmail.ts` — `threads.list` with label-driven supertag.
+- `drive.ts` — `files.list` across all drives, per-mime export.
+- `github.ts` — repo+path walk for SKILL.md ingest.
+
+## Webhooks (optional)
+
+If your provider supports webhooks, add a handler at `src/app/api/webhooks/<your>/route.ts`. On failure, write to `webhook_dead_letters` with a typed reason — the `/library/diagnostics` admin page reads from that table.
+
+## Checklist
+
+Before shipping a connector:
+
+- [ ] OAuth round-trip works end-to-end against a live tenant.
+- [ ] Cursor persists across syncs (kill mid-walk, restart, no duplicates).
+- [ ] 429 backoff yields and resumes; no thrown rate-limit errors inside the generator.
+- [ ] `source_ref` dedup works (re-run a sync, see `skipped_duplicates` go up, `emitted` stays 0).
+- [ ] `permission_summary` is honest. If you write outside `writes_to`, the type checker breaks.
+- [ ] Test floor parity with reference connectors.
+- [ ] `tenant_connectors.last_sync_status` shows `auth_expired` after a token revoke (not `error`).
+
+## Related
+
+- `apps/dashboard/src/lib/connectors/framework.ts` — interface + orchestrator.
+- [Three loops](/concepts/three-loops) — where connectors fit (Loop 1: Ingest).
+- [Memory types](/concepts/memory-types) — the 9-supertag enum you map onto.
+- [Writeback flywheel](/concepts/writeback-flywheel) — what happens to proposals after commit.

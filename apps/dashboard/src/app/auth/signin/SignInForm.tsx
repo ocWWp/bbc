@@ -6,7 +6,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 type Mode = "signin" | "signup" | "reset";
 
-export function SignInForm({ callbackUrl }: { callbackUrl: string }) {
+export function SignInForm({ callbackUrl, hasError = false }: { callbackUrl: string; hasError?: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mode, setMode] = useState<Mode>("signin");
@@ -15,8 +15,6 @@ export function SignInForm({ callbackUrl }: { callbackUrl: string }) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
-  // Pre-fill email + flip to signup mode when arriving from an invitation link
-  // (`?email=…&source=invite`). The invite/<token> route redirects through here.
   useEffect(() => {
     const e = searchParams.get("email");
     if (e) setEmail(e);
@@ -47,8 +45,7 @@ export function SignInForm({ callbackUrl }: { callbackUrl: string }) {
         router.refresh();
       } else if (mode === "signup") {
         const { error } = await supabase.auth.signUp({
-          email,
-          password,
+          email, password,
           options: {
             emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(callbackUrl)}`,
           },
@@ -74,58 +71,75 @@ export function SignInForm({ callbackUrl }: { callbackUrl: string }) {
     });
   }
 
+  const ctaLabel =
+    pending ? "…"
+    : mode === "signin" ? "sign in"
+    : mode === "signup" ? "create account"
+    : "send reset link";
+
   return (
-    <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <input
-        type="email"
-        required
-        placeholder="you@example.com"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        autoComplete="email"
-      />
-      {mode !== "reset" && (
+    <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div className="field">
+        <label className="field-label">
+          <span>email</span>
+          {mode === "reset" && (
+            <button type="button" className="helper-link" onClick={() => setMode("signin")}>back to sign in</button>
+          )}
+        </label>
         <input
-          type="password"
-          required
-          minLength={8}
-          placeholder="password (min 8)"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete={mode === "signup" ? "new-password" : "current-password"}
+          className={"field-input mono" + (hasError || message?.kind === "err" ? " is-error" : "")}
+          type="email" required
+          placeholder="you@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          autoComplete="email"
         />
-      )}
+      </div>
 
-      <button className="btn primary" type="submit" disabled={pending}>
-        {pending
-          ? "..."
-          : mode === "signin"
-            ? "Sign in"
-            : mode === "signup"
-              ? "Create account"
-              : "Send reset link"}
-      </button>
-
-      {message && (
-        <div
-          className={message.kind === "ok" ? "banner ok" : "banner warn"}
-          style={{ marginTop: 8 }}
-        >
-          {message.text}
+      {mode !== "reset" && (
+        <div className="field">
+          <label className="field-label">
+            <span>password</span>
+            <button type="button" className="helper-link" onClick={() => setMode("reset")}>forgot?</button>
+          </label>
+          <input
+            className={"field-input mono" + (hasError || message?.kind === "err" ? " is-error" : "")}
+            type="password" required minLength={8}
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete={mode === "signup" ? "new-password" : "current-password"}
+          />
         </div>
       )}
 
-      <div className="mono-sm" style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
-        {mode !== "signin" ? (
-          <button type="button" className="link" onClick={() => setMode("signin")}>sign in</button>
-        ) : <span />}
-        {mode !== "signup" ? (
-          <button type="button" className="link" onClick={() => setMode("signup")}>sign up</button>
-        ) : <span />}
-        {mode !== "reset" ? (
-          <button type="button" className="link" onClick={() => setMode("reset")}>forgot password</button>
-        ) : <span />}
-      </div>
+      <button className="btn-submit" type="submit" disabled={pending}>
+        {ctaLabel}
+        {!pending && (
+          <svg viewBox="0 0 14 14" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="2.5" y1="7" x2="11.5" y2="7" />
+            <polyline points="8,3.5 11.5,7 8,10.5" />
+          </svg>
+        )}
+      </button>
+
+      {message && (
+        <div className={`auth-banner ${message.kind === "ok" ? "is-ok" : "is-invalid-credentials"}`}>
+          <span className="gap" />
+          <div className="auth-banner-body">
+            <span className="auth-banner-msg">{message.text}</span>
+          </div>
+        </div>
+      )}
+
+      {mode === "signin" && (
+        <div style={{ fontFamily: "var(--font-geist-mono), monospace", fontSize: 11, color: "var(--paper-muted)", textAlign: "center" }}>
+          new here?{" "}
+          <button type="button" onClick={() => setMode("signup")} style={{ background: "none", border: "none", color: "var(--paper-ink)", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 2, font: "inherit" }}>
+            create an account
+          </button>
+        </div>
+      )}
     </form>
   );
 }

@@ -1,0 +1,36 @@
+import type { Template } from "./types";
+
+const registry = new Map<string, Template>();
+
+export function registerFounderTemplate(t: Template): void {
+  if (registry.has(t.id)) {
+    throw new Error(`Duplicate founder template id: ${t.id}`);
+  }
+  registry.set(t.id, t);
+}
+
+export function getFounderTemplate(id: string): Template | undefined {
+  return registry.get(id);
+}
+
+export function listFounderTemplates(): Template[] {
+  return [...registry.values()];
+}
+
+export type ClientFounderTemplate = {
+  id: string;
+  label: string;
+  hint: string;
+  kind: Template["kind"];
+  firstUseInputs: Template["firstUseInputs"];
+};
+
+export function listClientFounderTemplates(): ClientFounderTemplate[] {
+  return [...registry.values()].map((t) => ({
+    id: t.id,
+    label: t.label,
+    hint: t.hint,
+    kind: t.kind,
+    firstUseInputs: t.firstUseInputs,
+  }));
+}

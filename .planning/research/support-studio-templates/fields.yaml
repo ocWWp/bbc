@@ -1,0 +1,100 @@
+# Field definitions for the support-studio-templates deep dive.
+# Categorized by what kind of decision each field unlocks.
+
+categories:
+  - name: prior_art
+    purpose: "What real products / OSS projects already do this well — informs prompt patterns."
+    fields:
+      - name: prior_art_examples
+        description: >
+          Concrete examples from existing products (Chatwoot AI, Plain, Help
+          Scout, Linear support flows, Zendesk macros, Intercom Fin, Crisp
+          MagicReply). Include 2-3 representative snippets of what their
+          output looks like. Cite sources.
+        detail_level: detailed
+      - name: prompt_pattern
+        description: >
+          The shape of prompt that works best for this template type.
+          Few-shot vs zero-shot? System prompt structure? How is context
+          (brain memory) injected? What's the proven output format?
+        detail_level: detailed
+      - name: failure_modes
+        description: >
+          The 3-5 ways this template can produce bad output. E.g., overpromising
+          fix dates, missing legal language, leaking other customers' info,
+          using wrong tone for the severity, citing memory that doesn't exist.
+        detail_level: moderate
+
+  - name: bbc_integration
+    purpose: "How this template plugs into BBC's existing brain + studio machinery."
+    fields:
+      - name: brain_memory_consumed
+        description: >
+          Which BBC memory types (voice, glossary, product, decision, vendor,
+          team, skill, source_artifact, note) this template reads. Be specific
+          about how each is used (e.g., voice → register; glossary → product
+          terminology; decisions → "do not discount" rule).
+        detail_level: detailed
+      - name: inputs_required
+        description: >
+          The firstUseInputs (label, hint, kind, required?) this template
+          should ask for. E.g., for customer-reply: ticket_text (required,
+          textarea), customer_name (optional, short), severity (optional,
+          select: low/medium/high).
+        detail_level: detailed
+      - name: output_block_kinds
+        description: >
+          Which OutputBlock kinds best fit (plain markdown? blog_draft?
+          a new kind like 'email_reply' with subject + body fields?).
+          If a new kind is warranted, sketch its shape.
+        detail_level: moderate
+      - name: comparable_template_in_existing_studios
+        description: >
+          The closest analog template already in Marketing or Engineering
+          Studios (e.g., engineering's 'adr-draft' is the closest in shape
+          to incident-status). Use this to anchor implementation effort.
+        detail_level: brief
+      - name: memory_writeback_proposal
+        description: >
+          When the user accepts a generated reply, what (if anything) should
+          we write back into the brain? E.g., accepted churn-save replies
+          contribute to a `support/objection-patterns.md` glossary entry;
+          incident-status posts can update a `source_artifact` memory. This
+          is the BBC flywheel — without writeback, the studio doesn't compound.
+        detail_level: detailed
+
+  - name: safety
+    purpose: "Guardrails that must be in the prompt or post-processing."
+    fields:
+      - name: safety_constraints
+        description: >
+          Things the template must NEVER say. E.g., no commitment to a
+          refund amount, no legal disclaimers (founder reviews); no specific
+          ETAs for bug fixes; no apologies that admit liability for outage
+          comms; no overuse of "we" when a single founder is replying.
+        detail_level: detailed
+      - name: override_examples
+        description: >
+          Realistic founder corrections that would trigger the conversational
+          override flow (J.14/J.15). E.g., "for churn-save, always offer 30
+          days extra access" → add_constraint; "never say 'sorry for the
+          inconvenience'" → forbid_pattern. Surfaces the long-tail
+          customization shape.
+        detail_level: moderate
+
+  - name: scoping
+    purpose: "Effort + sequencing signal."
+    fields:
+      - name: estimated_loc
+        description: >
+          Rough LOC for this template's prompt builder + types file, anchored
+          to existing engineering templates (~120-200 LOC each). Helps
+          sequence which template to ship first.
+        detail_level: brief
+      - name: v1_essential
+        description: >
+          Yes/no: must this template ship in v1, or can it land in v1.1?
+          With 5 templates total, expect 1-2 'no' answers.
+        detail_level: brief
+
+uncertain: []

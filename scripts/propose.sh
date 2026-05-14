@@ -4,12 +4,13 @@
 # Usage:
 #   propose.sh --target main|manager \
 #              --file <path-from-repo-root> \
-#              --kind edit|add|supersede|archive \
+#              --kind edit|add|supersede|archive|flag \
 #              [--dest-file <path>]   # required for kind=archive
 #              --summary "<short summary>" \
 #              [--source "<who/what said so>"] \
 #              [--originator leaf-<name>|manager] \
-#              [--body-file <path>]
+#              [--body-file <path>] \
+#              [--source-memory-id <uuid>]   # for kind=flag, points at the memory row
 #
 # --source captures provenance for Manager review (proposal-review rule asks
 # for at least one source: a leaf observation, a human directive, or an
@@ -42,6 +43,7 @@ SOURCE=""
 ORIGINATOR=""
 BODY_FILE=""
 DEST_FILE=""
+SOURCE_MEMORY_ID=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -53,6 +55,7 @@ while [ $# -gt 0 ]; do
     --originator) ORIGINATOR="$2"; shift 2 ;;
     --body-file) BODY_FILE="$2"; shift 2 ;;
     --dest-file) DEST_FILE="$2"; shift 2 ;;
+    --source-memory-id) SOURCE_MEMORY_ID="$2"; shift 2 ;;
     -h|--help)
       sed -n '2,/^set -euo/p' "$0" | head -n -1 | sed 's/^# \{0,1\}//'
       exit 0
@@ -64,11 +67,11 @@ done
 # Validate args
 [ -z "$TARGET" ]  && { echo "ERROR: --target required (main|manager)" >&2; exit 2; }
 [ -z "$FILE" ]    && { echo "ERROR: --file required" >&2; exit 2; }
-[ -z "$KIND" ]    && { echo "ERROR: --kind required (edit|add|supersede|archive)" >&2; exit 2; }
+[ -z "$KIND" ]    && { echo "ERROR: --kind required (edit|add|supersede|archive|flag)" >&2; exit 2; }
 [ -z "$SUMMARY" ] && { echo "ERROR: --summary required" >&2; exit 2; }
 
 case "$TARGET" in main|manager) ;; *) echo "ERROR: --target must be main or manager" >&2; exit 2 ;; esac
-case "$KIND" in edit|add|supersede|archive) ;; *) echo "ERROR: --kind must be edit|add|supersede|archive" >&2; exit 2 ;; esac
+case "$KIND" in edit|add|supersede|archive|flag) ;; *) echo "ERROR: --kind must be edit|add|supersede|archive|flag" >&2; exit 2 ;; esac
 if [ "$KIND" = "archive" ] && [ -z "$DEST_FILE" ]; then
   echo "ERROR: --kind archive requires --dest-file" >&2
   exit 2
@@ -142,6 +145,9 @@ else
     supersede)
       BODY="<!-- TODO: cite the file being superseded by id and explain why -->"
       ;;
+    flag)
+      BODY="<!-- TODO: explain WHY you are flagging this memory (voice mismatch, factual error, stale info, etc.) -->"
+      ;;
   esac
 fi
 
@@ -155,6 +161,7 @@ fi
   echo "target_file: $FILE"
   [ -n "$DEST_FILE" ] && echo "dest_file: $DEST_FILE"
   echo "change_kind: $KIND"
+  [ -n "$SOURCE_MEMORY_ID" ] && echo "source_memory_id: $SOURCE_MEMORY_ID"
   echo "diff_summary: \"$SUMMARY\""
   echo "source: \"$SOURCE\""
   echo "status: pending"

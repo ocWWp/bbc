@@ -1,0 +1,407 @@
+# F2 — OOP Skill Inheritance (DESIGN)
+
+## Context
+
+The original BBC pitch invoked OOP language ("Encapsulation, Abstraction, Inheritance, Polymorphism") and gave a concrete example: `marketing.pr-review extends general.pr-review` and overrides voice. F2 makes that real instead of decorative.
+
+Today, slash commands at `bbc/.claude/commands/bbc/*.md` are flat — there's no inheritance, no override mechanism, no way for a leaf to specialize a behavior without copy-pasting the entire command file. F2 introduces a skill class hierarchy where:
+
+- **Encapsulation** — each skill has a defined input schema, output schema, and behavior body. Callers can't reach inside.
+- **Abstraction** — base skills declare *what* without committing to *how*.
+- **Inheritance** — child skills declare `extends:` and inherit parent behavior; they override only the parts they want to change.
+- **Polymorphism** — a single invocation of `pr-review` from any context resolves to the right specialization based on the calling layer.
+
+This is the same mental model as classes in Java/Python, expressed in YAML for BBC's markdown-and-YAML world.
+
+---
+
+## 1. UML class diagram (ASCII)
+
+```
+                    ┌──────────────────────────────────┐
+                    │           Skill (abstract)       │
+                    ├──────────────────────────────────┤
+                    │ +id: string                      │
+                    │ +description: string             │
+                    │ +inputs: Schema                  │
+                    │ +outputs: Schema                 │
+                    │ +preconditions: List[Predicate]  │
+                    │ +allowed_tools: List[ToolName]   │
+                    ├──────────────────────────────────┤
+                    │ +invoke(input): output  «abs»    │
+                    │ +validate(input): bool           │
+                    └────────────┬─────────────────────┘
+                                 │ extends
+              ┌──────────────────┼──────────────────┐
+              │                  │                  │
+   ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐
+   │   ReviewSkill    │ │    EditSkill     │ │   AnalyzeSkill   │
+   ├──────────────────┤ ├──────────────────┤ ├──────────────────┤
+   │ +severity_levels │ │ +diff_format     │ │ +report_format   │
+   │ +verdicts: enum  │ │ +rollback_safe   │ │ +depth: int      │
+   ├──────────────────┤ ├──────────────────┤ ├──────────────────┤
+   │ +invoke()        │ │ +invoke()        │ │ +invoke()        │
+   └────────┬─────────┘ └──────────────────┘ └──────────────────┘
+            │ extends
+   ┌────────┴────────────┐
+   │                     │
+   ┌─────────────────┐   ┌─────────────────────┐
+   │ general.pr-     │   │ general.pr-         │
+   │ review (engr)   │   │ review (security)   │
+   ├─────────────────┤   ├─────────────────────┤
+   │ rules: rules-eng│   │ rules: rules-sec    │
+   │ voice: terse    │   │ voice: terse        │
+   └────────┬────────┘   └─────────────────────┘
+            │ extends
+   ┌────────┴───────────────┐
+   │                        │
+   ┌──────────────────┐    ┌─────────────────────┐
+   │ marketing.pr-    │    │ 8azi-web.pr-review  │
+   │ review           │    │                     │
+   ├──────────────────┤    ├─────────────────────┤
+   │ voice: warm,     │    │ voice: (inherit)    │
+   │   mystical       │    │ rules: + tailwind-  │
+   │ rules: + brand   │    │   class-order       │
+   └──────────────────┘    └─────────────────────┘
+```
+
+### Class roles
+
+- **Skill (abstract)** — the contract. No instantiable behavior; you cannot invoke `Skill` directly.
+- **ReviewSkill / EditSkill / AnalyzeSkill** — abstract category bases. They define *kind-specific* contracts (a review has verdicts; an edit has a diff format; an analysis has a report format). Still abstract.
+- **Concrete skills** like `general.pr-review` — actual invocable skills. Have full behavior. Can be extended.
+- **Specialization skills** like `marketing.pr-review` and `8azi-web.pr-review` — inherit from a concrete parent, override specific fields.
+
+---
+
+## 2. Storage layout
+
+```
+memory/skills/
+├── _abstract/
+│   ├── skill.yaml             # Skill base (abstract — defines contract only)
+│   ├── review-skill.yaml      # ReviewSkill (abstract category)
+│   ├── edit-skill.yaml        # EditSkill (abstract category)
+│   └── analyze-skill.yaml     # AnalyzeSkill (abstract category)
+├── general/
+│   ├── pr-review.yaml         # extends: review-skill
+│   ├── code-review.yaml
+│   └── doc-review.yaml
+├── marketing/
+│   ├── pr-review.yaml         # extends: general.pr-review
+│   └── copy-review.yaml
+├── 8azi-web/
+│   └── pr-review.yaml         # extends: marketing.pr-review (chain of two)
+├── 8azi-api/
+│   └── pr-review.yaml         # extends: general.pr-review (sibling of marketing)
+└── _resolved/                 # cache of effective skills per (caller, skill_id)
+    └── (gitignored; regenerated by scripts/resolve-skills.sh)
+```
+
+**Owning layer rules:**
+- `_abstract/` — owned by `main`. Changing a base contract is principle-level (ADR required).
+- `general/` — owned by `manager`. Org-wide concrete skills.
+- `marketing/`, `8azi-web/`, `8azi-api/` — owned by the corresponding leaf (or by Manager when there's no clear leaf).
+
+---
+
+## 3. YAML schema for a skill
+
+```yaml
+# memory/skills/_abstract/review-skill.yaml
+---
+id: skill_review-skill
+skill_id: review-skill
+type: skill
+abstract: true                    # cannot be invoked directly
+extends: skill                    # walks up to the abstract Skill base
+scope: org
+layer: main
+owning_layer: main
+contract_version: 1
+status: accepted
+---
+
+# Abstract: review-skill
+
+## Inputs
+- target: { type: file_path | pr_url | text-block }
+- context: { type: object, optional: true }
+
+## Outputs
+- verdict: { type: enum, values: [approved, changes_requested, rejected] }
+- rationale: { type: string, max_length: 2000 }
+- findings: { type: list, item_type: finding }
+
+## Preconditions
+- target must exist or be reachable
+- caller must have read access to target
+
+## Behavior contract
+A review-skill produces a verdict + rationale + findings. It does NOT mutate
+the target. Concrete subclasses define the rules used to derive the verdict.
+```
+
+```yaml
+# memory/skills/general/pr-review.yaml
+---
+id: skill_general-pr-review
+skill_id: general.pr-review
+type: skill
+extends: review-skill
+scope: org
+layer: manager
+owning_layer: manager
+contract_version: 1
+status: accepted
+---
+
+# Skill: general.pr-review
+
+## Inherits
+- inputs: from review-skill
+- outputs: from review-skill
+- preconditions: from review-skill, plus the additions below
+
+## Adds
+- rules:
+    - "Cite a file:line for every finding"
+    - "Reject if any finding is severity: critical"
+    - "Approve only if all severity: high findings have a maintainer signoff"
+- voice: terse-engineering    # rendered tone for the rationale
+
+## Body
+... (full behavior runbook, parallel to current bbc/.claude/commands/bbc/*.md)
+```
+
+```yaml
+# memory/skills/marketing/pr-review.yaml
+---
+id: skill_marketing-pr-review
+skill_id: marketing.pr-review
+type: skill
+extends: general.pr-review        # chain: skill → review-skill → general.pr-review → here
+scope: leaf:8azi-market
+layer: distribution
+owning_layer: distribution
+contract_version: 1
+status: accepted
+---
+
+# Skill: marketing.pr-review
+
+## Inherits
+- everything from general.pr-review
+
+## Overrides
+- voice: warm-mystical             # cite memory/design/voice-tone.md
+- rules:
+    add:
+      - "Reject if copy violates voice rules in memory/design/voice-tone.md"
+      - "Reject if marketing copy contains an emoji (per accepted ADR)"
+    keep_from_parent: true         # don't drop parent's rules; add to them
+
+## Body addendum
+When generating rationale, render in the warm-mystical voice. All other
+behavior identical to general.pr-review.
+```
+
+### Override semantics
+
+When a child declares an override, the resolver applies one of three modes per field:
+
+| Mode | Effect |
+|---|---|
+| `replace` | child's value entirely replaces parent's |
+| `add` | child's items appended to parent's (lists only) |
+| `remove` | child's listed items removed from parent's (lists only) |
+
+Default is `replace` for scalar fields, `replace` for lists (most surprising → require explicit `add`/`remove` for cumulative changes). Children must be explicit when they want cumulative behavior to avoid silent inheritance breakage.
+
+---
+
+## 4. Resolution algorithm
+
+When `pr-review` is invoked from a leaf:
+
+```
+resolve(caller_layer, skill_short_id):
+  candidates = []
+  
+  # Walk specificity from caller up to org
+  for tier in [caller_leaf, caller_leaf_brand, "general", "_abstract"]:
+    for skill in skills_in_tier(tier):
+      if skill.skill_id matches "*.{skill_short_id}" or skill.skill_id == skill_short_id:
+        candidates.append(skill)
+  
+  if no candidates:
+    error "no skill {skill_short_id} resolvable from {caller_layer}"
+  
+  # Most-specific wins
+  resolved = candidates[0]   # already in specificity order
+  
+  # Materialize: walk extends chain and merge per override modes
+  effective = materialize(resolved)
+  
+  # Validate: effective must satisfy its abstract base's contract
+  if not validate_against(effective, find_abstract_base(effective)):
+    error "skill {skill_id} violates contract of {base_id}"
+  
+  return effective
+```
+
+`materialize` is the linearization step. Walks `extends` from the leaf concrete skill all the way up to the abstract base, accumulating fields per override mode. The result is a flat "effective skill" with no further inheritance to resolve.
+
+### Polymorphism in practice
+
+- Caller in `8azi-web` invokes `pr-review` → resolves to `8azi-web.pr-review` (which inherits from `marketing.pr-review` which inherits from `general.pr-review`).
+- Caller in `8azi-api` invokes `pr-review` → resolves to `8azi-api.pr-review` (different chain, different effective behavior).
+- Caller in Manager (no leaf) invokes `pr-review` → resolves to `general.pr-review` (the most specific available).
+- Caller in Main invokes `pr-review` → resolves to `general.pr-review` or errors with "Main does not specialize this skill" depending on policy.
+
+The same surface (`pr-review`) gives different behavior per caller — that's polymorphism. The behavior switching is explicit in the YAML, not magic.
+
+---
+
+## 5. User stories
+
+### US-1: Marketing leaf gets brand-tuned reviewer for free
+
+> **As** a Claude session in `bbc/distribution/8azi-market/`,
+> **I want** to invoke `pr-review` and get a reviewer that knows my brand voice,
+> **so that** I don't have to re-state voice rules in every prompt.
+
+**Acceptance:**
+- Calling `pr-review` from this leaf resolves to `marketing.pr-review`.
+- The verdict rationale is rendered in warm-mystical voice (per `memory/design/voice-tone.md`).
+- All `general.pr-review` rules still apply (file:line citations, severity rules) — they were inherited.
+
+### US-2: Engineering leaf gets strict reviewer
+
+> **As** a Claude session in `bbc/distribution/8azi-api/`,
+> **I want** `pr-review` to apply security-first / perf-first rules,
+> **so that** API code reviews don't get marketing voice or marketing rules.
+
+**Acceptance:**
+- Calling `pr-review` from `8azi-api` resolves to `8azi-api.pr-review` (extends `general.pr-review`, sibling of marketing — does NOT inherit marketing's voice or rules).
+- Voice is `terse-engineering`.
+- Marketing's "reject if emoji" rule is NOT applied (different chain).
+
+### US-3: Manager adds a constraint that propagates everywhere
+
+> **As** Manager,
+> **I want** to add "every finding must include a suggested fix" to `general.pr-review`,
+> **so that** every leaf's specialization automatically inherits the new constraint without per-leaf updates.
+
+**Acceptance:**
+- Manager edits `general.pr-review.yaml` `rules` (Manager-owned).
+- After re-resolution, `marketing.pr-review`, `8azi-web.pr-review`, `8azi-api.pr-review` all enforce the new rule.
+- A leaf that explicitly wants to NOT inherit it must declare `remove:` for that rule (which, per ADR, surfaces as a queue proposal for visibility).
+
+### US-4: Leaf adds a single override without copy-pasting the rest
+
+> **As** the `8azi-web` leaf author,
+> **I want** to add ONE rule (Tailwind class ordering) to my PR review,
+> **so that** I get the marketing chain plus this one engineering-flavored rule.
+
+**Acceptance:**
+- `8azi-web.pr-review.yaml` declares `extends: marketing.pr-review` (or sibling of marketing — leaf chooses the appropriate parent).
+- Adds `rules.add: ["Tailwind classes ordered per the prettier-plugin-tailwindcss spec"]`.
+- All other rules / voice / behavior come unchanged from the parent chain.
+- The leaf's YAML is ~10 lines, not a copy of the full skill.
+
+### US-5: Resolution failure surfaces clearly
+
+> **As** an agent debugging a "wrong reviewer was used" complaint,
+> **I want** the resolver to emit a trace of the chain it walked,
+> **so that** I can see exactly which skill won and why.
+
+**Acceptance:**
+- Every invocation produces a `resolution_trace` similar to F1's `pick_trace`:
+  ```yaml
+  resolution_trace:
+    requested: pr-review
+    caller_layer: leaf:8azi-web
+    walked: [8azi-web/pr-review, marketing/pr-review, general/pr-review]
+    chain: [_abstract/skill, _abstract/review-skill, general/pr-review, marketing/pr-review, 8azi-web/pr-review]
+    effective_skill_id: 8azi-web.pr-review
+    overrides_applied:
+      - { field: rules, mode: add, items: [Tailwind class ordering...] }
+      - { field: voice, mode: inherit, value: warm-mystical }
+  ```
+
+### US-6: Contract violation blocks publication
+
+> **As** Manager reviewing a queue proposal that adds a new specialization,
+> **I want** the resolver to refuse to materialize a child whose effective inputs/outputs don't match its abstract base,
+> **so that** broken inheritance can't ship.
+
+**Acceptance:**
+- A `marketing.pr-review.yaml` that drops the `verdict` output or changes its enum violates `review-skill`'s contract.
+- `scripts/resolve-skills.sh` errors at resolution time with the specific violated field.
+- Manager `changes_requested` on the proposal.
+
+---
+
+## 6. Storage of resolved skills
+
+Once a chain is materialized for a (caller, skill_short_id) pair, the result is cached at `memory/skills/_resolved/<caller-layer>__<skill-id>.yaml`. The cache is regenerated by `scripts/resolve-skills.sh` on demand or whenever any ancestor file changes.
+
+This is a **derived artifact**, not source. Removing `_resolved/` and rerunning the resolver always reproduces it. Useful for:
+- Inspectability (look at the effective skill without re-walking).
+- Diff-checking (did changing `general.pr-review` actually change `8azi-web.pr-review`'s effective behavior?).
+
+`_resolved/` is gitignored if BBC is git-tracked, since it's reproducible.
+
+---
+
+## 7. What F2 explicitly does NOT solve
+
+1. **Multiple inheritance.** `extends:` is single-parent only. Diamond inheritance is messy and rarely needed; deferred indefinitely.
+2. **Runtime-discovered behavior.** Children can't introspect "what does my parent's behavior look like *now*" — they declare overrides statically. Reflection-style metaprogramming is out.
+3. **Orthogonal mixins / traits.** Want to add "logging" behavior to every skill? F2 doesn't help. That's a cross-cutting concern best handled by the slash command runbook layer (current `.claude/commands/bbc/`), not by skill inheritance.
+4. **Skill versioning across orgs.** If two BBCs share a `general.pr-review`, version drift between them is unaddressed. Out of scope for V1.
+5. **Skill marketplace / sharing.** No mechanism to publish a skill outside the org. Out of scope for V1.
+
+---
+
+## 8. Files this phase WILL produce when implemented
+
+```
+memory/skills/
+├── _abstract/{skill,review-skill,edit-skill,analyze-skill}.yaml
+├── general/{pr-review,code-review,doc-review}.yaml
+├── marketing/pr-review.yaml
+├── 8azi-web/pr-review.yaml
+├── 8azi-api/pr-review.yaml
+└── _resolved/   (gitignored)
+
+manager/rules/
+└── skill-inheritance-discipline.md     # override-mode rules, contract-validation policy
+
+scripts/
+├── resolve-skills.sh                    # materializes a chain, writes to _resolved/
+├── validate-skill-tree.sh               # walks all skills, verifies abstract contracts hold
+└── skill-trace.sh                       # show the chain + overrides applied for a (caller, skill)
+
+.claude/commands/bbc/
+├── invoke-skill.md                       # /bbc:invoke <skill_id> — wraps resolution + execution
+└── skill-trace.md                        # /bbc:skill-trace <caller> <skill_id>
+```
+
+---
+
+## 9. Build phases (each its own future plan)
+
+- **F2-build-1:** abstract bases (`_abstract/*.yaml`), `general.*` skills authored. No leaves yet.
+- **F2-build-2:** resolver script + validator. Pure functions, unit-tested.
+- **F2-build-3:** first leaf specialization (`marketing.pr-review`) end-to-end through resolution.
+- **F2-build-4:** `/bbc:invoke` and `/bbc:skill-trace` commands; integrate with current `.claude/commands/bbc/` runbook style.
+
+---
+
+## 10. Acceptance for this DESIGN phase
+
+- This PLAN.md exists with §1 UML, §3 schemas, §4 resolution algorithm, §5 six user stories.
+- The OOP claims (encapsulation / abstraction / inheritance / polymorphism) are operationalized: each has a concrete YAML mechanism backing it, not just a label.
+- Roadmap and STATE updated.

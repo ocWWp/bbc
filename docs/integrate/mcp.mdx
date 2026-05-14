@@ -1,0 +1,126 @@
+---
+title: "MCP server"
+description: "Expose your BBC brain to Claude Desktop, Claude Code, or any MCP client via Bearer-auth HTTP."
+---
+
+BBC ships an MCP (Model Context Protocol) server. Connect Claude Desktop, Claude Code, or any MCP-compatible client and your agent gets typed access to the brain.
+
+<Note>
+  **Transport:** stateless HTTP (Streamable HTTP transport, protocol version
+  `2025-03-26`). SSE streaming isn't implemented yet — every request is a
+  single JSON-RPC message, every response is a single JSON-RPC message.
+</Note>
+
+## Endpoint
+
+```
+https://your-bbc-deployment.example.com/api/mcp
+```
+
+For local dev:
+
+```
+http://localhost:3000/api/mcp
+```
+
+`GET` returns the server's tool list + metadata (handy for `curl` probes).
+`POST` accepts JSON-RPC 2.0 messages.
+
+## Get an API key
+
+1. Sign in to your BBC instance.
+2. Open `/api-keys`.
+3. Click **Generate key**. Copy it immediately — you won't see the secret again.
+4. Pick the scope (`read` is enough for the current toolset).
+
+The key format is `bbc_<key_id>.<secret>`. Treat it like any password.
+
+## Configure Claude Desktop
+
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or the equivalent on your OS:
+
+```json
+{
+  "mcpServers": {
+    "bbc": {
+      "url": "https://your-bbc-deployment.example.com/api/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_BBC_API_KEY"
+      }
+    }
+  }
+}
+```
+
+Restart Claude Desktop. The brain shows up as available context.
+
+## Configure Claude Code
+
+```bash
+claude mcp add bbc https://your-bbc-deployment.example.com/api/mcp \
+  --header "Authorization: Bearer YOUR_BBC_API_KEY"
+```
+
+## Quick probe
+
+```bash
+# Server info (no auth needed)
+curl https://your-bbc-deployment.example.com/api/mcp
+
+# List tools
+curl -X POST https://your-bbc-deployment.example.com/api/mcp \
+  -H "Authorization: Bearer YOUR_BBC_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+
+# Call a tool
+curl -X POST https://your-bbc-deployment.example.com/api/mcp \
+  -H "Authorization: Bearer YOUR_BBC_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_decisions","arguments":{"limit":5}}}'
+```
+
+## Implemented tools
+
+### Read tools (scope: `read`)
+
+| Tool | Args | What it returns |
+|---|---|---|
+| `list_memories` | `type?`, `limit?` | Memory records (optionally filtered by supertag) |
+| `get_memory` | `id` | Full memory: title, type, fields, content, status, path |
+| `search_memories` | `query`, `limit?` | Title + content ilike search |
+| `list_decisions` | `limit?` | Convenience: `type='decision'` |
+| `list_vendors` | — | Convenience: `type='vendor'` |
+| `list_proposals` | `status?`, `limit?` | Queue items, filterable by `pending`/`accepted`/`rejected` |
+| `get_proposal` | `proposal_id` | Full proposal body + frontmatter |
+
+### Write tools (scope: `write` or higher)
+
+| Tool | Args | What it returns |
+|---|---|---|
+| `submit_memory` | `type`, `title`, `content?`, `fields?` | `{ id, status }` of the new record |
+
+Default limit is 25, max 200. All queries are tenant-scoped — your API key only sees memories your tenant owns. Calling a write tool with a `read`-scoped key returns a JSON-RPC error.
+
+### Not yet implemented
+
+- `accept_proposal` / `reject_proposal` — the underlying SQL functions require `auth.uid()` context that an API-key bearer doesn't have. Use the dashboard `/queue` page for now.
+
+## Implemented methods
+
+- `initialize` — MCP handshake. Returns `serverInfo` + `capabilities`.
+- `ping` — Liveness check.
+- `tools/list` — Returns the 5 tools above.
+- `tools/call` — Executes a tool.
+
+## Per-role API keys
+
+API keys are scoped per role agent. The current toolset uses scope `read` (everything is a query). When the queue write tools land (accept/reject proposals, submit memories), they will require `write` or `admin` scope.
+
+## Future
+
+- SSE streaming transport for long-running tools.
+- Write tools (`submit_memory`, `accept_proposal`).
+- Per-key memory-type ACLs (a marketing-only key sees no `decision` memories).
+
+Tracking under Phase L+ in [.planning/ROADMAP.md](https://github.com/ZethT/bbc/blob/main/.planning/ROADMAP.md).

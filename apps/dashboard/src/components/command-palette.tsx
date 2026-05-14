@@ -17,7 +17,7 @@ const ROUTES = [
   { label: "Queue", href: "/queue", group: "Navigate" },
   { label: "Memory", href: "/memory", group: "Navigate" },
   { label: "Marketing Studio", href: "/studio/marketing", group: "Navigate" },
-  { label: "Team", href: "/team", group: "Navigate" },
+  { label: "Team", href: "/settings/team", group: "Navigate" },
   { label: "Settings", href: "/settings", group: "Navigate" },
   { label: "Marketplace", href: "/marketplace", group: "Navigate" },
 ];
