@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { requireActor } from "@/lib/auth/require-user";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import type { OutputBlock } from "@/lib/studio/output-blocks";
+import { roleForTemplateId } from "@/lib/studio/template-id";
 import RunActions from "./RunActions";
 
 export const metadata = {
@@ -12,14 +13,6 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 const RUN_ID_RE = /^[0-9a-fA-F-]{36}$/;
-
-function studioForTemplate(templateId: string): string {
-  if (templateId.startsWith("eng:")) return "engineering";
-  if (templateId.startsWith("founder:")) return "founder";
-  if (templateId.startsWith("design:")) return "designer";
-  if (templateId.startsWith("support:")) return "support";
-  return "marketing";
-}
 
 type RenderedBlock = {
   channel: string;
@@ -124,7 +117,8 @@ export default async function StudioRunPage({
     type: r.type ?? null,
   }));
 
-  const studio = studioForTemplate(run.template_id);
+  // roleForTemplateId returns null only for legacy unprefixed marketing ids.
+  const studio = roleForTemplateId(run.template_id) ?? "marketing";
   const isOpen = run.status === "pending_review";
   const blocks = blocksToRendered(run.output_blocks ?? []);
 

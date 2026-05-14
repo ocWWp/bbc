@@ -1,0 +1,95 @@
+import {
+  decisionsClause,
+  vendorsClause,
+  metricsClause,
+  overridesClause,
+  FINANCE_CITATION_INSTRUCTION,
+  FINANCE_NARRATIVE_CONTRACT,
+  outputAsDoc,
+  type Template,
+} from "./types";
+import { registerFinanceTemplate } from "./registry";
+
+const template: Template = {
+  id: "finance:investor-numbers",
+  label: "Investor numbers",
+  hint: "The numbers section of an investor update email. Picks this for 'monthly investor update numbers', 'metrics for the investor email', 'what do I tell investors this month'.",
+  kind: "doc",
+  firstUseInputs: [
+    {
+      id: "period",
+      label: "Period",
+      hint: "Which month/quarter is this update for? (e.g. 'September 2026')",
+      required: true,
+      kind: "text",
+    },
+    {
+      id: "numbers",
+      label: "This period's numbers",
+      hint: "Paste the metrics: revenue, growth, cash, burn, runway, key activation/retention numbers. One per line. Include last period's value if you want a delta.",
+      required: true,
+      kind: "text",
+    },
+    {
+      id: "highlights",
+      label: "Highlights & lowlights",
+      hint: "The wins and the misses you want reflected. The Studio writes the lowlights honestly — investors trust updates that do.",
+      required: false,
+      kind: "text",
+    },
+  ],
+  buildPrompt({ task, brain, inputs, overrides }) {
+    return [
+      "You are drafting the numbers section of a startup's monthly investor update. Investors read dozens of these; the ones they trust report the misses as plainly as the wins.",
+      decisionsClause(brain.recent_decisions),
+      vendorsClause(brain.vendors),
+      metricsClause(brain.metrics),
+      "",
+      FINANCE_NARRATIVE_CONTRACT,
+      "",
+      `Task: ${task}`,
+      `Period: ${inputs.period ?? "(unspecified)"}`,
+      "The numbers the user provided (use ONLY these, plus memory above):",
+      inputs.numbers ?? "(none)",
+      inputs.highlights ? `Highlights & lowlights to reflect: ${inputs.highlights}` : "",
+      "",
+      "Produce an investor numbers document with this structure:",
+      "  # <period> — the numbers",
+      "  ",
+      "  ## tl;dr",
+      "  Two sentences. Growing / flat / shrinking, and how much runway is left.",
+      "  ",
+      "  ## Metrics",
+      "  A table: metric, this period, last period, delta. Only metrics the user gave you.",
+      "  ",
+      "  ## Wins",
+      "  2-4 bullets. What went right and the number that proves it.",
+      "  ",
+      "  ## Challenges",
+      "  2-4 bullets. What went wrong, stated plainly, with the number. No spin. Each",
+      "  bullet ends with what you're doing about it.",
+      "  ",
+      "  ## Runway & asks",
+      "  Current runway in months, the assumption it rests on (**[timing]** vs",
+      "  **[structural]** burn), and any specific ask for the investor.",
+      "  ",
+      "  ## Open questions",
+      "  Numbers you needed but didn't have.",
+      "",
+      "Constraints:",
+      "- Never invent a number. Missing figure -> Open questions.",
+      "- The Challenges section is mandatory and must be honest. An update with no",
+      "  challenges reads as a cover-up.",
+      "- Runway must state the burn assumption it depends on.",
+      FINANCE_CITATION_INSTRUCTION,
+      overridesClause(overrides ?? []),
+      "",
+      outputAsDoc("Investor Update"),
+    ]
+      .filter(Boolean)
+      .join("\n");
+  },
+};
+
+registerFinanceTemplate(template);
+export default template;

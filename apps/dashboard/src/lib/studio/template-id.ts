@@ -2,7 +2,7 @@
 //
 // All studio templates are namespaced by role prefix:
 //   marketing:tweet-thread, eng:adr-draft, founder:weekly-recap,
-//   design:visual-spec, support:bug-ack
+//   design:visual-spec, support:bug-ack, finance:runway-analysis
 //
 // Marketing was historically unprefixed; Task 0e (v1.5 launch polish)
 // migration 0041 backfilled the prefix into existing studio_runs +
@@ -15,6 +15,7 @@ export const ROLE_PREFIXES = {
   founder: "founder:",
   designer: "design:",
   support: "support:",
+  finance: "finance:",
 } as const;
 
 export type StudioRole = keyof typeof ROLE_PREFIXES;

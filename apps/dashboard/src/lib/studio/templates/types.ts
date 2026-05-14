@@ -40,6 +40,12 @@ export type BrainSummary = {
   // marketing templates keep the looser voice contract. Optional -- a tenant
   // with no glossary memories gets `undefined` here, not an empty terms list.
   glossary?: { terms: Array<{ id: string; term: string; definition: string }> };
+  // Finance Studio actuals -- board metrics, runway numbers, budget lines.
+  // No memory type populates this yet: brain-summary.ts leaves it undefined,
+  // so the Finance sidebar's metrics section stays hidden (BrainSidebar drops
+  // empty sections). The role-shapes section + the finance metricsClause are
+  // forward-wired so adding the `metric` memory type only touches brain-summary.ts.
+  metrics?: Array<{ id: string; label: string; value: string }>;
 };
 
 // One active override row, shaped for prompt merging. The server action
