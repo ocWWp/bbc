@@ -20,13 +20,16 @@ import { Button } from "@/components/ui/button";
 import { OutputBlocks, type CitedMemory } from "@/components/studio/OutputBlocks";
 import { EditWorkflowChat } from "@/components/studio/EditWorkflowChat";
 import { ActiveOverridesPill } from "@/components/studio/ActiveOverridesPill";
+import { PlanConfirmStage } from "@/components/studio/PlanConfirmStage";
 import type { OutputBlock } from "@/lib/studio/output-blocks";
 import type { ClientTemplate } from "@/lib/studio/templates/registry";
 import type { FirstUseInput } from "@/lib/studio/templates/types";
+import type { PlanPreview } from "@/lib/studio/plan-preview";
 import {
   acceptStudioRun,
   deactivateStudioOverride,
   listActiveOverrides,
+  previewPlan,
   proposeOverride,
   proposeWorkflows,
   rejectStudioRun,
@@ -63,6 +66,13 @@ type Stage =
       task: string;
       candidate: TemplateProposal;
       inputs: Record<string, string>;
+    }
+  | {
+      kind: "plan-confirming";
+      task: string;
+      candidate: TemplateProposal;
+      inputs: Record<string, string>;
+      plan: PlanPreview;
     }
   | {
       kind: "running";
@@ -158,34 +168,49 @@ export default function StudioClient({ templates, authorHint, rerunSeed }: Props
     [templatesById],
   );
 
-  const handleRun = useCallback(
-    (inputs: Record<string, string>) => {
-      setError(null);
-      const current = stageRef.current;
-      if (current.kind !== "configuring") return;
-      const { task: runTask, candidate } = current;
-      setStage({ kind: "running", task: runTask, candidate, inputs });
-      startTransition(async () => {
-        const res = await runWorkflow(candidate.templateId, runTask, inputs);
-        if (!res.ok) {
-          setError(res.error);
-          setStage({ kind: "configuring", task: runTask, candidate, inputs });
-          return;
-        }
-        setStage({
-          kind: "reviewing",
-          task: runTask,
-          candidate,
-          inputs,
-          runId: res.runId,
-          blocks: res.blocks,
-          citedMemories: res.citedMemories,
-          reviewed: null,
-        });
+  // configuring -> plan-confirming. Previews the plan (intent + candidate
+  // memory) before any generation. Does NOT call the LLM.
+  const handleRequestPlan = useCallback((inputs: Record<string, string>) => {
+    setError(null);
+    const current = stageRef.current;
+    if (current.kind !== "configuring") return;
+    const { task: runTask, candidate } = current;
+    startTransition(async () => {
+      const res = await previewPlan(candidate.templateId, runTask, inputs);
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      setStage({ kind: "plan-confirming", task: runTask, candidate, inputs, plan: res.plan });
+    });
+  }, []);
+
+  // plan-confirming -> running -> reviewing. The actual generation.
+  const handleConfirmPlan = useCallback(() => {
+    setError(null);
+    const current = stageRef.current;
+    if (current.kind !== "plan-confirming") return;
+    const { task: runTask, candidate, inputs } = current;
+    setStage({ kind: "running", task: runTask, candidate, inputs });
+    startTransition(async () => {
+      const res = await runWorkflow(candidate.templateId, runTask, inputs);
+      if (!res.ok) {
+        setError(res.error);
+        setStage({ kind: "configuring", task: runTask, candidate, inputs });
+        return;
+      }
+      setStage({
+        kind: "reviewing",
+        task: runTask,
+        candidate,
+        inputs,
+        runId: res.runId,
+        blocks: res.blocks,
+        citedMemories: res.citedMemories,
+        reviewed: null,
       });
-    },
-    [],
-  );
+    });
+  }, []);
 
   // stageRef keeps a fresh handle for the async run callback above.
   const stageRef = useRef<Stage>(stage);
@@ -265,7 +290,23 @@ export default function StudioClient({ templates, authorHint, rerunSeed }: Props
             onBack={() =>
               setStage({ kind: "picking", task: stage.task, candidates: [stage.candidate] })
             }
-            onRun={handleRun}
+            onRun={handleRequestPlan}
+            disabled={isPending}
+          />
+        ) : null}
+
+        {stage.kind === "plan-confirming" ? (
+          <PlanConfirmStage
+            plan={stage.plan}
+            onConfirm={handleConfirmPlan}
+            onBack={() =>
+              setStage({
+                kind: "configuring",
+                task: stage.task,
+                candidate: stage.candidate,
+                inputs: stage.inputs,
+              })
+            }
             disabled={isPending}
           />
         ) : null}
