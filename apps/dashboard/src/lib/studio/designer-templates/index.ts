@@ -1,6 +1,8 @@
 import "./visual-spec";
 import "./brand-guideline-entry";
 import "./ui-copy-pass";
+import "./design-review-notes";
+import "./component-spec";
 
 export {
   getDesignerTemplate,
