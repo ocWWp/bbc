@@ -27,6 +27,10 @@ describe("roleForTemplateId", () => {
     expect(roleForTemplateId("finance:runway-analysis")).toBe("finance");
   });
 
+  it("identifies legal templates", () => {
+    expect(roleForTemplateId("legal:nda")).toBe("legal");
+  });
+
   it("returns null for unprefixed ids (legacy marketing IDs pre-Task-0e)", () => {
     expect(roleForTemplateId("tweet-thread")).toBeNull();
     expect(roleForTemplateId("")).toBeNull();
@@ -42,6 +46,7 @@ describe("templateIdsForRole", () => {
     expect(templateIdsForRole("founder")).toBe("founder:%");
     expect(templateIdsForRole("support")).toBe("support:%");
     expect(templateIdsForRole("finance")).toBe("finance:%");
+    expect(templateIdsForRole("legal")).toBe("legal:%");
   });
 });
 
@@ -52,12 +57,13 @@ describe("Marketing template registry is fully prefixed (Task 0e)", () => {
     }
   });
 
-  it("ROLE_PREFIXES is exhaustive — six roles (Phase N added finance)", () => {
+  it("ROLE_PREFIXES is exhaustive — seven roles (Phase N added finance, legal)", () => {
     expect(Object.keys(ROLE_PREFIXES).sort()).toEqual([
       "designer",
       "engineering",
       "finance",
       "founder",
+      "legal",
       "marketing",
       "support",
     ]);

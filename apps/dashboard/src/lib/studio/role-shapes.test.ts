@@ -15,6 +15,7 @@ import { listFounderTemplates } from "./founder-templates";
 import { listDesignerTemplates } from "./designer-templates";
 import { listSupportTemplates } from "./support-templates";
 import { listFinanceTemplates } from "./finance-templates";
+import { listLegalTemplates } from "./legal-templates";
 
 function allRegisteredTemplateIds(): Set<string> {
   const ids = new Set<string>();
@@ -24,6 +25,7 @@ function allRegisteredTemplateIds(): Set<string> {
   for (const t of listDesignerTemplates()) ids.add(t.id);
   for (const t of listSupportTemplates()) ids.add(t.id);
   for (const t of listFinanceTemplates()) ids.add(t.id);
+  for (const t of listLegalTemplates()) ids.add(t.id);
   return ids;
 }
 

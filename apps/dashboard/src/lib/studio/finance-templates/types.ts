@@ -20,16 +20,20 @@ export { overridesClause } from "../templates/types";
 // Prior decisions section. Finance documents lean on what the company has
 // already committed to (a hiring plan, a fundraise target, a pricing change)
 // because the numbers only mean something against those decisions.
+//
+// Each line leads with the memory's uuid in [brackets] so the model can emit
+// a valid <cite mem_id="..."/> tag -- without the id in context, the citation
+// contract is dead (validateRun drops any id the model didn't actually see).
 export function decisionsClause(decisions: BrainSummary["recent_decisions"]): string {
   if (!decisions || decisions.length === 0) return "Prior decisions: (none recorded).";
-  const lines = decisions.slice(0, 5).map((d) => `- ${d.title}: ${d.decision}`);
-  return `Prior decisions (cite mem_id when material):\n${lines.join("\n")}`;
+  const lines = decisions.slice(0, 5).map((d) => `- [${d.id}] ${d.title}: ${d.decision}`);
+  return `Prior decisions (cite the bracketed mem_id when material):\n${lines.join("\n")}`;
 }
 
 export function vendorsClause(vendors: BrainSummary["vendors"]): string {
   if (!vendors || vendors.length === 0) return "Vendors: (none recorded).";
-  const lines = vendors.slice(0, 8).map((v) => `- ${v.name} (${v.role})`);
-  return `Active vendors (recurring spend lives here):\n${lines.join("\n")}`;
+  const lines = vendors.slice(0, 8).map((v) => `- [${v.id}] ${v.name} (${v.role})`);
+  return `Active vendors (recurring spend lives here; cite the bracketed mem_id when material):\n${lines.join("\n")}`;
 }
 
 // Metrics & actuals section. No memory type populates BrainSummary.metrics
@@ -39,8 +43,8 @@ export function metricsClause(metrics: BrainSummary["metrics"]): string {
   if (!metrics || metrics.length === 0) {
     return "Metrics & actuals from memory: (none recorded -- use only the numbers the user gives you below; never invent figures).";
   }
-  const lines = metrics.slice(0, 8).map((m) => `- ${m.label}: ${m.value}`);
-  return `Metrics & actuals from memory (cite mem_id when material):\n${lines.join("\n")}`;
+  const lines = metrics.slice(0, 8).map((m) => `- [${m.id}] ${m.label}: ${m.value}`);
+  return `Metrics & actuals from memory (cite the bracketed mem_id when material):\n${lines.join("\n")}`;
 }
 
 export const FINANCE_CITATION_INSTRUCTION = `

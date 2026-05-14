@@ -200,4 +200,19 @@ export const ROLE_SHAPES: Record<StudioRole, RoleShape> = {
     ],
     sidebarSections: [recentDecisionsSection(), vendorsSection(), metricsSection()],
   },
+
+  legal: {
+    role: "legal",
+    label: "Legal Studio",
+    accentColor: "#64748b", // slate — a serious neutral; never alarming
+    blurb: "NDAs, contractor agreements, IP assignments, policies — a drafting assistant, never a legal advisor. Every output is a draft for attorney review.",
+    defaultChips: [
+      { id: "nda", label: "NDA", templateSlug: `${ROLE_PREFIXES.legal}nda` },
+      { id: "contractor-agreement", label: "Contractor agreement", templateSlug: `${ROLE_PREFIXES.legal}contractor-agreement` },
+      { id: "ip-assignment", label: "IP assignment", templateSlug: `${ROLE_PREFIXES.legal}ip-assignment` },
+      { id: "tos-privacy", label: "ToS & privacy", templateSlug: `${ROLE_PREFIXES.legal}tos-privacy` },
+      { id: "employment-terms", label: "Employment terms", templateSlug: `${ROLE_PREFIXES.legal}employment-terms` },
+    ],
+    sidebarSections: [recentDecisionsSection(), teamSection(), glossarySection()],
+  },
 };

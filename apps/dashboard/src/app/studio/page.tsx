@@ -8,12 +8,14 @@ import "@/lib/studio/founder-templates";
 import "@/lib/studio/designer-templates";
 import "@/lib/studio/support-templates";
 import "@/lib/studio/finance-templates";
+import "@/lib/studio/legal-templates";
 import { listClientTemplates } from "@/lib/studio/templates/registry";
 import { listClientEngTemplates } from "@/lib/studio/eng-templates/registry";
 import { listClientFounderTemplates } from "@/lib/studio/founder-templates/registry";
 import { listClientDesignerTemplates } from "@/lib/studio/designer-templates/registry";
 import { listClientSupportTemplates } from "@/lib/studio/support-templates/registry";
 import { listClientFinanceTemplates } from "@/lib/studio/finance-templates/registry";
+import { listClientLegalTemplates } from "@/lib/studio/legal-templates/registry";
 
 export const metadata = {
   title: "Studio · BBC",
@@ -88,6 +90,16 @@ const STUDIOS = [
       "Board financials, budget memos, investor numbers, expense policy, runway analysis — the narrative around the numbers, never an invented figure.",
     templates: () => listClientFinanceTemplates(),
     templateMatcher: (id: string) => id.startsWith("finance:"),
+  },
+  {
+    slug: "legal",
+    label: "Legal",
+    glyph: "§",
+    color: "var(--t-source_artifact)",
+    description:
+      "NDAs, contractor agreements, IP assignments, ToS & privacy, employment terms — a drafting assistant, never a legal advisor. Every output is a draft for attorney review.",
+    templates: () => listClientLegalTemplates(),
+    templateMatcher: (id: string) => id.startsWith("legal:"),
   },
 ] as const;
 
