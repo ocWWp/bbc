@@ -76,6 +76,7 @@ describe("previewPlan", () => {
     if (res.ok) {
       expect(res.plan.planSummary).toBeTruthy();
       expect(Array.isArray(res.plan.candidateMemories)).toBe(true);
+      expect(Array.isArray(res.plan.alwaysOnContext)).toBe(true);
     }
     expect(llm).not.toHaveBeenCalled();
   });

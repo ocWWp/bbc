@@ -48,8 +48,18 @@ function groupByKind(items: PlanPreview["candidateMemories"]) {
 
 export function PlanConfirmStage({ plan, onConfirm, onBack, disabled }: Props) {
   const memory = plan.candidateMemories;
-  const empty = memory.length === 0;
   const groups = groupByKind(memory);
+  const hasCandidates = memory.length > 0;
+  const hasAlwaysOn = plan.alwaysOnContext.length > 0;
+  // "Truly empty" -- no task-specific candidates AND no always-on context.
+  // Only this state earns the honest "based only on what you typed" copy.
+  const trulyEmpty = !hasCandidates && !hasAlwaysOn;
+
+  const scopeText = hasCandidates
+    ? `${memory.length} memory item${memory.length === 1 ? "" : "s"} in scope`
+    : hasAlwaysOn
+      ? "always-on context in scope"
+      : "no memory in scope";
 
   const role = roleForTemplateId(plan.templateId);
   const pres = role
@@ -79,18 +89,22 @@ export function PlanConfirmStage({ plan, onConfirm, onBack, disabled }: Props) {
                   what this can draw on · candidate memory in scope
                 </div>
                 <h3>
-                  {empty ? (
+                  {trulyEmpty ? (
                     <>
                       Nothing <span className="serif">matched</span>.
                     </>
-                  ) : (
+                  ) : hasCandidates ? (
                     <>
                       <span className="serif">Candidate</span> memory for this run.
+                    </>
+                  ) : (
+                    <>
+                      <span className="serif">Always-on</span> context only.
                     </>
                   )}
                 </h3>
               </div>
-              {!empty ? (
+              {hasCandidates ? (
                 <div className="counter">
                   <span>
                     {memory.length} item{memory.length === 1 ? "" : "s"}
@@ -105,22 +119,15 @@ export function PlanConfirmStage({ plan, onConfirm, onBack, disabled }: Props) {
               ) : null}
             </div>
 
-            {empty ? (
-              <div className="plan-mem-empty">
-                <div className="glyph" aria-hidden>
-                  ∅
-                </div>
-                <div>
-                  <h4>No company memory matched this task.</h4>
-                  <p>
-                    The draft will be based only on what you typed at the previous
-                    step. That&apos;s <strong>fine for a first run</strong> — once the
-                    draft is in front of you, you can add memory entries (decisions,
-                    vendors, voice rules) and re-run with them in scope.
-                  </p>
-                </div>
+            {hasAlwaysOn ? (
+              <div className="plan-always-on">
+                <span className="lab">always in scope</span>
+                <span className="ctx">{plan.alwaysOnContext.join(" · ")}</span>
+                <span className="lab">— feeds every draft, not task-specific</span>
               </div>
-            ) : (
+            ) : null}
+
+            {hasCandidates ? (
               groups.map(({ kind, items }) => {
                 const meta = kindMeta(kind);
                 return (
@@ -161,6 +168,35 @@ export function PlanConfirmStage({ plan, onConfirm, onBack, disabled }: Props) {
                   </div>
                 );
               })
+            ) : hasAlwaysOn ? (
+              <div className="plan-mem-empty">
+                <div className="glyph" aria-hidden>
+                  ∅
+                </div>
+                <div>
+                  <h4>No task-specific memory matched.</h4>
+                  <p>
+                    This run still draws on your always-on context above. Add
+                    decisions, vendors, team members, or glossary terms and re-run
+                    to bring task-specific memory into scope.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="plan-mem-empty">
+                <div className="glyph" aria-hidden>
+                  ∅
+                </div>
+                <div>
+                  <h4>No company memory matched this task.</h4>
+                  <p>
+                    The draft will be based only on what you typed at the previous
+                    step. That&apos;s <strong>fine for a first run</strong> — once the
+                    draft is in front of you, you can add memory entries (decisions,
+                    vendors, voice rules) and re-run with them in scope.
+                  </p>
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -241,11 +277,8 @@ export function PlanConfirmStage({ plan, onConfirm, onBack, disabled }: Props) {
             <CheckIcon />
           </span>
           <span>
-            review-gated ·{" "}
-            {empty
-              ? "no memory in scope"
-              : `${memory.length} memory item${memory.length === 1 ? "" : "s"} in scope`}{" "}
-            · nothing is saved or sent until you approve
+            review-gated · {scopeText} · nothing is sent or written back until you
+            approve
           </span>
         </div>
         <div className="btns">

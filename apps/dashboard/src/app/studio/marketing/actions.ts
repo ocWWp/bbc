@@ -316,15 +316,40 @@ export async function previewPlan(
     ...(brain.glossary?.terms ?? []).map((g) => ({ id: g.id, kind: "glossary", label: g.term })),
   ];
 
+  // voice + product feed every template's prompt but carry no id -- they are
+  // always-on context, surfaced separately from the itemized candidates so the
+  // plan-confirm screen never tells a voice-only tenant "nothing matched".
+  const alwaysOnContext: string[] = [];
+  if (brain.voice) alwaysOnContext.push("Voice");
+  if (brain.product) alwaysOnContext.push("Product positioning");
+
   const n = candidateMemories.length;
+  const docKind = template.kind.replace(/_/g, " ");
+  const grounding =
+    n > 0
+      ? `grounded in ${n} ${n === 1 ? "piece" : "pieces"} of your company memory` +
+        (alwaysOnContext.length > 0
+          ? " plus your always-on voice and product context"
+          : "")
+      : alwaysOnContext.length > 0
+        ? "drawing on your always-on voice and product context"
+        : "based only on the task and inputs you typed";
   const planSummary =
-    `Generate a ${template.kind.replace(/_/g, " ")} using the "${template.label}" template, ` +
-    `grounded in ${n} ${n === 1 ? "piece" : "pieces"} of your company memory. ` +
-    `Output goes to the review queue -- nothing is saved or sent until you approve it.`;
+    `Generate a ${docKind} using the "${template.label}" template, ${grounding}. ` +
+    `The draft goes to your review queue -- nothing is sent, published, or written ` +
+    `back to memory until you approve it.`;
 
   return {
     ok: true,
-    plan: { templateId, templateLabel: template.label, task: trimmed, inputs, planSummary, candidateMemories },
+    plan: {
+      templateId,
+      templateLabel: template.label,
+      task: trimmed,
+      inputs,
+      planSummary,
+      candidateMemories,
+      alwaysOnContext,
+    },
   };
 }
 

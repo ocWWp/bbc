@@ -56,6 +56,7 @@ beforeEach(() => {
       inputs: {},
       planSummary: PLAN_SUMMARY,
       candidateMemories: [],
+      alwaysOnContext: [],
     },
   });
   runWorkflowMock.mockResolvedValue({

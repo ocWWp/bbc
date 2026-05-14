@@ -10,7 +10,11 @@ export type PlanPreview = {
   inputs: Record<string, string>;
   planSummary: string; // plain-language, human-readable
   // Brain rows in scope for this run -- intended retrieval scope, NOT final
-  // citations. Covers the id-bearing memory types; voice/product are always-on
-  // context and are not itemized here.
+  // citations. Covers the id-bearing memory types only.
   candidateMemories: Array<{ id: string; kind: string; label: string }>;
+  // Always-on context the run inherits regardless of the task. voice and
+  // product memory feed every template's prompt but carry no id, so they are
+  // surfaced here rather than as itemized candidateMemories. Display labels,
+  // e.g. ["Voice", "Product positioning"].
+  alwaysOnContext: string[];
 };
