@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireActor, requireRole } from "@/lib/auth/require-user";
 import { getStore } from "@/lib/store";
+import { notifyFlagResolved } from "@/lib/inbox/notify-flag-resolved";
 
 const PROPOSAL_ID_RE = /^prop_[\w:.-]+$/;
 
@@ -37,6 +38,19 @@ export async function acceptProposal(formData: FormData): Promise<Result> {
   const result = await store.queue.acceptProposal(id, a.actor.actor);
 
   if (result.ok) {
+    // Task 32: if this was a member-filed flag, drop a row in the
+    // flagger's inbox. Non-flag proposals are a no-op inside the hook.
+    // Notification failures are non-blocking — the accept itself
+    // already committed; surface as a server log line and move on.
+    try {
+      await notifyFlagResolved({
+        tenant_id: a.actor.tenant_id,
+        proposal_id: id,
+        resolution: "accepted",
+      });
+    } catch (err) {
+      console.error("notifyFlagResolved (accept) failed", err);
+    }
     revalidatePath("/");
     revalidatePath("/queue");
     revalidatePath(`/queue/${id}`);
@@ -64,6 +78,18 @@ export async function rejectProposal(formData: FormData): Promise<Result> {
   const result = await store.queue.rejectProposal(id, a.actor.actor, reason);
 
   if (result.ok) {
+    // Task 32: see acceptProposal note. Pass reason through so the
+    // inbox row body shows the operator's rationale to the flagger.
+    try {
+      await notifyFlagResolved({
+        tenant_id: a.actor.tenant_id,
+        proposal_id: id,
+        resolution: "rejected",
+        resolution_note: reason,
+      });
+    } catch (err) {
+      console.error("notifyFlagResolved (reject) failed", err);
+    }
     revalidatePath("/");
     revalidatePath("/queue");
     revalidatePath(`/queue/${id}`);
