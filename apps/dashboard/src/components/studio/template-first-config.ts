@@ -67,3 +67,7 @@ export type StudioSeed = {
   task: string;
   inputs: Record<string, string>;
 };
+
+// Re-exported: CitedMemory is part of RunWorkflowResult, so the config module
+// is the single import site for the whole shared-client contract.
+export type { CitedMemory };
