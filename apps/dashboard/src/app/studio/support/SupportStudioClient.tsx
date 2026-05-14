@@ -1,16 +1,18 @@
 "use client";
 import TemplateFirstStudioClient from "@/components/studio/TemplateFirstStudioClient";
 import type { ClientSupportTemplate } from "@/lib/studio/support-templates/registry";
+import type { StudioSeed } from "@/components/studio/template-first-config";
 import {
   deactivateSupportStudioOverride, listActiveSupportOverrides, proposeSupportOverride,
   runSupportWorkflow, saveSupportStudioTemplateOverride,
 } from "./actions";
 
-type Props = { templates: ClientSupportTemplate[] };
+type Props = { templates: ClientSupportTemplate[]; initialSeed?: StudioSeed };
 
-export default function SupportStudioClient({ templates }: Props) {
+export default function SupportStudioClient({ templates, initialSeed }: Props) {
   return (
     <TemplateFirstStudioClient
+      initialSeed={initialSeed}
       config={{
         role: "support",
         templates,

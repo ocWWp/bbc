@@ -1,16 +1,18 @@
 "use client";
 import TemplateFirstStudioClient from "@/components/studio/TemplateFirstStudioClient";
 import type { ClientFinanceTemplate } from "@/lib/studio/finance-templates/registry";
+import type { StudioSeed } from "@/components/studio/template-first-config";
 import {
   deactivateFinanceStudioOverride, listActiveFinanceOverrides, proposeFinanceOverride,
   runFinanceWorkflow, saveFinanceStudioTemplateOverride,
 } from "./actions";
 
-type Props = { templates: ClientFinanceTemplate[] };
+type Props = { templates: ClientFinanceTemplate[]; initialSeed?: StudioSeed };
 
-export default function FinanceStudioClient({ templates }: Props) {
+export default function FinanceStudioClient({ templates, initialSeed }: Props) {
   return (
     <TemplateFirstStudioClient
+      initialSeed={initialSeed}
       config={{
         role: "finance",
         templates,

@@ -1,13 +1,14 @@
 "use client";
 import TemplateFirstStudioClient from "@/components/studio/TemplateFirstStudioClient";
 import type { ClientLegalTemplate } from "@/lib/studio/legal-templates/registry";
+import type { StudioSeed } from "@/components/studio/template-first-config";
 import type { TriageLevel } from "@/lib/studio/legal-templates/types";
 import {
   deactivateLegalStudioOverride, listActiveLegalOverrides, proposeLegalOverride,
   runLegalWorkflow, saveLegalStudioTemplateOverride,
 } from "./actions";
 
-type Props = { templates: ClientLegalTemplate[] };
+type Props = { templates: ClientLegalTemplate[]; initialSeed?: StudioSeed };
 
 // Legal-only: per-doc-type triage chip + note. Moved out of the old bespoke
 // client; surfaced via the shared client's templateBadge/templateConfigureNote
@@ -41,9 +42,10 @@ function TriageChip({ level }: { level: TriageLevel }) {
   );
 }
 
-export default function LegalStudioClient({ templates }: Props) {
+export default function LegalStudioClient({ templates, initialSeed }: Props) {
   return (
     <TemplateFirstStudioClient
+      initialSeed={initialSeed}
       config={{
         role: "legal",
         templates,

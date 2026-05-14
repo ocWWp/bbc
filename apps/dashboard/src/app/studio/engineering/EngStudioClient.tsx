@@ -1,16 +1,18 @@
 "use client";
 import TemplateFirstStudioClient from "@/components/studio/TemplateFirstStudioClient";
 import type { ClientEngTemplate } from "@/lib/studio/eng-templates/registry";
+import type { StudioSeed } from "@/components/studio/template-first-config";
 import {
   deactivateEngStudioOverride, listActiveEngOverrides, proposeEngOverride,
   runEngineeringWorkflow, saveEngStudioTemplateOverride,
 } from "./actions";
 
-type Props = { templates: ClientEngTemplate[] };
+type Props = { templates: ClientEngTemplate[]; initialSeed?: StudioSeed };
 
-export default function EngStudioClient({ templates }: Props) {
+export default function EngStudioClient({ templates, initialSeed }: Props) {
   return (
     <TemplateFirstStudioClient
+      initialSeed={initialSeed}
       config={{
         role: "engineering",
         templates,

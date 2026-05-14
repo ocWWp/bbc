@@ -3,6 +3,7 @@ import { requireActor } from "@/lib/auth/require-user";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import "@/lib/studio/templates"; // side-effect registration
 import { listClientTemplates } from "@/lib/studio/templates/registry";
+import { resolveStudioEntry } from "@/lib/studio/resolve-studio-entry";
 import { StudioPageShell } from "@/components/studio/StudioPageShell";
 
 import StudioClient, { type RerunSeed } from "./StudioClient";
@@ -18,7 +19,7 @@ const RUN_ID_RE = /^[0-9a-fA-F-]{36}$/;
 export default async function MarketingStudioPage({
   searchParams,
 }: {
-  searchParams: Promise<{ rerun?: string }>;
+  searchParams: Promise<{ rerun?: string; template?: string; task?: string }>;
 }) {
   const a = await requireActor();
   if (!a.ok) {
@@ -34,8 +35,10 @@ export default async function MarketingStudioPage({
 
   // ?rerun=<runId> reopens a past run pre-filled with its task + inputs. Only
   // honored when the run belongs to the tenant and its template still exists.
+  // Precedence: ?rerun= wins; ?template=&task= deep links are the fallback.
   let rerunSeed: RerunSeed | undefined;
-  const { rerun } = await searchParams;
+  const sp = await searchParams;
+  const { rerun } = sp;
   if (rerun && RUN_ID_RE.test(rerun)) {
     const supabase = await getSupabaseServerClient();
     const { data: run } = await supabase
@@ -62,6 +65,8 @@ export default async function MarketingStudioPage({
       }
     }
   }
+  // Fall back to a ?template=&task= deep link when no rerun seed was resolved.
+  if (!rerunSeed) rerunSeed = resolveStudioEntry("marketing", sp);
 
   return (
     <StudioPageShell role="marketing">
