@@ -23,6 +23,7 @@ export type ClientHrTemplate = {
   hint: string;
   kind: Template["kind"];
   firstUseInputs: Template["firstUseInputs"];
+  facets?: Template["facets"];
 };
 
 export function listClientHrTemplates(): ClientHrTemplate[] {
@@ -32,5 +33,6 @@ export function listClientHrTemplates(): ClientHrTemplate[] {
     hint: t.hint,
     kind: t.kind,
     firstUseInputs: t.firstUseInputs,
+    facets: t.facets,
   }));
 }

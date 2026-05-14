@@ -2,6 +2,8 @@
 // file under src/lib/studio/templates/ that exports a `Template` object.
 // See ADR-0006 for why this is code, not memory_files.
 
+import type { StudioRole } from "@/lib/studio/template-id";
+
 export type PreviewKind =
   | "x_post"
   | "x_thread"
@@ -76,6 +78,10 @@ export interface Template {
   kind: PreviewKind;
   firstUseInputs: FirstUseInput[];
   buildPrompt(args: BuildPromptArgs): string;
+  // Additional roles to cross-list this template under in the gallery. The
+  // OWNING role is always derived from the id prefix; `facets` is purely
+  // additive surfacing. Optional -- most templates omit it.
+  facets?: StudioRole[];
 }
 
 // Shared prompt fragment: instructs the LLM how to cite memories so the

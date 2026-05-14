@@ -24,6 +24,7 @@ export type ClientLegalTemplate = {
   hint: string;
   kind: Template["kind"];
   firstUseInputs: Template["firstUseInputs"];
+  facets?: Template["facets"];
   // Per-doc-type lawyer triage, surfaced as a chip on the workflow card so the
   // user knows the stakes before generating. See legalTriageFor in ./types.
   triageLevel: TriageLevel;
@@ -39,6 +40,7 @@ export function listClientLegalTemplates(): ClientLegalTemplate[] {
       hint: t.hint,
       kind: t.kind,
       firstUseInputs: t.firstUseInputs,
+      facets: t.facets,
       triageLevel: triage.level,
       triageNote: triage.note,
     };

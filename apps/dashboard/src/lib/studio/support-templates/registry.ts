@@ -23,6 +23,7 @@ export type ClientSupportTemplate = {
   hint: string;
   kind: Template["kind"];
   firstUseInputs: Template["firstUseInputs"];
+  facets?: Template["facets"];
 };
 
 export function listClientSupportTemplates(): ClientSupportTemplate[] {
@@ -32,5 +33,6 @@ export function listClientSupportTemplates(): ClientSupportTemplate[] {
     hint: t.hint,
     kind: t.kind,
     firstUseInputs: t.firstUseInputs,
+    facets: t.facets,
   }));
 }
