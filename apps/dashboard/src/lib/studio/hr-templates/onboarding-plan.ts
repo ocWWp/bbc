@@ -1,0 +1,96 @@
+import {
+  teamClause,
+  decisionsClause,
+  glossaryClause,
+  overridesClause,
+  HR_CITATION_INSTRUCTION,
+  HR_SENSITIVITY_CONTRACT,
+  outputAsDoc,
+  type Template,
+} from "./types";
+import { registerHrTemplate } from "./registry";
+
+const template: Template = {
+  id: "hr:onboarding-plan",
+  label: "Onboarding plan",
+  hint: "Draft a 30/60/90-day onboarding plan for a new hire. Picks this for 'onboarding plan for the new engineer', 'first 90 days for our PM', 'ramp plan'.",
+  kind: "doc",
+  firstUseInputs: [
+    {
+      id: "role",
+      label: "Role & hire",
+      hint: "The role and, if you have it, who's joining. (e.g. 'first Product Designer', 'Jordan, Senior Backend Engineer')",
+      required: true,
+      kind: "text",
+    },
+    {
+      id: "first-win",
+      label: "First meaningful win",
+      hint: "What's the first real thing they should ship or own? A concrete outcome makes the whole plan land.",
+      required: true,
+      kind: "text",
+    },
+    {
+      id: "context",
+      label: "Context",
+      hint: "Who they'll work with, tools/systems to learn, anything specific about your setup.",
+      required: false,
+      kind: "text",
+    },
+  ],
+  buildPrompt({ task, brain, inputs, overrides }) {
+    return [
+      "You are drafting a 30/60/90-day onboarding plan for a startup hire. A good plan is behavior-anchored: every milestone is something the new hire visibly does or ships, not something they 'understand'.",
+      HR_SENSITIVITY_CONTRACT,
+      "",
+      teamClause(brain.team),
+      decisionsClause(brain.recent_decisions),
+      glossaryClause(brain.glossary),
+      "",
+      `Task: ${task}`,
+      `Role & hire: ${inputs.role ?? "(unspecified)"}`,
+      `First meaningful win: ${inputs["first-win"] ?? "(unspecified)"}`,
+      inputs.context ? `Context: ${inputs.context}` : "",
+      "",
+      "Produce an onboarding plan with this structure:",
+      "  # Onboarding plan — <role>",
+      "  ",
+      "  ## Goal",
+      "  One paragraph: what 'ramped' looks like for this role, stated as observable",
+      "  outcomes.",
+      "  ",
+      "  ## First week",
+      "  Setup, intros (name the people from the team context), and one small real",
+      "  task they complete — not just 'read the docs'.",
+      "  ",
+      "  ## Days 1-30",
+      "  Behavior-anchored milestones. Each is something they ship, own, or do.",
+      "  Build toward the first meaningful win.",
+      "  ",
+      "  ## Days 31-60",
+      "  Increasing ownership. Concrete milestones.",
+      "  ",
+      "  ## Days 61-90",
+      "  Full ownership of their area. What 'fully ramped' looks like in practice.",
+      "  ",
+      "  ## Check-ins & support",
+      "  When manager check-ins happen, who their go-to people are, how they get",
+      "  unblocked.",
+      "",
+      "Constraints:",
+      "- Every milestone is observable. No 'understands the codebase' — instead",
+      "  'ships a reviewed PR to <area>'.",
+      "- Reference real teammates by name from the team context where relevant.",
+      "- Realistic for a startup — no corporate onboarding bloat.",
+      HR_CITATION_INSTRUCTION,
+      overridesClause(overrides ?? []),
+      "",
+      outputAsDoc("Onboarding Plan"),
+    ]
+      .filter(Boolean)
+      .join("\n");
+  },
+};
+
+registerHrTemplate(template);
+export default template;

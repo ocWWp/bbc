@@ -9,6 +9,7 @@ export type PreviewKind =
   | "linkedin_post"
   | "blog_draft"
   | "script"
+  | "doc"
   | "plain";
 
 export type FirstUseInputKind = "text" | "select" | "tone";
@@ -39,6 +40,17 @@ export type BrainSummary = {
   // marketing templates keep the looser voice contract. Optional -- a tenant
   // with no glossary memories gets `undefined` here, not an empty terms list.
   glossary?: { terms: Array<{ id: string; term: string; definition: string }> };
+  // Finance Studio actuals -- board metrics, runway numbers, budget lines.
+  // No memory type populates this yet: brain-summary.ts leaves it undefined,
+  // so the Finance sidebar's metrics section stays hidden (BrainSidebar drops
+  // empty sections). The role-shapes section + the finance metricsClause are
+  // forward-wired so adding the `metric` memory type only touches brain-summary.ts.
+  metrics?: Array<{ id: string; label: string; value: string }>;
+  // People/HR Studio comp bands -- role -> salary/equity range. Same
+  // forward-wired pattern as `metrics`: nothing populates it yet, so the HR
+  // sidebar's comp-bands section stays hidden until a `comp_band` memory type
+  // lands, at which point only brain-summary.ts changes.
+  comp_bands?: Array<{ id: string; label: string; range: string }>;
 };
 
 // One active override row, shaped for prompt merging. The server action

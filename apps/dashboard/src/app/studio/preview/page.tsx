@@ -161,6 +161,34 @@ const sections: Section[] = [
     ],
   },
   {
+    title: "Structured document (ADR / memo / spec / policy)",
+    subtitle: "kind: doc · the shared non-marketing Studio output",
+    blocks: [
+      {
+        kind: "doc",
+        props: {
+          title: "ADR-0009: Adopt the single `doc` block kind for non-marketing Studios",
+          doc_type: "ADR",
+          body_markdown: `Status: Accepted — supersedes the per-Studio \`<pre>\` plaintext rendering.\n\nThe four skeleton Studios each emitted raw plaintext. This ADR records the decision to route all of them through one structured-document block.`,
+          sections: [
+            {
+              heading: "Context",
+              body_markdown: `Marketing renders platform cards<cite mem_id="${MEM_PRODUCT}"/>; Engineering, Founder, Designer, and Support dumped a \`<pre>\`. Reviewers could not scan ADRs, memos, or specs, and citations were invisible.`,
+            },
+            {
+              heading: "Decision",
+              body_markdown: `Add one \`doc\` kind — \`{ title, doc_type, body_markdown, sections? }\` — typeset with headings, lists, tables, and inline citations<cite mem_id="${MEM_DECISION}"/>. Per-role nuance lives in the template prompt, not bespoke components.\n\n| Option | Card components | Per-role nuance |\n| --- | --- | --- |\n| Bespoke card per role | 8+ | In code |\n| One \`doc\` kind | 1 | In the prompt |`,
+            },
+            {
+              heading: "Consequences",
+              body_markdown: `- Every Studio's output is reviewable and citeable.\n- New Studios inherit typesetting for free.\n- Alternatives not chosen: a markdown-library dependency (rejected — adds weight for inline emphasis we can defer).`,
+            },
+          ],
+        },
+      },
+    ],
+  },
+  {
     title: "Plain output (voice check / hashtags / custom)",
     subtitle: "kind: plain",
     blocks: [

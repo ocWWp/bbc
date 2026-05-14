@@ -1,5 +1,7 @@
+import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import type { StudioRole } from "@/lib/studio/template-id";
+import { RoleSwitcher } from "./RoleSwitcher";
 
 export type StudioShellProps = {
   role: StudioRole;
@@ -47,7 +49,9 @@ export function StudioShell({
     <div className="studio-shell" data-role={role} style={style}>
       <header className="studio-shell-head">
         <div className="studio-shell-crumb">
-          <span className="studio-shell-tenant">{tenantName}</span>
+          <Link href="/studio" className="studio-shell-tenant">
+            {tenantName}
+          </Link>
           <span className="studio-shell-sep">/</span>
           <span className="studio-shell-role" data-testid="studio-role-chip">
             <span className="studio-shell-dot" aria-hidden />
@@ -60,6 +64,7 @@ export function StudioShell({
             </>
           )}
         </div>
+        <RoleSwitcher active={role} />
       </header>
 
       <div className="studio-shell-grid">

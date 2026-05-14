@@ -1,6 +1,7 @@
 import {
   voiceClause,
   productClause,
+  overridesClause,
   DESIGN_CITATION_INSTRUCTION,
   OUTPUT_AS_PLAIN_MARKDOWN,
   type Template,
@@ -28,7 +29,7 @@ const template: Template = {
       kind: "text",
     },
   ],
-  buildPrompt({ task, brain, inputs }) {
+  buildPrompt({ task, brain, inputs, overrides }) {
     return [
       "You are drafting a brand guideline entry for a startup. The audience is contributors who need to make consistent decisions without having to ask.",
       productClause(brain.product),
@@ -65,6 +66,7 @@ const template: Template = {
       "- Brand guidelines are for decisions, not for inspiration. Be opinionated.",
       "- Voice match: read like the team writes (per the voice memory). No design-school jargon.",
       "- If this entry contradicts existing guidance, surface that explicitly in 'Exceptions'.",
+      overridesClause(overrides ?? []),
       DESIGN_CITATION_INSTRUCTION,
       "",
       OUTPUT_AS_PLAIN_MARKDOWN,

@@ -60,6 +60,22 @@ describe("RecentDrafts", () => {
     expect(screen.getByText("No tweets yet.")).toBeDefined();
   });
 
+  it("renders no rerun affordance by default", () => {
+    render(<RecentDrafts items={items} />);
+    expect(screen.queryByLabelText(/^Rerun /)).toBeNull();
+  });
+
+  it("rerunHref adds a per-row rerun link to the given path", () => {
+    render(
+      <RecentDrafts items={items} rerunHref={(id) => `/studio/marketing?rerun=${id}`} />,
+    );
+    const rerun = screen.getByLabelText("Rerun Announcing BBC v1.5") as HTMLAnchorElement;
+    expect(rerun.getAttribute("href")).toBe("/studio/marketing?rerun=d1");
+    // The title still links to the read-only run page, independently.
+    const title = screen.getByText("Announcing BBC v1.5").closest("a") as HTMLAnchorElement;
+    expect(title.getAttribute("href")).toBe("/studio/runs/d1");
+  });
+
   it("recent times render as 'm ago' / 'h ago' rel-time, not raw ISO", () => {
     render(<RecentDrafts items={items} />);
     const list = screen.getByTestId("recent-drafts-list");

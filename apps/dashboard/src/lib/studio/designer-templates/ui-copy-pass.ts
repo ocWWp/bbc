@@ -1,6 +1,7 @@
 import {
   voiceClause,
   productClause,
+  overridesClause,
   DESIGN_CITATION_INSTRUCTION,
   OUTPUT_AS_PLAIN_MARKDOWN,
   type Template,
@@ -28,7 +29,7 @@ const template: Template = {
       kind: "text",
     },
   ],
-  buildPrompt({ task, brain, inputs }) {
+  buildPrompt({ task, brain, inputs, overrides }) {
     return [
       "You are auditing and rewriting UI strings for a startup's product surface. The output is a per-string diff: what was there, what to ship.",
       productClause(brain.product),
@@ -60,6 +61,7 @@ const template: Template = {
       "- Match brand voice precisely. If the voice memory says 'lowercase, direct' and the original is title-case marketing-speak, fix it.",
       "- Don't introduce new words that aren't in the team's vocabulary. Stick with the do_words list when possible.",
       "- Preserve any interpolations / placeholders / variable names exactly (e.g. <code>{count}</code>, <code>%s</code>).",
+      overridesClause(overrides ?? []),
       DESIGN_CITATION_INSTRUCTION,
       "",
       OUTPUT_AS_PLAIN_MARKDOWN,

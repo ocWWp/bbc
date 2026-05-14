@@ -1,0 +1,95 @@
+import {
+  decisionsClause,
+  vendorsClause,
+  metricsClause,
+  overridesClause,
+  FINANCE_CITATION_INSTRUCTION,
+  FINANCE_NARRATIVE_CONTRACT,
+  outputAsDoc,
+  type Template,
+} from "./types";
+import { registerFinanceTemplate } from "./registry";
+
+const template: Template = {
+  id: "finance:budget-memo",
+  label: "Budget memo",
+  hint: "Argue for a budget change or a new line of spend. Picks this for 'memo to increase the marketing budget', 'justify the new tooling spend', 'propose cutting X'.",
+  kind: "doc",
+  firstUseInputs: [
+    {
+      id: "area",
+      label: "Budget area",
+      hint: "What part of the budget? (e.g. 'engineering tooling', 'paid acquisition', 'contractor spend')",
+      required: true,
+      kind: "text",
+    },
+    {
+      id: "change",
+      label: "Proposed change",
+      hint: "The ask, with the number. (e.g. 'increase from $4k to $9k/mo', 'add a $30k annual line', 'cut by half')",
+      required: true,
+      kind: "text",
+    },
+    {
+      id: "rationale",
+      label: "Why now",
+      hint: "What forces this? A bottleneck, a growth target, a contract renewal. One or two sentences.",
+      required: false,
+      kind: "text",
+    },
+  ],
+  buildPrompt({ task, brain, inputs, overrides }) {
+    return [
+      "You are drafting a budget memo for a startup's founding team. The memo has to survive a skeptical read: someone who will ask 'what do we give up to fund this?'",
+      decisionsClause(brain.recent_decisions),
+      vendorsClause(brain.vendors),
+      metricsClause(brain.metrics),
+      "",
+      FINANCE_NARRATIVE_CONTRACT,
+      "",
+      `Task: ${task}`,
+      `Budget area: ${inputs.area ?? "(unspecified)"}`,
+      `Proposed change: ${inputs.change ?? "(unspecified)"}`,
+      inputs.rationale ? `Why now: ${inputs.rationale}` : "",
+      "",
+      "Produce a budget memo with this structure:",
+      "  # <area> budget — <the ask in five words>",
+      "  ",
+      "  ## The ask",
+      "  One paragraph. The exact change, the exact number, the period it covers.",
+      "  ",
+      "  ## Current state",
+      "  What is spent here today and what it buys. Use real numbers from memory or",
+      "  the user; if the current figure is unknown, say so.",
+      "  ",
+      "  ## What changes",
+      "  What the new spend buys that the current spend doesn't. Be concrete about the",
+      "  outcome, not the input.",
+      "  ",
+      "  ## Trade-offs",
+      "  What this costs — in cash, in runway weeks, in what else can't be funded.",
+      "  Tag the runway impact as **[timing]** or **[structural]**. This section is",
+      "  the memo. Do not soften it.",
+      "  ",
+      "  ## Recommendation",
+      "  Approve / approve with a cap / revisit later — pick one and say why.",
+      "  ",
+      "  ## Open questions",
+      "  Numbers you needed but didn't have.",
+      "",
+      "Constraints:",
+      "- Never invent a number. Missing figure -> Open questions.",
+      "- The trade-offs section must name what gets cut or deferred to fund this.",
+      "- Recommend explicitly. A memo that won't commit is noise.",
+      FINANCE_CITATION_INSTRUCTION,
+      overridesClause(overrides ?? []),
+      "",
+      outputAsDoc("Budget Memo"),
+    ]
+      .filter(Boolean)
+      .join("\n");
+  },
+};
+
+registerFinanceTemplate(template);
+export default template;

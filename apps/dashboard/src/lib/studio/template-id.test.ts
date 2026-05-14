@@ -23,6 +23,18 @@ describe("roleForTemplateId", () => {
     expect(roleForTemplateId("support:bug-ack")).toBe("support");
   });
 
+  it("identifies finance templates", () => {
+    expect(roleForTemplateId("finance:runway-analysis")).toBe("finance");
+  });
+
+  it("identifies legal templates", () => {
+    expect(roleForTemplateId("legal:nda")).toBe("legal");
+  });
+
+  it("identifies HR templates", () => {
+    expect(roleForTemplateId("hr:job-description")).toBe("hr");
+  });
+
   it("returns null for unprefixed ids (legacy marketing IDs pre-Task-0e)", () => {
     expect(roleForTemplateId("tweet-thread")).toBeNull();
     expect(roleForTemplateId("")).toBeNull();
@@ -37,6 +49,9 @@ describe("templateIdsForRole", () => {
     expect(templateIdsForRole("designer")).toBe("design:%");
     expect(templateIdsForRole("founder")).toBe("founder:%");
     expect(templateIdsForRole("support")).toBe("support:%");
+    expect(templateIdsForRole("finance")).toBe("finance:%");
+    expect(templateIdsForRole("legal")).toBe("legal:%");
+    expect(templateIdsForRole("hr")).toBe("hr:%");
   });
 });
 
@@ -47,11 +62,14 @@ describe("Marketing template registry is fully prefixed (Task 0e)", () => {
     }
   });
 
-  it("ROLE_PREFIXES is exhaustive — exactly five roles", () => {
+  it("ROLE_PREFIXES is exhaustive — eight roles (Phase N added finance, legal, hr)", () => {
     expect(Object.keys(ROLE_PREFIXES).sort()).toEqual([
       "designer",
       "engineering",
+      "finance",
       "founder",
+      "hr",
+      "legal",
       "marketing",
       "support",
     ]);

@@ -5,20 +5,10 @@ import { Button } from "@/components/ui/button";
 import type { OutputBlock } from "@/lib/studio/output-blocks";
 import type { ClientFounderTemplate } from "@/lib/studio/founder-templates/registry";
 import { runFounderWorkflow, type CitedMemoryRef } from "./actions";
-import { CitationChip } from "@/components/studio/CitationChip";
-
-export type RecentFounderRun = {
-  id: string;
-  templateId: string;
-  task: string;
-  inputs: Record<string, string>;
-  status: string;
-  createdAt: string;
-};
+import { OutputBlocks } from "@/components/studio/OutputBlocks";
 
 type Props = {
   templates: ClientFounderTemplate[];
-  recentRuns: RecentFounderRun[];
 };
 
 type Stage =
@@ -35,7 +25,7 @@ type Stage =
     }
   | { kind: "error"; message: string };
 
-export default function FounderStudioClient({ templates, recentRuns }: Props) {
+export default function FounderStudioClient({ templates }: Props) {
   const [stage, setStage] = useState<Stage>({ kind: "idle" });
   const [task, setTask] = useState("");
   const [selected, setSelected] = useState<ClientFounderTemplate | null>(null);
@@ -199,23 +189,6 @@ export default function FounderStudioClient({ templates, recentRuns }: Props) {
         </section>
       )}
 
-      {recentRuns.length > 0 && stage.kind === "idle" && (
-        <section className="pt-6 border-t border-border">
-          <h2 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground mb-3">
-            Recent runs
-          </h2>
-          <ul className="space-y-2">
-            {recentRuns.map((r) => (
-              <li key={r.id} className="text-sm">
-                <span className="text-muted-foreground">{r.templateId}</span>
-                <span className="mx-2">·</span>
-                <span>{r.task.slice(0, 100)}</span>
-                <span className="ml-2 text-xs text-muted-foreground">({r.status})</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
     </div>
   );
 }
@@ -245,14 +218,6 @@ function ReviewView({
   cited: CitedMemoryRef[];
   onReset: () => void;
 }) {
-  const text = blocks
-    .map((b) => {
-      if (b.kind === "plain") return b.props.text;
-      if (b.kind === "blog_draft") return b.props.body_markdown;
-      return JSON.stringify(b, null, 2);
-    })
-    .join("\n\n");
-
   return (
     <div className="space-y-6">
       <header className="flex items-center justify-between">
@@ -267,29 +232,7 @@ function ReviewView({
         </Button>
       </header>
 
-      <article className="prose prose-sm max-w-none dark:prose-invert rounded-lg border border-border bg-background p-6">
-        <pre className="whitespace-pre-wrap font-mono text-sm">{text}</pre>
-      </article>
-
-      {cited.length > 0 && (
-        <section>
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-            Cited memories ({cited.length})
-          </h3>
-          <ul className="flex flex-wrap gap-2">
-            {cited.map((c, i) => (
-              <li key={c.id}>
-                <CitationChip
-                  memoryId={c.id}
-                  type={c.type}
-                  label={c.title}
-                  citationNumber={i + 1}
-                />
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <OutputBlocks blocks={blocks} citedMemories={cited} />
     </div>
   );
 }

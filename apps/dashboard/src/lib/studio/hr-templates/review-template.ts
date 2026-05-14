@@ -1,0 +1,97 @@
+import {
+  teamClause,
+  decisionsClause,
+  glossaryClause,
+  overridesClause,
+  HR_CITATION_INSTRUCTION,
+  HR_SENSITIVITY_CONTRACT,
+  outputAsDoc,
+  type Template,
+} from "./types";
+import { registerHrTemplate } from "./registry";
+
+const template: Template = {
+  id: "hr:review-template",
+  label: "Review template",
+  hint: "Draft a performance review template or cycle structure. Picks this for 'our first review template', 'performance review form', 'how should we run reviews'.",
+  kind: "doc",
+  firstUseInputs: [
+    {
+      id: "scope",
+      label: "What this review covers",
+      hint: "A role or team, a review cycle structure, or a specific review type (e.g. 'engineering review template', 'our first company-wide review cycle', 'a manager review form').",
+      required: true,
+      kind: "text",
+    },
+    {
+      id: "values",
+      label: "What you value",
+      hint: "The behaviors and outcomes your company actually rewards. The Studio turns these into observable review criteria.",
+      required: false,
+      kind: "text",
+    },
+    {
+      id: "context",
+      label: "Context",
+      hint: "Cadence (quarterly? annual?), whether it's tied to comp, self-review + manager-review, anything pre-decided.",
+      required: false,
+      kind: "text",
+    },
+  ],
+  buildPrompt({ task, brain, inputs, overrides }) {
+    return [
+      "You are drafting a performance review template for a startup. The whole value of a review template is that it forces specific, behavior-anchored evidence instead of vague impressions.",
+      HR_SENSITIVITY_CONTRACT,
+      "",
+      teamClause(brain.team),
+      decisionsClause(brain.recent_decisions),
+      glossaryClause(brain.glossary),
+      "",
+      `Task: ${task}`,
+      `What this review covers: ${inputs.scope ?? "(unspecified)"}`,
+      inputs.values ? `What the company values: ${inputs.values}` : "",
+      inputs.context ? `Context: ${inputs.context}` : "",
+      "",
+      "Produce a review template with this structure:",
+      "  # <scope> — review template",
+      "  ",
+      "  ## How to use this",
+      "  Brief: who fills what, the cadence, and the one rule — every rating needs",
+      "  a specific behavioral example, not an adjective.",
+      "  ",
+      "  ## Self-review",
+      "  3-5 prompts. Each asks for concrete examples of work and outcomes.",
+      "  ",
+      "  ## Manager review",
+      "  Criteria as observable behaviors, each with: what 'meeting expectations'",
+      "  looks like and what 'exceeding' looks like — in behavioral terms. Derive",
+      "  criteria from what the company values where the user gave that.",
+      "  ",
+      "  ## Growth & goals",
+      "  Forward-looking: 2-3 behavior-anchored goals for the next cycle.",
+      "  ",
+      "  ## Calibration note",
+      "  A short note on rating fairly and consistently, and watching for common",
+      "  bias traps (recency, halo, similarity-to-me).",
+      "  ",
+      "  ## Loop in counsel",
+      "  A required callout: if a review documents a performance problem or could",
+      "  lead to a PIP, termination, or any adverse action, route it through the",
+      "  Legal Studio / an employment attorney before acting.",
+      "",
+      "Constraints:",
+      "- Every criterion is a behavior or outcome, never a trait.",
+      "- Build in the 'evidence required' rule — it's the point of the template.",
+      "- Keep it lightweight; a startup won't run a 6-page review form.",
+      HR_CITATION_INSTRUCTION,
+      overridesClause(overrides ?? []),
+      "",
+      outputAsDoc("Review Template"),
+    ]
+      .filter(Boolean)
+      .join("\n");
+  },
+};
+
+registerHrTemplate(template);
+export default template;

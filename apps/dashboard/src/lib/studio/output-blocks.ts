@@ -50,6 +50,26 @@ export const plainPropsSchema = z.object({
   text: z.string().min(1).max(8000),
 });
 
+// The one structured-document kind, shared by every non-marketing Studio.
+// Covers ADRs, memos, specs, policies, offer letters, board financials —
+// per-role nuance lives in the template prompt, not bespoke card components.
+// `sections` is optional structured breakdown (e.g. ADR Context/Decision/
+// Consequences); when absent the whole document is `body_markdown`.
+export const docPropsSchema = z.object({
+  title: z.string().min(1).max(300),
+  doc_type: z.string().min(1).max(48),
+  body_markdown: z.string().min(1).max(40000),
+  sections: z
+    .array(
+      z.object({
+        heading: z.string().min(1).max(200),
+        body_markdown: z.string().min(1).max(20000),
+      }),
+    )
+    .max(24)
+    .optional(),
+});
+
 export const outputBlockSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("x_post"), props: xPostPropsSchema }),
   z.object({ kind: z.literal("x_thread"), props: xThreadPropsSchema }),
@@ -57,6 +77,7 @@ export const outputBlockSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("linkedin_post"), props: linkedInPostPropsSchema }),
   z.object({ kind: z.literal("blog_draft"), props: blogDraftPropsSchema }),
   z.object({ kind: z.literal("script"), props: scriptPropsSchema }),
+  z.object({ kind: z.literal("doc"), props: docPropsSchema }),
   z.object({ kind: z.literal("plain"), props: plainPropsSchema }),
 ]);
 
@@ -91,6 +112,7 @@ export const EMIT_OUTPUT_TOOL_INPUT_SCHEMA = {
               "linkedin_post",
               "blog_draft",
               "script",
+              "doc",
               "plain",
             ],
           },
@@ -189,6 +211,22 @@ export function cleanBlockCitations(
             hook: cleanString(block.props.hook),
             beats: block.props.beats.map((b) => ({ time: b.time, line: cleanString(b.line) })),
             cta: block.props.cta ? cleanString(block.props.cta) : undefined,
+          },
+        },
+        stripped: total,
+      };
+    case "doc":
+      return {
+        block: {
+          kind: "doc",
+          props: {
+            title: cleanString(block.props.title),
+            doc_type: block.props.doc_type,
+            body_markdown: cleanString(block.props.body_markdown),
+            sections: block.props.sections?.map((s) => ({
+              heading: cleanString(s.heading),
+              body_markdown: cleanString(s.body_markdown),
+            })),
           },
         },
         stripped: total,

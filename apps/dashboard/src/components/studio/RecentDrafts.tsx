@@ -5,6 +5,12 @@ export type RecentDraftsProps = {
   items: ReadonlyArray<RecentDraft>;
   /** Path each draft's title links to, given the draft id. Defaults to /studio/runs/<id>. */
   hrefFor?: (id: string) => string;
+  /**
+   * When set, each row gets a "rerun" affordance linking to this path. Used by
+   * Studios (Marketing today) that can reopen a workflow pre-filled with a past
+   * run's task + inputs. Omitted Studios just get the read-only title link.
+   */
+  rerunHref?: (id: string) => string;
   emptyLabel?: string;
 };
 
@@ -44,6 +50,7 @@ function statusPillClass(status: string): string {
 export function RecentDrafts({
   items,
   hrefFor = (id) => `/studio/runs/${id}`,
+  rerunHref,
   emptyLabel = "No drafts yet. Generate something above.",
 }: RecentDraftsProps) {
   if (items.length === 0) {
@@ -68,6 +75,16 @@ export function RecentDrafts({
               </span>
             </span>
           </Link>
+          {rerunHref ? (
+            <Link
+              href={rerunHref(d.id)}
+              className="studio-drafts-rerun"
+              title="Rerun with this run's task and inputs"
+              aria-label={`Rerun ${d.title}`}
+            >
+              ↻
+            </Link>
+          ) : null}
         </li>
       ))}
     </ul>

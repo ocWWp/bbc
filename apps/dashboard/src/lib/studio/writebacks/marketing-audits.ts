@@ -49,6 +49,15 @@ function formatBlockForAudit(block: OutputBlock): string {
       const beats = block.props.beats.map((b) => `- **${b.time}** — ${b.line}`).join("\n");
       return `**Script**\n\n**Hook:** ${block.props.hook}\n\n${beats}${cta}`;
     }
+    case "doc": {
+      const secs = block.props.sections?.length
+        ? "\n\n" +
+          block.props.sections
+            .map((s) => `### ${s.heading}\n\n${s.body_markdown}`)
+            .join("\n\n")
+        : "";
+      return `**${block.props.doc_type}: ${block.props.title}**\n\n${block.props.body_markdown}${secs}`;
+    }
     case "plain":
       return block.props.text;
   }

@@ -103,6 +103,32 @@ const teamSection = (max = 6): SidebarSection => ({
     })),
 });
 
+// Finance's "+new" section (UI-SPEC §2/§3). Reads BrainSummary.metrics, which
+// no memory type populates yet — so this section stays hidden (BrainSidebar
+// drops empty sections) until the `metric` memory type lands. Forward-wired.
+const metricsSection = (max = 6): SidebarSection => ({
+  heading: "Metrics & actuals",
+  itemsFromBrain: (b) =>
+    (b.metrics ?? []).slice(0, max).map((m) => ({
+      id: m.id,
+      label: `${m.label}: ${m.value}`,
+      href: `/brain/${m.id}`,
+    })),
+});
+
+// People/HR's "+new" section (UI-SPEC §2/§3). Same forward-wired pattern as
+// metricsSection — reads BrainSummary.comp_bands, hidden until that memory
+// type exists.
+const compBandsSection = (max = 6): SidebarSection => ({
+  heading: "Comp bands",
+  itemsFromBrain: (b) =>
+    (b.comp_bands ?? []).slice(0, max).map((c) => ({
+      id: c.id,
+      label: `${c.label}: ${c.range}`,
+      href: `/brain/${c.id}`,
+    })),
+});
+
 export const ROLE_SHAPES: Record<StudioRole, RoleShape> = {
   marketing: {
     role: "marketing",
@@ -171,5 +197,50 @@ export const ROLE_SHAPES: Record<StudioRole, RoleShape> = {
       { id: "feature-req", label: "Feature triage", templateSlug: `${ROLE_PREFIXES.support}feature-request-triage` },
     ],
     sidebarSections: [voiceSection(), glossarySection(), recentDecisionsSection(4)],
+  },
+
+  finance: {
+    role: "finance",
+    label: "Finance Studio",
+    accentColor: "#14b8a6", // teal — distinct from Engineering's emerald
+    blurb: "Board financials, budget memos, runway analysis — the narrative around the numbers, with its work shown.",
+    defaultChips: [
+      { id: "board-financials", label: "Board financials", templateSlug: `${ROLE_PREFIXES.finance}board-financials` },
+      { id: "budget-memo", label: "Budget memo", templateSlug: `${ROLE_PREFIXES.finance}budget-memo` },
+      { id: "investor-numbers", label: "Investor numbers", templateSlug: `${ROLE_PREFIXES.finance}investor-numbers` },
+      { id: "expense-policy", label: "Expense policy", templateSlug: `${ROLE_PREFIXES.finance}expense-policy` },
+      { id: "runway-analysis", label: "Runway analysis", templateSlug: `${ROLE_PREFIXES.finance}runway-analysis` },
+    ],
+    sidebarSections: [recentDecisionsSection(), vendorsSection(), metricsSection()],
+  },
+
+  legal: {
+    role: "legal",
+    label: "Legal Studio",
+    accentColor: "#64748b", // slate — a serious neutral; never alarming
+    blurb: "NDAs, contractor agreements, IP assignments, policies — a drafting assistant, never a legal advisor. Every output is a draft for attorney review.",
+    defaultChips: [
+      { id: "nda", label: "NDA", templateSlug: `${ROLE_PREFIXES.legal}nda` },
+      { id: "contractor-agreement", label: "Contractor agreement", templateSlug: `${ROLE_PREFIXES.legal}contractor-agreement` },
+      { id: "ip-assignment", label: "IP assignment", templateSlug: `${ROLE_PREFIXES.legal}ip-assignment` },
+      { id: "tos-privacy", label: "ToS & privacy", templateSlug: `${ROLE_PREFIXES.legal}tos-privacy` },
+      { id: "employment-terms", label: "Employment terms", templateSlug: `${ROLE_PREFIXES.legal}employment-terms` },
+    ],
+    sidebarSections: [recentDecisionsSection(), teamSection(), glossarySection()],
+  },
+
+  hr: {
+    role: "hr",
+    label: "People Studio",
+    accentColor: "#f43f5e", // rose — a warm tone, distinct from Support's red
+    blurb: "Job descriptions, offer letters, onboarding plans, reviews, comp rationale — behavior-anchored, bias-flagged, always a draft you personalize.",
+    defaultChips: [
+      { id: "job-description", label: "Job description", templateSlug: `${ROLE_PREFIXES.hr}job-description` },
+      { id: "offer-letter", label: "Offer letter", templateSlug: `${ROLE_PREFIXES.hr}offer-letter` },
+      { id: "onboarding-plan", label: "Onboarding plan", templateSlug: `${ROLE_PREFIXES.hr}onboarding-plan` },
+      { id: "review-template", label: "Review template", templateSlug: `${ROLE_PREFIXES.hr}review-template` },
+      { id: "comp-band-rationale", label: "Comp band rationale", templateSlug: `${ROLE_PREFIXES.hr}comp-band-rationale` },
+    ],
+    sidebarSections: [teamSection(), recentDecisionsSection(), glossarySection(4), compBandsSection()],
   },
 };

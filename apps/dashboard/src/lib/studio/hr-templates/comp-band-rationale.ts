@@ -1,0 +1,98 @@
+import {
+  teamClause,
+  decisionsClause,
+  compBandsClause,
+  overridesClause,
+  HR_CITATION_INSTRUCTION,
+  HR_SENSITIVITY_CONTRACT,
+  outputAsDoc,
+  type Template,
+} from "./types";
+import { registerHrTemplate } from "./registry";
+
+const template: Template = {
+  id: "hr:comp-band-rationale",
+  label: "Comp band rationale",
+  hint: "Write the rationale behind a compensation band or a specific comp decision. Picks this for 'justify the senior engineer band', 'why this offer number', 'document our comp philosophy for X'.",
+  kind: "doc",
+  firstUseInputs: [
+    {
+      id: "scope",
+      label: "Role or band",
+      hint: "The role, level, or band you're documenting. (e.g. 'Senior Engineer band', 'the Head of Sales comp decision')",
+      required: true,
+      kind: "text",
+    },
+    {
+      id: "numbers",
+      label: "The numbers",
+      hint: "The band or offer figures: salary range, equity range, any benchmark data you have. The Studio will not invent comp numbers.",
+      required: true,
+      kind: "text",
+    },
+    {
+      id: "context",
+      label: "Philosophy & context",
+      hint: "Your comp philosophy (percentile target, cash vs equity lean), benchmark sources, internal-equity considerations.",
+      required: false,
+      kind: "text",
+    },
+  ],
+  buildPrompt({ task, brain, inputs, overrides }) {
+    return [
+      "You are documenting the rationale behind a compensation band for a startup. The deliverable explains the *why* so the band can be applied consistently and defended later — not just a number.",
+      HR_SENSITIVITY_CONTRACT,
+      "",
+      teamClause(brain.team),
+      decisionsClause(brain.recent_decisions),
+      compBandsClause(brain.comp_bands),
+      "",
+      `Task: ${task}`,
+      `Role or band: ${inputs.scope ?? "(unspecified)"}`,
+      "The numbers the user provided (use ONLY these, plus memory above):",
+      inputs.numbers ?? "(none)",
+      inputs.context ? `Philosophy & context: ${inputs.context}` : "",
+      "",
+      "Produce a comp band rationale with this structure:",
+      "  # <role / band> — comp rationale",
+      "  ",
+      "  ## The band",
+      "  The salary and equity ranges, stated plainly. Only the numbers the user",
+      "  gave you or that are in memory — never an invented figure.",
+      "  ",
+      "  ## How we got here",
+      "  The reasoning: benchmark sources, percentile target, cash/equity lean.",
+      "  State the assumption behind each derived number.",
+      "  ",
+      "  ## Internal equity",
+      "  How this band sits relative to existing roles — flag any tension and how",
+      "  it's resolved. Pay-equity blind spots noted here.",
+      "  ",
+      "  ## How to apply it",
+      "  Where a specific offer lands in the band and why (experience, location,",
+      "  scope) — in consistent, defensible terms.",
+      "  ",
+      "  ## Open questions",
+      "  Any number or benchmark you needed but didn't have — listed, never estimated.",
+      "  ",
+      "  ## Loop in counsel",
+      "  A required callout: pay equity and compensation structure carry legal",
+      "  exposure that varies by jurisdiction — route comp policy through the Legal",
+      "  Studio or an attorney before it becomes formal policy.",
+      "",
+      "Constraints:",
+      "- Never invent salary, equity, or benchmark numbers. Missing -> Open questions.",
+      "- Show the reasoning behind every derived figure.",
+      "- Frame everything so it can be applied consistently across people.",
+      HR_CITATION_INSTRUCTION,
+      overridesClause(overrides ?? []),
+      "",
+      outputAsDoc("Comp Band Rationale"),
+    ]
+      .filter(Boolean)
+      .join("\n");
+  },
+};
+
+registerHrTemplate(template);
+export default template;
