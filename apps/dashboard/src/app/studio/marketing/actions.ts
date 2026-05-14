@@ -13,6 +13,7 @@ import {
   listTemplateSummaries,
 } from "@/lib/studio/templates/registry";
 import type { OverrideRule } from "@/lib/studio/templates/types";
+import type { PlanPreview } from "@/lib/studio/plan-preview";
 import { resolveLlmModel } from "@/lib/studio/resolve-model";
 import {
   EMIT_OUTPUT_TOOL_INPUT_SCHEMA,
@@ -275,18 +276,10 @@ const inputsRecordSchema = z.record(z.string(), z.string().max(2000));
 // generation. It resolves the actor + RBAC, validates the task, and reports
 // the candidate memory a run could draw on. It does NOT call the LLM and does
 // NOT build the prompt -- that only happens in runWorkflow on confirm.
-
-export type PlanPreview = {
-  templateId: string;
-  templateLabel: string;
-  task: string;
-  inputs: Record<string, string>;
-  planSummary: string; // plain-language, human-readable
-  // Brain rows in scope for this run -- intended retrieval scope, NOT final
-  // citations. Covers the id-bearing memory types; voice/product are always-on
-  // context and are not itemized here.
-  candidateMemories: Array<{ id: string; kind: string; label: string }>;
-};
+//
+// The PlanPreview type lives in @/lib/studio/plan-preview so the client
+// PlanConfirmStage component can import it without pulling in this module.
+export type { PlanPreview };
 
 export type PreviewPlanResult =
   | { ok: true; plan: PlanPreview }

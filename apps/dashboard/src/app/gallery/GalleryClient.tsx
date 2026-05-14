@@ -10,24 +10,7 @@ import type { GalleryTemplate } from "@/lib/studio/gallery";
 import { filterGallery } from "@/lib/studio/gallery-filter";
 import type { StudioRole } from "@/lib/studio/template-id";
 import type { PreviewKind } from "@/lib/studio/templates/types";
-
-// Presentational per-role data for the gallery: short label, 2-letter glyph,
-// and the supertag hue the department renders in. Hues map onto BBC's existing
-// --t-* palette -- no new colors invented. Insertion order sets chip order.
-const STUDIO_PRESENTATION: Record<
-  StudioRole,
-  { label: string; glyph: string; tint: string }
-> = {
-  finance: { label: "Finance", glyph: "Fi", tint: "var(--t-vendor)" },
-  legal: { label: "Legal", glyph: "Lg", tint: "var(--t-note)" },
-  hr: { label: "People", glyph: "Pe", tint: "var(--t-team)" },
-  marketing: { label: "Marketing", glyph: "Mk", tint: "var(--t-voice)" },
-  engineering: { label: "Engineering", glyph: "En", tint: "var(--t-decision)" },
-  founder: { label: "Founder", glyph: "Fo", tint: "var(--t-skill)" },
-  designer: { label: "Designer", glyph: "Ds", tint: "var(--t-product)" },
-  support: { label: "Support", glyph: "Sp", tint: "var(--t-glossary)" },
-};
-const ROLE_ORDER = Object.keys(STUDIO_PRESENTATION) as StudioRole[];
+import { STUDIO_PRESENTATION, ROLE_ORDER } from "@/lib/studio/studio-presentation";
 
 // Friendly output-type label per template kind -- the plain-language "what it
 // produces" trust signal on each card.
