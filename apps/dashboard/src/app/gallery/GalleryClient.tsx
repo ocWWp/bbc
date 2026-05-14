@@ -226,7 +226,7 @@ function TemplateCard({ tpl }: { tpl: GalleryTemplate }) {
 
   return (
     <Link
-      href={`/studio/${tpl.owningRole}`}
+      href={`/studio/${tpl.owningRole}?template=${encodeURIComponent(tpl.id)}`}
       className="tpl-card"
       style={{ ["--role-color" as string]: primary.tint }}
     >
