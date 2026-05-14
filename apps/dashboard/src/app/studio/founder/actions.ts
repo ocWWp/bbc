@@ -7,6 +7,7 @@ import { requireActor, requireRole } from "@/lib/auth/require-user";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getAnthropicClient } from "@/lib/secrets/anthropic-client";
 import { loadBrainSummary, loadTenantMemoryIds } from "@/lib/studio/brain-summary";
+import { TASK_MIN_LEN, TASK_MAX_LEN, INPUT_MAX_LEN } from "@/lib/studio/task-limits";
 import "@/lib/studio/founder-templates";
 import { getFounderTemplate } from "@/lib/studio/founder-templates/registry";
 import { resolveLlmModel } from "@/lib/studio/resolve-model";
@@ -25,8 +26,6 @@ import { logStudioUsage } from "@/lib/studio/usage-log";
  */
 
 const RUN_MODEL_FALLBACK = "claude-sonnet-4-6";
-const MAX_TASK_LEN = 800;
-const MIN_TASK_LEN = 8;
 const MAX_OUTPUT_TOKENS = 6144;
 
 const runRateLimits = new Map<string, number[]>();
@@ -52,7 +51,7 @@ const EMIT_OUTPUT_TOOL = {
   cache_control: { type: "ephemeral" as const },
 };
 
-const inputsRecordSchema = z.record(z.string(), z.string().max(3000));
+const inputsRecordSchema = z.record(z.string(), z.string().max(INPUT_MAX_LEN.founder));
 
 export type CitedMemoryRef = {
   id: string;
@@ -89,11 +88,11 @@ export async function runFounderWorkflow(
   if (!template) return { ok: false, error: `Unknown template: ${templateId}` };
 
   const trimmed = (task ?? "").trim();
-  if (trimmed.length < MIN_TASK_LEN) {
-    return { ok: false, error: `Describe the task in at least ${MIN_TASK_LEN} characters.` };
+  if (trimmed.length < TASK_MIN_LEN) {
+    return { ok: false, error: `Describe the task in at least ${TASK_MIN_LEN} characters.` };
   }
-  if (trimmed.length > MAX_TASK_LEN) {
-    return { ok: false, error: `Task too long -- keep it under ${MAX_TASK_LEN} characters.` };
+  if (trimmed.length > TASK_MAX_LEN.founder) {
+    return { ok: false, error: `Task too long -- keep it under ${TASK_MAX_LEN.founder} characters.` };
   }
 
   const inputsParsed = inputsRecordSchema.safeParse(inputs ?? {});

@@ -7,6 +7,7 @@ import { requireActor, requireRole } from "@/lib/auth/require-user";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getAnthropicClient } from "@/lib/secrets/anthropic-client";
 import { loadBrainSummary, loadTenantMemoryIds } from "@/lib/studio/brain-summary";
+import { TASK_MIN_LEN, TASK_MAX_LEN, INPUT_MAX_LEN } from "@/lib/studio/task-limits";
 import "@/lib/studio/legal-templates"; // side-effect: register the 5 templates
 import { getLegalTemplate } from "@/lib/studio/legal-templates/registry";
 import type { OverrideRule } from "@/lib/studio/legal-templates/types";
@@ -36,8 +37,6 @@ import { logStudioUsage } from "@/lib/studio/usage-log";
 
 const RUN_MODEL_FALLBACK = "claude-sonnet-4-6";
 const OVERRIDE_PROPOSE_MODEL = "claude-haiku-4-5-20251001";
-const MAX_TASK_LEN = 600;
-const MIN_TASK_LEN = 8;
 const MAX_OUTPUT_TOKENS = 6144;
 const MAX_ACTIVE_OVERRIDES = 10;
 const MAX_OVERRIDE_MESSAGE_LEN = 1000;
@@ -68,7 +67,7 @@ const EMIT_OUTPUT_TOOL = {
 
 // Legal inputs can carry pasted context (product/data descriptions, agreed
 // terms), so the per-value cap is roomier than the marketing/eng default.
-const inputsRecordSchema = z.record(z.string(), z.string().max(5000));
+const inputsRecordSchema = z.record(z.string(), z.string().max(INPUT_MAX_LEN.legal));
 
 export type CitedMemoryRef = {
   id: string;
@@ -105,11 +104,11 @@ export async function runLegalWorkflow(
   if (!template) return { ok: false, error: `Unknown template: ${templateId}` };
 
   const trimmed = (task ?? "").trim();
-  if (trimmed.length < MIN_TASK_LEN) {
-    return { ok: false, error: `Describe the task in at least ${MIN_TASK_LEN} characters.` };
+  if (trimmed.length < TASK_MIN_LEN) {
+    return { ok: false, error: `Describe the task in at least ${TASK_MIN_LEN} characters.` };
   }
-  if (trimmed.length > MAX_TASK_LEN) {
-    return { ok: false, error: `Task too long -- keep it under ${MAX_TASK_LEN} characters.` };
+  if (trimmed.length > TASK_MAX_LEN.legal) {
+    return { ok: false, error: `Task too long -- keep it under ${TASK_MAX_LEN.legal} characters.` };
   }
 
   const inputsParsed = inputsRecordSchema.safeParse(inputs ?? {});

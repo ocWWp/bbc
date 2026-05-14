@@ -7,6 +7,7 @@ import { requireActor, requireRole } from "@/lib/auth/require-user";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getAnthropicClient } from "@/lib/secrets/anthropic-client";
 import { loadBrainSummary, loadTenantMemoryIds } from "@/lib/studio/brain-summary";
+import { TASK_MIN_LEN, TASK_MAX_LEN, INPUT_MAX_LEN } from "@/lib/studio/task-limits";
 import "@/lib/studio/templates"; // registers the 10 templates on the shared registry
 import {
   getTemplate,
@@ -35,7 +36,7 @@ import {
  * - All DB reads/writes go through the user's Supabase session, never the
  *   service role. RLS on studio_runs / studio_template_overrides / memory_files
  *   gates everything tenant-side.
- * - LLM input is capped (MAX_TASK_LEN) and the input is the user's own task
+ * - LLM input is capped (TASK_MAX_LEN) and the input is the user's own task
  *   string, not arbitrary memory content -- there is no prompt-injection path
  *   from the brain to other tenants' data.
  *
@@ -47,8 +48,6 @@ import {
 
 const PROPOSE_MODEL = "claude-haiku-4-5-20251001";
 const RUN_MODEL_FALLBACK = "claude-sonnet-4-6";
-const MAX_TASK_LEN = 500;
-const MIN_TASK_LEN = 8;
 const MAX_ACTIVE_OVERRIDES = 10;
 
 const proposeRateLimits = new Map<string, number[]>();
@@ -131,11 +130,11 @@ export async function proposeWorkflows(task: string): Promise<ProposeWorkflowsRe
   }
 
   const trimmed = (task ?? "").trim();
-  if (trimmed.length < MIN_TASK_LEN) {
-    return { ok: false, error: `Describe the task in at least ${MIN_TASK_LEN} characters.` };
+  if (trimmed.length < TASK_MIN_LEN) {
+    return { ok: false, error: `Describe the task in at least ${TASK_MIN_LEN} characters.` };
   }
-  if (trimmed.length > MAX_TASK_LEN) {
-    return { ok: false, error: `Task too long -- keep it under ${MAX_TASK_LEN} characters.` };
+  if (trimmed.length > TASK_MAX_LEN.marketing) {
+    return { ok: false, error: `Task too long -- keep it under ${TASK_MAX_LEN.marketing} characters.` };
   }
 
   const supabase = await getSupabaseServerClient();
@@ -269,7 +268,7 @@ const EMIT_OUTPUT_TOOL = {
   cache_control: { type: "ephemeral" as const },
 };
 
-const inputsRecordSchema = z.record(z.string(), z.string().max(2000));
+const inputsRecordSchema = z.record(z.string(), z.string().max(INPUT_MAX_LEN.marketing));
 
 // ---- Plan-before-run (Phase P) -------------------------------------------
 // previewPlan is the trust checkpoint shown after Configure, before
@@ -296,11 +295,11 @@ export async function previewPlan(
   if (!r.ok) return { ok: false, error: r.output };
 
   const trimmed = (task ?? "").trim();
-  if (trimmed.length < MIN_TASK_LEN) {
-    return { ok: false, error: `Describe the task in at least ${MIN_TASK_LEN} characters.` };
+  if (trimmed.length < TASK_MIN_LEN) {
+    return { ok: false, error: `Describe the task in at least ${TASK_MIN_LEN} characters.` };
   }
-  if (trimmed.length > MAX_TASK_LEN) {
-    return { ok: false, error: `Task too long -- keep it under ${MAX_TASK_LEN} characters.` };
+  if (trimmed.length > TASK_MAX_LEN.marketing) {
+    return { ok: false, error: `Task too long -- keep it under ${TASK_MAX_LEN.marketing} characters.` };
   }
 
   const template = getTemplate(templateId);
@@ -371,11 +370,11 @@ export async function runWorkflow(
   if (!template) return { ok: false, error: `Unknown template: ${templateId}` };
 
   const trimmed = (task ?? "").trim();
-  if (trimmed.length < MIN_TASK_LEN) {
-    return { ok: false, error: `Describe the task in at least ${MIN_TASK_LEN} characters.` };
+  if (trimmed.length < TASK_MIN_LEN) {
+    return { ok: false, error: `Describe the task in at least ${TASK_MIN_LEN} characters.` };
   }
-  if (trimmed.length > MAX_TASK_LEN) {
-    return { ok: false, error: `Task too long -- keep it under ${MAX_TASK_LEN} characters.` };
+  if (trimmed.length > TASK_MAX_LEN.marketing) {
+    return { ok: false, error: `Task too long -- keep it under ${TASK_MAX_LEN.marketing} characters.` };
   }
 
   const inputsParsed = inputsRecordSchema.safeParse(inputs ?? {});
