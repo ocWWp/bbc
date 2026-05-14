@@ -1,0 +1,96 @@
+import {
+  teamClause,
+  decisionsClause,
+  glossaryClause,
+  overridesClause,
+  HR_CITATION_INSTRUCTION,
+  HR_SENSITIVITY_CONTRACT,
+  outputAsDoc,
+  type Template,
+} from "./types";
+import { registerHrTemplate } from "./registry";
+
+const template: Template = {
+  id: "hr:job-description",
+  label: "Job description",
+  hint: "Draft a job description for an open role. Picks this for 'JD for our first designer', 'write up the senior engineer role', 'job posting for a PM'.",
+  kind: "doc",
+  firstUseInputs: [
+    {
+      id: "role",
+      label: "Role & level",
+      hint: "The title and seniority. (e.g. 'Senior Backend Engineer', 'first Product Designer', 'Head of Sales')",
+      required: true,
+      kind: "text",
+    },
+    {
+      id: "scope",
+      label: "What they'll actually do",
+      hint: "The real work in the first 6-12 months — the problems they'll own, not a generic responsibilities list.",
+      required: true,
+      kind: "text",
+    },
+    {
+      id: "context",
+      label: "Must-haves & context",
+      hint: "Genuine must-have skills, the team they join, location/remote, anything pre-decided. Leave out wish-list items — the Studio will separate must-haves from nice-to-haves.",
+      required: false,
+      kind: "text",
+    },
+  ],
+  buildPrompt({ task, brain, inputs, overrides }) {
+    return [
+      "You are drafting a job description for a startup. A good JD describes real work and attracts the right person without deterring qualified applicants who'd thrive.",
+      HR_SENSITIVITY_CONTRACT,
+      "",
+      teamClause(brain.team),
+      decisionsClause(brain.recent_decisions),
+      glossaryClause(brain.glossary),
+      "",
+      `Task: ${task}`,
+      `Role & level: ${inputs.role ?? "(unspecified)"}`,
+      `What they'll actually do: ${inputs.scope ?? "(unspecified)"}`,
+      inputs.context ? `Must-haves & context: ${inputs.context}` : "",
+      "",
+      "Produce a job description with this structure:",
+      "  # <role title>",
+      "  ",
+      "  ## The role",
+      "  Two or three sentences. The actual problem this person owns and why it",
+      "  matters now. Concrete — not 'wear many hats'.",
+      "  ",
+      "  ## What you'll do",
+      "  4-6 bullets. Each is observable work in the first 6-12 months.",
+      "  ",
+      "  ## What we're looking for",
+      "  Genuine must-haves only. Each is a demonstrable behavior or experience,",
+      "  not a trait. No degree gate or years-of-experience gate unless the user",
+      "  explicitly stated one is a real requirement.",
+      "  ",
+      "  ## Nice to have",
+      "  Everything that isn't a true must-have goes here, clearly labeled.",
+      "  ",
+      "  ## How we work / what we offer",
+      "  Team, location/remote, and comp range as [BRACKETED] placeholders for the",
+      "  user to fill (pay transparency helps — prompt them to include it).",
+      "  ",
+      "  ## Bias check",
+      "  A short note: any biased or exclusionary language you caught and rewrote,",
+      "  or 'none found' if the input was clean.",
+      "",
+      "Constraints:",
+      "- Behavior-anchored throughout. No personality-trait requirements.",
+      "- Must-haves are genuine must-haves. When in doubt, it's a nice-to-have.",
+      "- Do not invent comp numbers — leave them [BRACKETED].",
+      HR_CITATION_INSTRUCTION,
+      overridesClause(overrides ?? []),
+      "",
+      outputAsDoc("Job Description"),
+    ]
+      .filter(Boolean)
+      .join("\n");
+  },
+};
+
+registerHrTemplate(template);
+export default template;

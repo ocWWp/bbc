@@ -1,8 +1,14 @@
 import Link from "next/link";
 import { STUDIO_ROLES, type StudioRole } from "@/lib/studio/template-id";
 
+// Most role labels are just the capitalized key; a few read better with an
+// override (the "hr" key surfaces as "People", matching the Studio name).
+const ROLE_LABEL_OVERRIDES: Partial<Record<StudioRole, string>> = {
+  hr: "People",
+};
+
 function roleLabel(role: StudioRole): string {
-  return role.charAt(0).toUpperCase() + role.slice(1);
+  return ROLE_LABEL_OVERRIDES[role] ?? role.charAt(0).toUpperCase() + role.slice(1);
 }
 
 /**

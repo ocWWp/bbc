@@ -116,6 +116,19 @@ const metricsSection = (max = 6): SidebarSection => ({
     })),
 });
 
+// People/HR's "+new" section (UI-SPEC §2/§3). Same forward-wired pattern as
+// metricsSection — reads BrainSummary.comp_bands, hidden until that memory
+// type exists.
+const compBandsSection = (max = 6): SidebarSection => ({
+  heading: "Comp bands",
+  itemsFromBrain: (b) =>
+    (b.comp_bands ?? []).slice(0, max).map((c) => ({
+      id: c.id,
+      label: `${c.label}: ${c.range}`,
+      href: `/brain/${c.id}`,
+    })),
+});
+
 export const ROLE_SHAPES: Record<StudioRole, RoleShape> = {
   marketing: {
     role: "marketing",
@@ -214,5 +227,20 @@ export const ROLE_SHAPES: Record<StudioRole, RoleShape> = {
       { id: "employment-terms", label: "Employment terms", templateSlug: `${ROLE_PREFIXES.legal}employment-terms` },
     ],
     sidebarSections: [recentDecisionsSection(), teamSection(), glossarySection()],
+  },
+
+  hr: {
+    role: "hr",
+    label: "People Studio",
+    accentColor: "#f43f5e", // rose — a warm tone, distinct from Support's red
+    blurb: "Job descriptions, offer letters, onboarding plans, reviews, comp rationale — behavior-anchored, bias-flagged, always a draft you personalize.",
+    defaultChips: [
+      { id: "job-description", label: "Job description", templateSlug: `${ROLE_PREFIXES.hr}job-description` },
+      { id: "offer-letter", label: "Offer letter", templateSlug: `${ROLE_PREFIXES.hr}offer-letter` },
+      { id: "onboarding-plan", label: "Onboarding plan", templateSlug: `${ROLE_PREFIXES.hr}onboarding-plan` },
+      { id: "review-template", label: "Review template", templateSlug: `${ROLE_PREFIXES.hr}review-template` },
+      { id: "comp-band-rationale", label: "Comp band rationale", templateSlug: `${ROLE_PREFIXES.hr}comp-band-rationale` },
+    ],
+    sidebarSections: [teamSection(), recentDecisionsSection(), glossarySection(4), compBandsSection()],
   },
 };

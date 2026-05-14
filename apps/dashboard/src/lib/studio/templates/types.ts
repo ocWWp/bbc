@@ -46,6 +46,11 @@ export type BrainSummary = {
   // empty sections). The role-shapes section + the finance metricsClause are
   // forward-wired so adding the `metric` memory type only touches brain-summary.ts.
   metrics?: Array<{ id: string; label: string; value: string }>;
+  // People/HR Studio comp bands -- role -> salary/equity range. Same
+  // forward-wired pattern as `metrics`: nothing populates it yet, so the HR
+  // sidebar's comp-bands section stays hidden until a `comp_band` memory type
+  // lands, at which point only brain-summary.ts changes.
+  comp_bands?: Array<{ id: string; label: string; range: string }>;
 };
 
 // One active override row, shaped for prompt merging. The server action

@@ -9,6 +9,7 @@ import "@/lib/studio/designer-templates";
 import "@/lib/studio/support-templates";
 import "@/lib/studio/finance-templates";
 import "@/lib/studio/legal-templates";
+import "@/lib/studio/hr-templates";
 import { listClientTemplates } from "@/lib/studio/templates/registry";
 import { listClientEngTemplates } from "@/lib/studio/eng-templates/registry";
 import { listClientFounderTemplates } from "@/lib/studio/founder-templates/registry";
@@ -16,6 +17,7 @@ import { listClientDesignerTemplates } from "@/lib/studio/designer-templates/reg
 import { listClientSupportTemplates } from "@/lib/studio/support-templates/registry";
 import { listClientFinanceTemplates } from "@/lib/studio/finance-templates/registry";
 import { listClientLegalTemplates } from "@/lib/studio/legal-templates/registry";
+import { listClientHrTemplates } from "@/lib/studio/hr-templates/registry";
 
 export const metadata = {
   title: "Studio · BBC",
@@ -100,6 +102,16 @@ const STUDIOS = [
       "NDAs, contractor agreements, IP assignments, ToS & privacy, employment terms — a drafting assistant, never a legal advisor. Every output is a draft for attorney review.",
     templates: () => listClientLegalTemplates(),
     templateMatcher: (id: string) => id.startsWith("legal:"),
+  },
+  {
+    slug: "hr",
+    label: "People",
+    glyph: "P",
+    color: "var(--t-team)",
+    description:
+      "Job descriptions, offer letters, onboarding plans, review templates, comp rationale — behavior-anchored, bias-flagged, every output a draft you personalize.",
+    templates: () => listClientHrTemplates(),
+    templateMatcher: (id: string) => id.startsWith("hr:"),
   },
 ] as const;
 
