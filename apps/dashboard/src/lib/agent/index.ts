@@ -15,3 +15,6 @@ export type {
   BuildConversationArgs,
   BuildAnomalyArgs,
 } from "./context-builder";
+
+export { TOOLS, toolsForIntent } from "./tools";
+export type { ToolDef } from "./tools";
