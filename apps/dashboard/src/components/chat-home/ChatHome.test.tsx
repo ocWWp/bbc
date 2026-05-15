@@ -147,17 +147,37 @@ describe("ChatHome state machine", () => {
 });
 
 describe("ChatHome — no provider key", () => {
-  it("admin without provider key sees Connect a provider CTA pointing at /settings/keys (Anthropic UI), no input", () => {
+  it("admin without provider key defaults to Ask brain intent (no key needed for the read path)", () => {
     render(<ChatHome {...defaultProps} role="admin" hasProviderKey={false} />);
-    const cta = screen.getByRole("link", { name: /connect a provider/i });
-    expect(cta.getAttribute("href")).toBe("/settings/keys");
-    expect(screen.queryByRole("textbox")).toBeNull();
+    // Toggle is visible — gate is per-intent, not per-page.
+    const askTab = screen.getByRole("tab", { name: /ask brain/i });
+    expect(askTab.getAttribute("aria-selected")).toBe("true");
+    // Ask-brain composer renders normally — no provider key required.
+    expect(screen.getByRole("textbox", { name: /search your brain/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /search brain/i })).toBeTruthy();
   });
 
-  it("non-admin without provider key sees Ask your admin copy", () => {
+  it("admin without provider key, flipping to Make draft, sees the gated composer with Connect link", () => {
+    render(<ChatHome {...defaultProps} role="admin" hasProviderKey={false} />);
+    fireEvent.click(screen.getByRole("tab", { name: /make draft/i }));
+    expect(screen.getByText(/make draft.*setup needed/i)).toBeTruthy();
+    const cta = screen.getByRole("link", { name: /connect a provider/i });
+    expect(cta.getAttribute("href")).toBe("/settings/keys");
+    // No textbox in the gated state.
+    expect(screen.queryByRole("textbox", { name: /describe what you need/i })).toBeNull();
+  });
+
+  it("non-admin without provider key, flipping to Make draft, sees the Ask-your-admin copy and NO Connect link", () => {
     render(<ChatHome {...defaultProps} role="member" hasProviderKey={false} />);
-    expect(screen.getByText(/ask your admin/i)).toBeTruthy();
-    expect(screen.queryByRole("textbox")).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: /make draft/i }));
+    expect(screen.getByText(/your admin needs to connect/i)).toBeTruthy();
+    expect(screen.queryByRole("link", { name: /connect a provider/i })).toBeNull();
+  });
+
+  it("non-admin without provider key can still use Ask brain", () => {
+    render(<ChatHome {...defaultProps} role="member" hasProviderKey={false} />);
+    expect(screen.getByRole("tab", { name: /ask brain/i }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("textbox", { name: /search your brain/i })).toBeTruthy();
   });
 });
 
@@ -368,6 +388,88 @@ describe("ChatHome — Read vs Make intent toggle (Option D)", () => {
     // Composer should be visible again with the search-brain label still on.
     expect(screen.getByRole("textbox", { name: /search your brain/i })).toBeTruthy();
     expect(screen.queryByText("Q3 metrics targets")).toBeNull();
+  });
+
+  it("stale-response guard: searchBrain resolving AFTER the user flips to Make is dropped (does NOT render brain_results)", async () => {
+    // Search promise we resolve manually, after the intent flip.
+    let resolveSearch: (v: { ok: true; hits: any[] }) => void = () => {};
+    searchBrain.mockImplementation(
+      () => new Promise((res) => { resolveSearch = res as any; }),
+    );
+    // routeTask never gets called in this test, but provide a default just in case.
+    routeTask.mockResolvedValue({ ok: true, kind: "candidates", candidates: [] });
+
+    render(<ChatHome {...defaultProps} />);
+    fireEvent.click(screen.getByRole("tab", { name: /ask brain/i }));
+    fireEvent.change(screen.getByRole("textbox", { name: /search your brain/i }), {
+      target: { value: "Q3 metrics" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /search brain/i }));
+    // Thinking state visible.
+    await waitFor(() => screen.getByText(/searching brain/i));
+
+    // Flip intent BEFORE the search resolves.
+    fireEvent.click(screen.getByRole("tab", { name: /make draft/i }));
+
+    // Now resolve the in-flight search with hits. These must be dropped.
+    resolveSearch({ ok: true, hits: [{ id: "x", type: "decision", title: "Q3 metrics targets", updated_at: "2026-04-12T00:00:00Z" }] });
+    // Wait a tick.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByText("Q3 metrics targets")).toBeNull();
+    // Make-composer is showing.
+    expect(screen.getByRole("button", { name: /ask bbc/i })).toBeTruthy();
+  });
+
+  it("stale-response guard: routeTask resolving AFTER the user flips to Ask is dropped (does NOT render candidates)", async () => {
+    let resolveRoute: (v: any) => void = () => {};
+    routeTask.mockImplementation(
+      () => new Promise((res) => { resolveRoute = res; }),
+    );
+    searchBrain.mockResolvedValue({ ok: true, hits: [] });
+
+    render(<ChatHome {...defaultProps} />);
+    fireEvent.change(screen.getByRole("textbox", { name: /describe/i }), {
+      target: { value: "write an NDA for a contractor" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /ask bbc/i }));
+    await waitFor(() => screen.getByText(/routing…/i));
+
+    // Flip to Ask brain BEFORE routeTask resolves.
+    fireEvent.click(screen.getByRole("tab", { name: /ask brain/i }));
+
+    resolveRoute({
+      ok: true,
+      kind: "candidates",
+      candidates: [{ templateId: "legal:nda", owningRole: "legal", label: "STALE-NDA", rationale: "stale" }],
+    });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByText("STALE-NDA")).toBeNull();
+  });
+
+  it("candidates carry the routed task: clicking a candidate AFTER typing a new task routes the ORIGINAL task (not the live input)", async () => {
+    routeTask.mockResolvedValue({
+      ok: true,
+      kind: "candidates",
+      candidates: [{ templateId: "legal:nda", owningRole: "legal", label: "NDA", rationale: "fits" }],
+    });
+
+    render(<ChatHome {...defaultProps} />);
+    const input = screen.getByRole("textbox", { name: /describe/i });
+    // Submit task A.
+    const taskA = "draft an NDA for the new contractor";
+    fireEvent.change(input, { target: { value: taskA } });
+    fireEvent.click(screen.getByRole("button", { name: /ask bbc/i }));
+    await waitFor(() => screen.getByText("NDA"));
+
+    // User keeps typing — input now holds a different task B.
+    fireEvent.change(input, { target: { value: "totally different draft I'm typing now" } });
+
+    // Click the candidate from task A's routing run.
+    fireEvent.click(screen.getByRole("button", { name: /open NDA in legal studio/i }));
+    // The studio URL must carry task A — the one the LLM actually routed.
+    const calledWith = push.mock.calls[0]?.[0] as string;
+    expect(calledWith).toContain(encodeURIComponent(taskA));
+    expect(calledWith).not.toContain(encodeURIComponent("totally different draft"));
   });
 
   it("switching intent from ask back to make resets the stage and re-labels the submit", async () => {

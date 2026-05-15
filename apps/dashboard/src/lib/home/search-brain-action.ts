@@ -68,7 +68,13 @@ export async function searchBrain(query: string): Promise<SearchBrainResult> {
     });
     return { ok: true, hits };
   } catch (err) {
+    // Log details server-side; return a stable generic message so the
+    // browser never sees internal helper names or DB error shapes.
+    // Codex review on 2026-05-15 flagged the raw err.message leak.
     const msg = err instanceof Error ? err.message : String(err);
-    return { ok: false, error: msg };
+    console.error(
+      `searchBrain: tenant=${a.actor.tenant_id} query_len=${q.length} error=${msg}`,
+    );
+    return { ok: false, error: "Search failed. Try again in a moment." };
   }
 }

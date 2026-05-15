@@ -5969,7 +5969,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   .chat-home-runs .run-status { display: none; }
 }
 
-/* ---- no-provider-key gate ---- */
+/* ---- no-provider-key gate (legacy full-page; kept for tests/back-compat) ---- */
 .chat-home.no-provider-key {
   gap: 14px;
   padding-top: 120px;
@@ -5980,6 +5980,26 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 .chat-home.no-provider-key .btn {
   margin-top: 10px;
 }
+
+/* ---- composer-shell, "make draft" gated by missing provider key ----
+   Replaces the live composer when intent=make and the tenant has no LLM
+   provider configured. The intent toggle above stays visible so the user
+   can flip to Ask brain (which doesn't need a key) without leaving. */
+.composer-shell--gated { padding: 22px 22px 20px; }
+.composer-gated-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+.composer-gated-msg {
+  font-size: 14px;
+  color: var(--paper-muted);
+  line-height: 1.55;
+  margin: 0;
+  text-wrap: pretty;
+}
+.composer-shell--gated .btn { margin-top: 4px; }
 
 /* ---- intent toggle (Make draft / Ask brain) ----
    Sits above the composer-shell. Two equal-width pill buttons in a low-key

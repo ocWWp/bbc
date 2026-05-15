@@ -80,11 +80,24 @@ describe("searchBrain", () => {
     if (res.ok) expect(res.hits).toEqual([]);
   });
 
-  it("propagates a brain-api error as { ok: false }", async () => {
-    searchMemoriesMock.mockRejectedValueOnce(new Error("supabase down"));
+  it("returns a stable generic error on brain-api failure (does NOT leak internal error text)", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    searchMemoriesMock.mockRejectedValueOnce(
+      new Error("searchMemories: relation \"memory_files_secret\" does not exist"),
+    );
     const { searchBrain } = await import("./search-brain-action");
     const res = await searchBrain("anything");
     expect(res.ok).toBe(false);
-    if (!res.ok) expect(res.error).toContain("supabase down");
+    if (!res.ok) {
+      // Generic message — no internal helper name, no DB shape.
+      expect(res.error).not.toContain("searchMemories");
+      expect(res.error).not.toContain("relation");
+      expect(res.error).toMatch(/try again/i);
+    }
+    // But the detail IS logged server-side for ops to see.
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("searchBrain"),
+    );
+    errorSpy.mockRestore();
   });
 });

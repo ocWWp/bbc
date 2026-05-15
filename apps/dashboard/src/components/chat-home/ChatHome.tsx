@@ -17,7 +17,7 @@
 // We use the closure-local `clarification` arg as the per-task signal, not
 // component state, so it can't leak across tasks.
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -36,7 +36,16 @@ import BrainResults from "./BrainResults";
 type Stage =
   | { kind: "idle" }
   | { kind: "thinking" }
-  | { kind: "candidates"; candidates: RoutedTemplate[]; clarification?: string }
+  // candidates carries the EXACT task it was routed for, not the live `task`
+  // input. Otherwise: submit task A, type task B before A resolves, click a
+  // candidate → studio receives task B with a template chosen for A. Codex
+  // review caught this in the FAIL_BLOCKING pass on 2026-05-15.
+  | {
+      kind: "candidates";
+      candidates: RoutedTemplate[];
+      task: string;
+      clarification?: string;
+    }
   | { kind: "clarify"; question: string; suggestions: string[]; task: string }
   | { kind: "brain_results"; query: string; hits: ReadonlyArray<BrainHit> }
   | { kind: "error"; message: string };
@@ -75,36 +84,17 @@ export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeP
   const recentRunsCount = recentRuns.length;
   const router = useRouter();
   const [task, setTask] = useState("");
-  const [intent, setIntent] = useState<Intent>("make");
+  // Default to "ask" when no provider key is configured — the read path
+  // doesn't need an LLM, so it should be the available path. With a key,
+  // "make" is the default since routing to a studio is the primary action.
+  const [intent, setIntent] = useState<Intent>(hasProviderKey ? "make" : "ask");
   const [stage, setStage] = useState<Stage>({ kind: "idle" });
   const [, startTransition] = useTransition();
-
-  if (!hasProviderKey) {
-    return (
-      <div className="chat-home no-provider-key">
-        <span className="eyebrow">
-          <span className="dot" aria-hidden /> ask bbc · setup needed
-        </span>
-        <h1 className="chat-home-title">
-          No provider key <span className="serif">yet</span>.
-        </h1>
-        {role === "admin" ? (
-          <>
-            <p className="chat-home-blurb">
-              BBC needs a model provider key to route tasks. Connect one and you're set.
-            </p>
-            <Link href="/settings/keys" className="btn primary">
-              Connect a provider →
-            </Link>
-          </>
-        ) : (
-          <p className="chat-home-blurb">
-            Ask your admin to connect a provider so you can ask BBC.
-          </p>
-        )}
-      </div>
-    );
-  }
+  // Monotonic request id — every submit/intent-flip bumps it. Async
+  // completions ignore their result if the current id doesn't match the
+  // one captured at dispatch time. Without this, a slow searchBrain can
+  // land brain_results onto the Make UI after the user has flipped intent.
+  const requestIdRef = useRef(0);
 
   const submitMake = (taskText: string, clarification?: string) => {
     const t = taskText.trim();
@@ -112,9 +102,13 @@ export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeP
       setStage({ kind: "error", message: "Describe what you need in a few more words." });
       return;
     }
+    const myId = ++requestIdRef.current;
     setStage({ kind: "thinking" });
     startTransition(async () => {
       const res = await routeTask(t, clarification ? { clarification } : undefined);
+      // Stale-response guard: if the user submitted another task or flipped
+      // intent while this request was in flight, drop the result on the floor.
+      if (requestIdRef.current !== myId) return;
       if (!res.ok) {
         setStage({ kind: "error", message: res.error });
         return;
@@ -140,7 +134,11 @@ export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeP
         });
         return;
       }
-      setStage({ kind: "candidates", candidates: res.candidates, clarification });
+      // Carry the exact task the LLM routed for. Don't trust the live `task`
+      // input — the user may have typed something else by the time candidates
+      // resolve, and routing task B to a template chosen for A is silent
+      // mis-routing.
+      setStage({ kind: "candidates", candidates: res.candidates, task: t, clarification });
     });
   };
 
@@ -150,9 +148,11 @@ export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeP
       setStage({ kind: "error", message: "Type at least 2 characters to search." });
       return;
     }
+    const myId = ++requestIdRef.current;
     setStage({ kind: "thinking" });
     startTransition(async () => {
       const res = await searchBrain(t);
+      if (requestIdRef.current !== myId) return;
       if (!res.ok) {
         setStage({ kind: "error", message: res.error });
         return;
@@ -175,12 +175,19 @@ export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeP
   };
 
   const onCandidateClick = (c: RoutedTemplate) => {
+    if (stage.kind !== "candidates") return;
+    // Use the task the LLM was actually routed against, not the live `task`
+    // input. The user may have typed something different by the time they
+    // click a candidate (e.g. they hit a starter prompt, or kept typing).
+    // Routing a different task into a template chosen for the original is
+    // silent mis-routing — codex review caught this on 2026-05-15.
+    const routedTask = stage.task;
+    const { clarification } = stage;
     // If this candidate came out of a clarify cycle, append the clarification
-    // to the task before handoff so the studio run actually sees the detail
-    // the user just supplied. Otherwise the studio would re-receive the
-    // original ambiguous text and produce a draft without the disambiguator.
-    const clarification = stage.kind === "candidates" ? stage.clarification : undefined;
-    const enriched = clarification ? `${task.trim()} — ${clarification}` : task.trim();
+    // to the task before handoff so the studio run sees the detail the user
+    // just supplied. Otherwise the studio would re-receive the original
+    // ambiguous text and produce a draft without the disambiguator.
+    const enriched = clarification ? `${routedTask} — ${clarification}` : routedTask;
     router.push(
       `/studio/${c.owningRole}?template=${encodeURIComponent(c.templateId)}&task=${encodeURIComponent(enriched)}`,
     );
@@ -202,6 +209,11 @@ export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeP
   const onIntentChange = (next: Intent) => {
     if (next === intent) return;
     setIntent(next);
+    // Bump the request id so any in-flight response from the previous
+    // intent is dropped on the floor when it lands. Without this, a slow
+    // searchBrain that started under "ask" can render brain_results on
+    // top of the Make UI after the user flipped intent.
+    requestIdRef.current++;
     // Switching intent always returns to idle — a half-loaded candidates list
     // or brain hits for the *other* intent would be confusing.
     setStage({ kind: "idle" });
@@ -295,6 +307,26 @@ export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeP
             hits={stage.hits}
             onReset={onResetBrain}
           />
+        ) : intent === "make" && !hasProviderKey ? (
+          // Make-flow requires an LLM provider key; Ask-brain does not. The
+          // toggle above stays visible so the user can switch to Ask brain
+          // and use the read-only path immediately. Codex review caught the
+          // old gate blocking Ask entirely.
+          <div className="composer-shell composer-shell--gated" data-disabled>
+            <div className="composer-gated-body">
+              <span className="eyebrow">make draft · setup needed</span>
+              <p className="composer-gated-msg">
+                {role === "admin"
+                  ? "Connect a model provider to route tasks to a studio. Or switch to Ask brain — that path doesn't need a key."
+                  : "Your admin needs to connect a model provider before BBC can route tasks. You can still use Ask brain to search what's already in memory."}
+              </p>
+              {role === "admin" && (
+                <Link href="/settings/keys" className="btn primary">
+                  Connect a provider →
+                </Link>
+              )}
+            </div>
+          </div>
         ) : (
           <div className="composer-shell" data-disabled={stage.kind === "thinking" || undefined}>
             <textarea
