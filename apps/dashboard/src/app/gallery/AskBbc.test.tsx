@@ -36,7 +36,8 @@ describe("AskBbc", () => {
     await waitFor(() => expect(routeTask).toHaveBeenCalledTimes(1));
     expect(screen.getByText("Draft an ADR")).toBeTruthy();
     expect(screen.getByText("fits the decision")).toBeTruthy();
-    expect(screen.getByText("engineering")).toBeTruthy();
+    // role badge renders the studio's display label (STUDIO_PRESENTATION)
+    expect(screen.getByText("Engineering")).toBeTruthy();
   });
 
   it("clicking a candidate deep-links into the studio with template + task", async () => {

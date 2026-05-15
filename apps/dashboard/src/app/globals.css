@@ -4681,6 +4681,143 @@ mark.mark-skill { --mark-color: var(--t-skill); }
    Ported from the Claude Design "studio.html" bundle.
    ============================================================ */
 
+/* ---- Ask BBC — task-first router; the calm front door above browse ---- */
+.ask-bbc {
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--paper);
+  padding: 20px 20px 18px;
+  margin-bottom: 16px;
+}
+.ask-bbc .ask-head { margin-bottom: 14px; }
+.ask-bbc .eyebrow {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: "Geist Mono", monospace;
+  font-size: 11px;
+  color: var(--paper-muted);
+  letter-spacing: 0.04em;
+}
+.ask-bbc .eyebrow .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent);
+}
+.ask-bbc h2 {
+  font-family: "Geist", sans-serif;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  margin: 8px 0 0;
+  line-height: 1.2;
+}
+.ask-bbc .sub {
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.55;
+  margin: 6px 0 0;
+  max-width: 60ch;
+  text-wrap: pretty;
+}
+.ask-row {
+  display: flex; align-items: stretch; gap: 10px;
+}
+@media (max-width: 540px) { .ask-row { flex-direction: column; } }
+.ask-input {
+  flex: 1; min-width: 0;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--bg);
+  padding: 12px 14px;
+  font-family: "Geist", sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink);
+  resize: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+.ask-input:focus { outline: none; border-color: var(--ink); background: var(--paper); }
+.ask-input::placeholder { color: var(--paper-muted-2); font-style: italic; }
+.ask-go {
+  flex-shrink: 0;
+  align-self: stretch;
+  min-width: 116px;
+}
+@media (max-width: 540px) { .ask-go { align-self: flex-end; } }
+.ask-error {
+  font-size: 12.5px;
+  color: var(--paper-warn);
+  margin: 10px 0 0;
+}
+.ask-results { margin-top: 16px; }
+.ask-results .eyebrow {
+  display: block;
+  font-family: "Geist Mono", monospace;
+  font-size: 11px;
+  color: var(--paper-muted);
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+.ask-cands {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.ask-cand {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  padding: 12px 14px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--paper);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.ask-cand:hover {
+  border-color: color-mix(in oklab, var(--role-color, var(--ink)), transparent 50%);
+  background: color-mix(in oklab, var(--paper), var(--role-color, var(--ink)) 5%);
+}
+.ask-cand:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent), transparent 30%);
+  outline-offset: 2px;
+}
+.ask-cand .ac-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--role-color, var(--paper-muted-2));
+}
+.ask-cand .ac-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ask-cand .ac-label {
+  font-family: "Geist", sans-serif;
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.ask-cand .ac-rat {
+  font-size: 12.5px;
+  color: var(--ink-2);
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+.ask-cand .ac-role {
+  font-family: "Geist Mono", monospace;
+  font-size: 11px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.ask-cand .ac-arrow {
+  color: var(--paper-muted);
+  font-size: 13px;
+  transition: transform 0.12s, color 0.12s;
+}
+.ask-cand:hover .ac-arrow { color: var(--ink); transform: translateX(2px); }
+@media (max-width: 540px) {
+  .ask-cand { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .ask-cand .ac-arrow { display: none; }
+}
+
 /* ---- search field (big, prominent — first interactive thing) ---- */
 .gal-search {
   display: flex; align-items: center; gap: 12px;
