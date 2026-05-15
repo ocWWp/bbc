@@ -34,3 +34,12 @@ export type {
 
 export { classifyIntent } from "./classify";
 export type { ClassifierLlm } from "./classify";
+
+export { emitObservationProposal } from "./proposal-emitter";
+export type {
+  ObservationStatus,
+  StagedFinding,
+  EmitArgs,
+  EmitResult,
+  ProposeObservationRpc,
+} from "./proposal-emitter";
