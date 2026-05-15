@@ -11,6 +11,7 @@ import { filterGallery } from "@/lib/studio/gallery-filter";
 import type { StudioRole } from "@/lib/studio/template-id";
 import type { PreviewKind } from "@/lib/studio/templates/types";
 import { STUDIO_PRESENTATION, ROLE_ORDER } from "@/lib/studio/studio-presentation";
+import AskBbc from "./AskBbc";
 
 // Friendly output-type label per template kind -- the plain-language "what it
 // produces" trust signal on each card.
@@ -88,6 +89,9 @@ export default function GalleryClient({ templates }: Props) {
           </Link>
         </div>
       </header>
+
+      {/* Ask BBC -- task-first router; the fast path above browse-by-template */}
+      <AskBbc />
 
       {/* search */}
       <div className="gal-search">

@@ -1,8 +1,13 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import GalleryClient from "./GalleryClient";
 import type { GalleryTemplate } from "@/lib/studio/gallery";
+
+// GalleryClient renders <AskBbc />, which uses next/navigation's useRouter and
+// the routeTask server action -- both stubbed so the gallery tests stay unit.
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("@/lib/studio/route-task-action", () => ({ routeTask: vi.fn() }));
 
 afterEach(cleanup);
 
