@@ -6,6 +6,7 @@ export type {
   AnomalyContext,
   AgentContext,
   Intent,
+  ConversationalIntent,
 } from "./types";
 
 export { buildAgentContext } from "./context-builder";

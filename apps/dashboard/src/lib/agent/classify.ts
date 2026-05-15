@@ -12,9 +12,9 @@
 // here; the dependency lives at the orchestrator layer where binding
 // resolution + provider routing happen.
 
-import type { ConversationTurn, Intent } from "./types";
+import type { ConversationTurn, ConversationalIntent, Intent } from "./types";
 
-const CONVERSATIONAL_INTENTS = new Set<Intent>([
+const CONVERSATIONAL_INTENTS = new Set<ConversationalIntent>([
   "navigate",
   "explain",
   "draft",
@@ -23,6 +23,12 @@ const CONVERSATIONAL_INTENTS = new Set<Intent>([
   "unclear",
 ]);
 
+/**
+ * The classifier may return any `Intent` shape at runtime (LLM is free
+ * to emit anything), but the function NEVER hands `observe-anomaly` back
+ * to the caller. Anything outside the conversational subset becomes
+ * `unclear`.
+ */
 export type ClassifierLlm = (input: {
   text: string;
   recent: ConversationTurn[];
@@ -42,16 +48,18 @@ export async function classifyIntent(
   text: string,
   recent: readonly ConversationTurn[],
   llm: ClassifierLlm,
-): Promise<Intent> {
+): Promise<ConversationalIntent> {
   try {
     const r = await llm({
       text,
       recent: recent.slice(-2) as ConversationTurn[],
     });
-    if (!CONVERSATIONAL_INTENTS.has(r.intent)) {
+    if (
+      !CONVERSATIONAL_INTENTS.has(r.intent as ConversationalIntent)
+    ) {
       return "unclear";
     }
-    return r.intent;
+    return r.intent as ConversationalIntent;
   } catch {
     return "unclear";
   }

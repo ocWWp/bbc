@@ -9,8 +9,8 @@
 
 import type {
   AgentContext,
+  ConversationalIntent,
   ConversationTurn,
-  Intent,
   Role,
 } from "./types";
 import { verifyGrounding } from "./grounding";
@@ -48,14 +48,23 @@ export type BuildContextFn = (input: {
   recent: ConversationTurn[];
 }) => Promise<AgentContext>;
 
+/**
+ * Returns one of the 6 conversational intents. Higher-level than the raw
+ * `ClassifierLlm` — this is the post-fallback shape. The Route Handler
+ * binds: `(input) => classifyIntent(input.text, input.recent, llm)`.
+ *
+ * Type-narrowing to `ConversationalIntent` (vs full `Intent`) prevents
+ * the chat path from accidentally receiving `observe-anomaly` and
+ * enabling `observation_emit` (codex M1 review P1 #1).
+ */
 export type ClassifyFn = (input: {
   text: string;
   recent: ConversationTurn[];
-}) => Promise<{ intent: Intent }>;
+}) => Promise<ConversationalIntent>;
 
 export type InvokeLlmFn = (input: {
   ctx: AgentContext;
-  intent: Intent;
+  intent: ConversationalIntent;
   toolNames: readonly string[];
 }) => Promise<LlmResult>;
 
@@ -148,12 +157,13 @@ export async function homeTurn(
       recent: args.recent,
     });
 
-    // 3) Classify intent.
-    const classified = await deps.classify({
+    // 3) Classify intent. ClassifyFn already applies the unclear-fallback
+    // and narrows to ConversationalIntent, so we cannot receive
+    // 'observe-anomaly' here even if the underlying LLM is malicious.
+    const intent = await deps.classify({
       text: args.userInput,
       recent: args.recent,
     });
-    const intent = classified.intent;
 
     // 4) Pick tool subset for the intent.
     const tools = toolsForIntent(intent);
@@ -210,9 +220,18 @@ export async function homeTurn(
     // Always reconcile to free the reservation. Even on LLM error we
     // assume actual = estimated as the worst-case (consistent with the
     // lazy-cleanup policy inside reserve_quota — see migration policy).
-    await deps.reconcileQuota({
-      reservation_id: reservation.reservationId,
-      actual_tokens: actualTokens || ESTIMATED_TOKENS_PER_TURN,
-    });
+    //
+    // Guarded with try/catch so a reconcile failure does not poison the
+    // user-facing terminal event (codex M1 review P2 #5). Orphan
+    // reservations are reaped by the next reserve_quota call's lazy
+    // cleanup after 5 minutes (M0 migration policy).
+    try {
+      await deps.reconcileQuota({
+        reservation_id: reservation.reservationId,
+        actual_tokens: actualTokens || ESTIMATED_TOKENS_PER_TURN,
+      });
+    } catch (reconcileErr) {
+      void reconcileErr;
+    }
   }
 }

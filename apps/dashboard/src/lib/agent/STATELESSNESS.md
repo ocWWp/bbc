@@ -17,7 +17,7 @@ This audit is the **M1.12 acceptance gate**. Any future addition to `lib/agent/`
 | `index.ts` | None (re-exports only) | None | None |
 | `types.ts` | None (type-only) | None | None |
 | `context-builder.ts` | None | None | `ContextDb` injected via `args.db` |
-| `tools.ts` | `TOOLS` (`readonly`) + `BY_INTENT` — both immutable, no mutation paths exposed | None | None |
+| `tools.ts` | `TOOLS` + `BY_INTENT` — both `Object.freeze`d at module load (runtime-enforced, not just TS-readonly) | None | None |
 | `grounding.ts` | `MEM_MARKER` regex + `FALLBACK` string — immutable | None | None |
 | `quota.ts` | None | None | `ReserveRpc` and `ReconcileRpc` injected as args |
 | `classify.ts` | `CONVERSATIONAL_INTENTS` Set — immutable, never `.add`'d | None | `ClassifierLlm` injected |

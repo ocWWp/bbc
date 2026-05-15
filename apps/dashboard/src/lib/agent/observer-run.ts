@@ -15,8 +15,8 @@
 import type { AgentContext } from "./types";
 import { verifyGrounding } from "./grounding";
 import type {
+  EmitArgs,
   EmitResult,
-  ObservationStatus,
   StagedFinding,
 } from "./proposal-emitter";
 import type { LlmResult } from "./home-turn";
@@ -45,14 +45,36 @@ export type SignalPollResult = {
   windowSnapshot: unknown;
 };
 
-export type AnomalyDetection = {
-  found: boolean;
-  delta: number;
-  deltaUnits: "ratio" | "percent" | "absolute";
-  zScore: number;
-  /** Adapter-shaped anomalies array persisted to observer_runs.anomalies_jsonb. */
-  anomalies: unknown;
-};
+/**
+ * Discriminated union — the detector reports one of four outcomes so the
+ * orchestrator can route each terminal status type explicitly (codex M1
+ * review P1 #2). The M3.3 Z-score implementation populates this shape.
+ */
+export type AnomalyDetection =
+  | {
+      kind: "anomaly";
+      delta: number;
+      deltaUnits: "ratio" | "percent" | "absolute";
+      zScore: number;
+      /** Adapter-shaped anomalies array persisted to observer_runs.anomalies_jsonb. */
+      anomalies: unknown;
+    }
+  | {
+      kind: "no_anomaly";
+      delta: number;
+      deltaUnits: "ratio" | "percent" | "absolute";
+      zScore: number;
+      anomalies: unknown;
+    }
+  | {
+      kind: "skipped_cooldown";
+      /** Optional informational fields; orchestrator ignores them. */
+      anomalies?: unknown;
+    }
+  | {
+      kind: "skipped_min_sample";
+      anomalies?: unknown;
+    };
 
 export type PollSignalFn = (input: {
   signalId: string;
@@ -80,21 +102,14 @@ export type InvokeObserverLlmFn = (input: {
   ctx: AgentContext;
 }) => Promise<LlmResult>;
 
-export type EmitProposalFn = (args: {
-  tenantId: string;
-  signalId: string;
-  windowStart: string;
-  windowEnd: string;
-  windowSnapshot: unknown;
-  anomalies: unknown;
-  llmCallId: string | null;
-  llmTokensUsed: number | null;
-  status: ObservationStatus;
-  stagedFinding?: StagedFinding;
-  proposalBody?: string;
-  proposalSummary?: string;
-  errorClass?: string;
-}) => Promise<EmitResult>;
+/**
+ * Use the proposal-emitter's `EmitArgs` shape directly so the
+ * discriminated-union compile-time enforcement (status='completed'
+ * requires stagedFinding + proposalBody + proposalSummary; everything
+ * else requires those absent) is preserved at the orchestrator boundary
+ * too (codex M1 review P2 #7).
+ */
+export type EmitProposalFn = (args: EmitArgs) => Promise<EmitResult>;
 
 export type ObserverRunDeps = {
   reserveQuota: (args: {
@@ -135,11 +150,11 @@ export async function observerRun(
   args: ObserverRunArgs,
   deps: ObserverRunDeps,
 ): Promise<ObserverRunResult> {
-  // 1) Quota gate. If refused, return without polling or emitting —
-  // observer runs are best-effort under budget exhaustion, NOT logged.
-  // Rationale: manual triggers in v1.6 mean the user clicked "run now";
-  // they get an HTTP error response from the route handler with the
-  // exhaustion reason. v1.7's cron path will need a different strategy.
+  // 1) Quota gate. Even under exhaustion we still emit a
+  // status='quota_exhausted' observer_runs row so the audit trail is
+  // complete (codex M1 review P2 #6). No external traffic happens — the
+  // emit goes directly through propose_observation() which inserts the
+  // audit row and skips the queue insert because proposal_body is null.
   const reservation = await deps.reserveQuota({
     tenantId: args.tenantId,
     actorId: args.requestedBy,
@@ -147,6 +162,18 @@ export async function observerRun(
     kind: "observer_run",
   });
   if (!reservation.ok) {
+    await deps.emitProposal({
+      tenantId: args.tenantId,
+      signalId: args.signalId,
+      windowStart: args.windowStart,
+      windowEnd: args.windowEnd,
+      windowSnapshot: {},
+      anomalies: [],
+      llmCallId: null,
+      llmTokensUsed: null,
+      status: "quota_exhausted",
+      errorClass: `quota:${reservation.reason}`,
+    });
     return { ok: false, reason: "quota_exhausted" };
   }
 
@@ -176,7 +203,7 @@ export async function observerRun(
         status: "adapter_error",
         errorClass: `adapter:${classify(err)}`,
       });
-      return toResult(result, "adapter_error");
+      return toResult(result);
     }
 
     // 3) Detect anomaly. Pure; no IO; cannot throw.
@@ -185,7 +212,27 @@ export async function observerRun(
       baseline: signal.baseline,
     });
 
-    if (!detection.found) {
+    // 3a) Skipped paths (cooldown, min-sample) — emit terminal status, no LLM call.
+    if (
+      detection.kind === "skipped_cooldown" ||
+      detection.kind === "skipped_min_sample"
+    ) {
+      const result = await deps.emitProposal({
+        tenantId: args.tenantId,
+        signalId: args.signalId,
+        windowStart: args.windowStart,
+        windowEnd: args.windowEnd,
+        windowSnapshot: signal.windowSnapshot,
+        anomalies: detection.anomalies ?? [],
+        llmCallId: null,
+        llmTokensUsed: null,
+        status: detection.kind,
+      });
+      return toResult(result);
+    }
+
+    // 3b) No anomaly — emit terminal status, no LLM call.
+    if (detection.kind === "no_anomaly") {
       const result = await deps.emitProposal({
         tenantId: args.tenantId,
         signalId: args.signalId,
@@ -197,7 +244,7 @@ export async function observerRun(
         llmTokensUsed: null,
         status: "no_anomaly",
       });
-      return toResult(result, "no_anomaly");
+      return toResult(result);
     }
 
     // 4) Anomaly detected — assemble context.
@@ -227,7 +274,7 @@ export async function observerRun(
         status: "llm_error",
         errorClass: `llm:${classify(err)}`,
       });
-      return toResult(result, "llm_error");
+      return toResult(result);
     }
     actualTokens = llm.tokens;
 
@@ -267,12 +314,24 @@ export async function observerRun(
       proposalSummary: summarize(args.metricName, detection),
     });
 
-    return toResult(result, "completed");
+    return toResult(result);
   } finally {
-    await deps.reconcileQuota({
-      reservation_id: reservation.reservationId,
-      actual_tokens: actualTokens || ESTIMATED_TOKENS_PER_RUN,
-    });
+    // Reconcile — guarded with try/catch so a reconciliation failure
+    // doesn't poison the user-facing result (codex M1 review P2 #5).
+    // If reconcile throws, we log and move on; the next reserve_quota
+    // will lazy-clean orphaned reservations after 5 minutes per the
+    // M0 migration policy.
+    try {
+      await deps.reconcileQuota({
+        reservation_id: reservation.reservationId,
+        actual_tokens: actualTokens || ESTIMATED_TOKENS_PER_RUN,
+      });
+    } catch (reconcileErr) {
+      // Intentionally swallow — see comment above. The reservation row
+      // is now an orphan that lazy-cleanup will reap on the next
+      // reserve_quota() invocation for this tenant.
+      void reconcileErr;
+    }
   }
 }
 
@@ -280,7 +339,10 @@ export async function observerRun(
 // Helpers
 // ────────────────────────────────────────────────────────────────────
 
-function summarize(metric: string, d: AnomalyDetection): string {
+function summarize(
+  metric: string,
+  d: Extract<AnomalyDetection, { kind: "anomaly" }>,
+): string {
   const sign = d.delta >= 0 ? "+" : "";
   const pct =
     d.deltaUnits === "ratio"
@@ -296,10 +358,7 @@ function classify(err: unknown): string {
   return "Unknown";
 }
 
-function toResult(
-  emit: EmitResult,
-  _statusLabel: ObservationStatus,
-): ObserverRunResult {
+function toResult(emit: EmitResult): ObserverRunResult {
   if (emit.ok) {
     return {
       ok: true,

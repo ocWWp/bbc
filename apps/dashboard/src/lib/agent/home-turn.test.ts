@@ -21,7 +21,7 @@ const happyDeps = () => ({
     .mockResolvedValue({ ok: true, reservationId: "r1" }),
   reconcileQuota: vi.fn().mockResolvedValue({ ok: true }),
   buildContext: vi.fn().mockResolvedValue(baseCtx()),
-  classify: vi.fn().mockResolvedValue({ intent: "navigate" }),
+  classify: vi.fn().mockResolvedValue("navigate"),
   invokeLlm: vi.fn().mockResolvedValue({
     text: "Open the admin dashboard at /dashboard.",
     toolCalls: [

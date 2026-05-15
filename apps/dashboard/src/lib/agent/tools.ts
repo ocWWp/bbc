@@ -14,7 +14,12 @@ export type ToolDef = {
   inputSchema: Record<string, unknown>;
 };
 
-export const TOOLS: readonly ToolDef[] = [
+/**
+ * Frozen at module load — `readonly` is TS-only; `Object.freeze` makes the
+ * immutability enforceable against careless or hostile importers (codex
+ * M1 review P2 #3).
+ */
+export const TOOLS: readonly ToolDef[] = Object.freeze([
   {
     name: "memory_search",
     scope: "internal",
@@ -96,9 +101,9 @@ export const TOOLS: readonly ToolDef[] = [
       required: ["signalId", "anomaly", "hypothesis"],
     },
   },
-] as const;
+] as const) as readonly ToolDef[];
 
-const BY_INTENT: Record<Intent, readonly string[]> = {
+const BY_INTENT: Readonly<Record<Intent, readonly string[]>> = Object.freeze({
   navigate: ["route_match"],
   explain: ["memory_search", "memory_fetch"],
   draft: ["memory_search", "memory_fetch", "studio_compose"],
@@ -106,7 +111,7 @@ const BY_INTENT: Record<Intent, readonly string[]> = {
   meta: ["memory_search"],
   unclear: [],
   "observe-anomaly": ["memory_search", "memory_fetch", "observation_emit"],
-};
+});
 
 export function toolsForIntent(intent: Intent): readonly ToolDef[] {
   const allowed = BY_INTENT[intent];

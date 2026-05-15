@@ -85,16 +85,23 @@ export type AgentContext = {
 };
 
 /**
- * Output of `classifyIntent()` for the conversation path.
- * `observe-anomaly` is the fixed intent for the async observer path —
- * `homeTurn` never produces it; `observerRun` skips the classifier and
- * passes it directly.
+ * Conversational intents — the 6 values `classifyIntent()` is allowed to
+ * return. Narrower than `Intent` because `observe-anomaly` is reserved
+ * for the observer path and must not be selectable by the chat-side
+ * classifier (otherwise the chat path could enable observation_emit
+ * by mistake — codex M1 review P1 #1).
  */
-export type Intent =
+export type ConversationalIntent =
   | "navigate"
   | "explain"
   | "draft"
   | "watch"
   | "meta"
-  | "unclear"
-  | "observe-anomaly";
+  | "unclear";
+
+/**
+ * The full intent vocabulary. `observe-anomaly` is the fixed intent for
+ * the async observer path — `observerRun` skips the classifier and uses
+ * it directly via `toolsForIntent`.
+ */
+export type Intent = ConversationalIntent | "observe-anomaly";

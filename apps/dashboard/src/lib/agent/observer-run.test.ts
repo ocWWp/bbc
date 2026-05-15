@@ -43,7 +43,7 @@ const happyDeps = () => ({
     windowSnapshot: { current: [12, 13, 14], baseline: [1, 1, 1] },
   }),
   detectAnomaly: vi.fn().mockReturnValue({
-    found: true,
+    kind: "anomaly" as const,
     delta: 0.12,
     deltaUnits: "ratio" as const,
     zScore: 3.2,
@@ -92,7 +92,7 @@ describe("observerRun", () => {
     const deps = {
       ...happyDeps(),
       detectAnomaly: vi.fn().mockReturnValue({
-        found: false,
+        kind: "no_anomaly" as const,
         delta: 0,
         deltaUnits: "ratio" as const,
         zScore: 0.4,
@@ -106,7 +106,7 @@ describe("observerRun", () => {
     expect(payload.status).toBe("no_anomaly");
   });
 
-  it("quota-exhausted path: short-circuits before pollSignal", async () => {
+  it("quota-exhausted path: emits status='quota_exhausted' audit row, skips pollSignal + invokeLlm", async () => {
     const deps = {
       ...happyDeps(),
       reserveQuota: vi
@@ -116,12 +116,46 @@ describe("observerRun", () => {
     const r = await observerRun(baseArgs, deps);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toBe("quota_exhausted");
-    // pollSignal must NOT be called — that's where the external traffic
-    // would happen. Quota gate is the cut-off.
+    // No external traffic.
     expect(deps.pollSignal).not.toHaveBeenCalled();
     expect(deps.invokeLlm).not.toHaveBeenCalled();
-    expect(deps.emitProposal).not.toHaveBeenCalled();
+    // No reservation → no reconcile.
     expect(deps.reconcileQuota).not.toHaveBeenCalled();
+    // BUT emit IS called so the audit trail records the attempt.
+    expect(deps.emitProposal).toHaveBeenCalledOnce();
+    const payload = deps.emitProposal.mock.calls[0][0];
+    expect(payload.status).toBe("quota_exhausted");
+    expect(payload.errorClass).toMatch(/quota/);
+  });
+
+  it("skipped_cooldown path: emits status='skipped_cooldown', no LLM call", async () => {
+    const deps = {
+      ...happyDeps(),
+      detectAnomaly: vi
+        .fn()
+        .mockReturnValue({ kind: "skipped_cooldown" as const }),
+    };
+    await observerRun(baseArgs, deps);
+    expect(deps.invokeLlm).not.toHaveBeenCalled();
+    expect(deps.emitProposal).toHaveBeenCalledOnce();
+    expect(deps.emitProposal.mock.calls[0][0].status).toBe(
+      "skipped_cooldown",
+    );
+  });
+
+  it("skipped_min_sample path: emits status='skipped_min_sample', no LLM call", async () => {
+    const deps = {
+      ...happyDeps(),
+      detectAnomaly: vi
+        .fn()
+        .mockReturnValue({ kind: "skipped_min_sample" as const }),
+    };
+    await observerRun(baseArgs, deps);
+    expect(deps.invokeLlm).not.toHaveBeenCalled();
+    expect(deps.emitProposal).toHaveBeenCalledOnce();
+    expect(deps.emitProposal.mock.calls[0][0].status).toBe(
+      "skipped_min_sample",
+    );
   });
 
   it("adapter-error path: pollSignal throws → emit with status='adapter_error'", async () => {
@@ -149,13 +183,13 @@ describe("observerRun", () => {
     expect(payload.errorClass).toMatch(/llm/i);
   });
 
-  it("reconciles quota on every terminal path (anomaly, no-anomaly, errors)", async () => {
+  it("reconciles quota on every reservation-holding path (anomaly, no-anomaly, errors)", async () => {
     const paths = [
       happyDeps(),
       {
         ...happyDeps(),
         detectAnomaly: vi.fn().mockReturnValue({
-          found: false,
+          kind: "no_anomaly" as const,
           delta: 0,
           deltaUnits: "ratio" as const,
           zScore: 0.4,
@@ -171,6 +205,19 @@ describe("observerRun", () => {
       await observerRun(baseArgs, deps);
       expect(deps.reconcileQuota).toHaveBeenCalled();
     }
+  });
+
+  it("does not throw when reconcileQuota itself fails (logs and swallows)", async () => {
+    const deps = {
+      ...happyDeps(),
+      reconcileQuota: vi
+        .fn()
+        .mockRejectedValue(new Error("DB unavailable")),
+    };
+    const r = await observerRun(baseArgs, deps);
+    // Run succeeded from the user's perspective; reconcile orphan will
+    // be reaped by the next reserve_quota call's lazy cleanup.
+    expect(r.ok).toBe(true);
   });
 
   it("strips ungrounded LLM claims before emitting the proposal", async () => {
