@@ -141,9 +141,10 @@ describe("ChatHome state machine", () => {
 });
 
 describe("ChatHome — no provider key", () => {
-  it("admin without provider key sees Connect a provider CTA, no input", () => {
+  it("admin without provider key sees Connect a provider CTA pointing at /settings/keys (Anthropic UI), no input", () => {
     render(<ChatHome {...defaultProps} role="admin" hasProviderKey={false} />);
-    expect(screen.getByRole("link", { name: /connect a provider/i })).toBeTruthy();
+    const cta = screen.getByRole("link", { name: /connect a provider/i });
+    expect(cta.getAttribute("href")).toBe("/settings/keys");
     expect(screen.queryByRole("textbox")).toBeNull();
   });
 
@@ -151,5 +152,105 @@ describe("ChatHome — no provider key", () => {
     render(<ChatHome {...defaultProps} role="member" hasProviderKey={false} />);
     expect(screen.getByText(/ask your admin/i)).toBeTruthy();
     expect(screen.queryByRole("textbox")).toBeNull();
+  });
+});
+
+describe("ChatHome — codex review fixes", () => {
+  it("hasClarified resets per task — second task with first-time clarify is not blocked", async () => {
+    // First task: clarify → answer → candidates (hasClarified becomes true)
+    routeTask
+      .mockResolvedValueOnce({ ok: true, kind: "clarify", question: "Q1?", suggestions: ["a", "b"] })
+      .mockResolvedValueOnce({
+        ok: true,
+        kind: "candidates",
+        candidates: [{ templateId: "support:reply", owningRole: "support", label: "Reply", rationale: "ok" }],
+      })
+      // Second task (fresh): server returns clarify on first turn — must NOT be blocked
+      .mockResolvedValueOnce({ ok: true, kind: "clarify", question: "Q2-FRESH?", suggestions: ["x", "y"] });
+
+    render(<ChatHome {...defaultProps} />);
+
+    // First cycle: clarify → answer → candidates.
+    fireEvent.change(screen.getByRole("textbox", { name: /describe/i }), {
+      target: { value: "first ambiguous task" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /ask bbc/i }));
+    await waitFor(() => screen.getByText("Q1?"));
+    fireEvent.click(screen.getByRole("button", { name: /^answer: a$/ }));
+    await waitFor(() => screen.getByText("Reply"));
+
+    // Second task (re-query after the clarify-stage remount). Clarify should
+    // render, NOT the "couldn't narrow this down" error — that error is what
+    // the prior approach produced because hasClarified leaked across tasks.
+    fireEvent.change(screen.getByRole("textbox", { name: /describe/i }), {
+      target: { value: "second different task" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /ask bbc/i }));
+    await waitFor(() => expect(screen.getByText("Q2-FRESH?")).toBeTruthy());
+    expect(screen.queryByText(/couldn't narrow this down/i)).toBeNull();
+  });
+
+  it("starter pick resets hasClarified so the starter can receive a fresh clarify", async () => {
+    routeTask
+      .mockResolvedValueOnce({ ok: true, kind: "clarify", question: "Q1?", suggestions: ["a"] })
+      .mockResolvedValueOnce({ ok: true, kind: "candidates", candidates: [
+        { templateId: "x", owningRole: "support", label: "X", rationale: "ok" },
+      ]})
+      .mockResolvedValueOnce({ ok: true, kind: "clarify", question: "Q-STARTER?", suggestions: ["yes", "no"] });
+
+    render(<ChatHome {...defaultProps} />);
+    const input = screen.getByRole("textbox", { name: /describe/i });
+    fireEvent.change(input, { target: { value: "first task" } });
+    fireEvent.click(screen.getByRole("button", { name: /ask bbc/i }));
+    await waitFor(() => screen.getByText("Q1?"));
+    fireEvent.click(screen.getByRole("button", { name: /^answer: a$/ }));
+    await waitFor(() => screen.getByText("X"));
+
+    // Picking a starter populates the input AND resets the guard.
+    fireEvent.click(screen.getByRole("button", { name: "Draft an NDA" }));
+    fireEvent.click(screen.getByRole("button", { name: /ask bbc/i }));
+    await waitFor(() => expect(screen.getByText("Q-STARTER?")).toBeTruthy());
+  });
+
+  it("clarification is carried into the studio deep link as part of ?task=", async () => {
+    routeTask
+      .mockResolvedValueOnce({ ok: true, kind: "clarify", question: "Which dept?", suggestions: ["Sales"] })
+      .mockResolvedValueOnce({
+        ok: true,
+        kind: "candidates",
+        candidates: [{ templateId: "support:reply", owningRole: "support", label: "Reply", rationale: "ok" }],
+      });
+
+    render(<ChatHome {...defaultProps} />);
+    fireEvent.change(screen.getByRole("textbox", { name: /describe/i }), {
+      target: { value: "draft a follow-up" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /ask bbc/i }));
+    await waitFor(() => screen.getByText("Which dept?"));
+    fireEvent.click(screen.getByRole("button", { name: /^answer: Sales$/ }));
+    await waitFor(() => screen.getByText("Reply"));
+
+    fireEvent.click(screen.getByRole("button", { name: /open Reply in support studio/i }));
+    expect(push).toHaveBeenCalledWith(expect.stringContaining(
+      encodeURIComponent("draft a follow-up — Sales"),
+    ));
+  });
+
+  it("non-clarify candidates carry the task plain (no clarification appended)", async () => {
+    routeTask.mockResolvedValue({
+      ok: true,
+      kind: "candidates",
+      candidates: [{ templateId: "legal:nda", owningRole: "legal", label: "NDA-plain", rationale: "fits" }],
+    });
+    render(<ChatHome {...defaultProps} />);
+    fireEvent.change(screen.getByRole("textbox", { name: /describe/i }), {
+      target: { value: "write an NDA for a contractor" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /ask bbc/i }));
+    await waitFor(() => screen.getByText("NDA-plain"));
+    fireEvent.click(screen.getByRole("button", { name: /open NDA-plain in legal studio/i }));
+    const calledWith = push.mock.calls[0]?.[0] as string;
+    expect(calledWith).toContain(encodeURIComponent("write an NDA for a contractor"));
+    expect(calledWith).not.toContain("%E2%80%94"); // em dash not present (no clarification appended)
   });
 });

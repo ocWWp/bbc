@@ -4,8 +4,11 @@
 // constrained state machine so the page never drifts into chat-thread mode.
 //
 // State machine: idle → thinking → (candidates | clarify | error)
-// Max 1 clarify turn per task — enforced both client-side (hasClarified) and
-// server-side (routeTask with opts.clarification forces tool_choice=route_task).
+// Max 1 clarify turn per task — enforced server-side (routeTask with
+// opts.clarification forces tool_choice=route_task) and client-side by
+// rejecting any clarify response that comes back from a CLARIFIED request.
+// We use the closure-local `clarification` arg as the per-task signal, not
+// component state, so it can't leak across tasks.
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
@@ -21,7 +24,7 @@ import RecentRunsStrip, { type RecentRun } from "./RecentRunsStrip";
 type Stage =
   | { kind: "idle" }
   | { kind: "thinking" }
-  | { kind: "candidates"; candidates: RoutedTemplate[] }
+  | { kind: "candidates"; candidates: RoutedTemplate[]; clarification?: string }
   | { kind: "clarify"; question: string; suggestions: string[]; task: string }
   | { kind: "error"; message: string };
 
@@ -38,7 +41,6 @@ export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeP
   const router = useRouter();
   const [task, setTask] = useState("");
   const [stage, setStage] = useState<Stage>({ kind: "idle" });
-  const [hasClarified, setHasClarified] = useState(false);
   const [, startTransition] = useTransition();
 
   if (!hasProviderKey) {
@@ -55,7 +57,7 @@ export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeP
             <p className="chat-home-blurb">
               BBC needs a model provider key to route tasks. Connect one and you're set.
             </p>
-            <Link href="/settings/api-keys" className="btn primary">
+            <Link href="/settings/keys" className="btn primary">
               Connect a provider →
             </Link>
           </>
@@ -82,8 +84,12 @@ export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeP
         return;
       }
       if (res.kind === "clarify") {
-        // Client-side guardrail: refuse a second clarify even if the server tries.
-        if (hasClarified) {
+        // Per-task guard: a second clarify is only blocked when THIS call was
+        // already a clarified turn (i.e. clarification arg is set). A fresh
+        // submit's first clarify response is always welcomed. Using the
+        // closure arg instead of component state means the guard cannot leak
+        // across tasks (codex review caught the leak in the prior approach).
+        if (clarification) {
           setStage({
             kind: "error",
             message: "Couldn't narrow this down — try rephrasing what you need.",
@@ -98,25 +104,33 @@ export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeP
         });
         return;
       }
-      setStage({ kind: "candidates", candidates: res.candidates });
+      setStage({ kind: "candidates", candidates: res.candidates, clarification });
     });
   };
 
   const onClarifyClick = (suggestion: string) => {
     if (stage.kind !== "clarify") return;
-    setHasClarified(true);
     submit(stage.task, suggestion);
   };
 
   const onCandidateClick = (c: RoutedTemplate) => {
-    const taskToCarry = stage.kind === "clarify" ? stage.task : task;
+    // If this candidate came out of a clarify cycle, append the clarification
+    // to the task before handoff so the studio run actually sees the detail
+    // the user just supplied. Otherwise the studio would re-receive the
+    // original ambiguous text and produce a draft without the disambiguator.
+    const clarification = stage.kind === "candidates" ? stage.clarification : undefined;
+    const enriched = clarification ? `${task.trim()} — ${clarification}` : task.trim();
     router.push(
-      `/studio/${c.owningRole}?template=${encodeURIComponent(c.templateId)}&task=${encodeURIComponent(taskToCarry.trim())}`,
+      `/studio/${c.owningRole}?template=${encodeURIComponent(c.templateId)}&task=${encodeURIComponent(enriched)}`,
     );
   };
 
   const onStarterPick = (starter: string) => {
     setTask(starter);
+    setStage({ kind: "idle" });
+  };
+
+  const onRephrase = () => {
     setStage({ kind: "idle" });
   };
 
@@ -168,7 +182,7 @@ export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeP
           <button
             type="button"
             className="link-quiet"
-            onClick={() => setStage({ kind: "idle" })}
+            onClick={onRephrase}
           >
             or rephrase →
           </button>
