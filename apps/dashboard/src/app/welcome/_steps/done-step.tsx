@@ -78,13 +78,13 @@ export function DoneStep({ count, firstId, tenantSlug, proposals }: Props) {
           </Link>
           <Link className="next-card" href="/gallery">
             <span className="h">
-              run a <span className="serif">studio</span>.
+              open the <span className="serif">gallery</span>.
             </span>
             <span className="b">
-              pick a role. it&apos;ll pull from your brain and draft something to review.
+              pick a template. it&apos;ll pull from your brain and draft something to review.
             </span>
             <span className="tail">
-              <span>→ /studio</span>
+              <span>→ /gallery</span>
               <span>↗</span>
             </span>
           </Link>

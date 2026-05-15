@@ -12,6 +12,9 @@ import { STUDIO_PRESENTATION } from "@/lib/studio/studio-presentation";
 export default function AskBbc() {
   const router = useRouter();
   const [task, setTask] = useState("");
+  // The task that actually produced `candidates`. Pinned so that editing the
+  // textarea afterwards can't pair a stale candidate with a different task.
+  const [routedTask, setRoutedTask] = useState("");
   const [candidates, setCandidates] = useState<RoutedTemplate[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -30,13 +33,14 @@ export default function AskBbc() {
         setCandidates(null);
         return;
       }
+      setRoutedTask(t);
       setCandidates(res.candidates);
     });
   };
 
   const open = (c: RoutedTemplate) =>
     router.push(
-      `/studio/${c.owningRole}?template=${encodeURIComponent(c.templateId)}&task=${encodeURIComponent(task.trim())}`,
+      `/studio/${c.owningRole}?template=${encodeURIComponent(c.templateId)}&task=${encodeURIComponent(routedTask)}`,
     );
 
   const onKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
