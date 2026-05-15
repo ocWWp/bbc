@@ -54,21 +54,7 @@ const SETTINGS_ROUTE: Route = {
   href: "/settings",
   match: (p) => p === "/settings" || p.startsWith("/settings/"),
 };
-const BRAIN_ROUTE: Route = {
-  key: "brain",
-  label: "Brain",
-  href: "/brain",
-  match: (p) => p === "/brain" || p.startsWith("/brain/"),
-};
-const INBOX_ROUTE: Route = {
-  key: "inbox",
-  label: "Inbox",
-  href: "/inbox",
-  match: (p) => p === "/inbox" || p.startsWith("/inbox/"),
-  badge: "unread",
-};
-
-const ADMIN_ROUTES: ReadonlyArray<Route> = [
+const PRIMARY_ROUTES: ReadonlyArray<Route> = [
   HOME_ROUTE,
   GALLERY_ROUTE,
   MEMORY_ROUTE,
@@ -76,42 +62,15 @@ const ADMIN_ROUTES: ReadonlyArray<Route> = [
   LIBRARY_ROUTE,
   SETTINGS_ROUTE,
 ];
-const OPERATOR_ROUTES: ReadonlyArray<Route> = [
+const VIEWER_ROUTES: ReadonlyArray<Route> = [
+  HOME_ROUTE,
   GALLERY_ROUTE,
   MEMORY_ROUTE,
-  QUEUE_ROUTE,
   LIBRARY_ROUTE,
-  SETTINGS_ROUTE,
 ];
 
-function memberRoutes(templateSlug: string | null): ReadonlyArray<Route> {
-  const slug = (templateSlug ?? "marketing").toLowerCase();
-  // Per-member studio link points straight at the member's own studio
-  // (/studio/<slug>) -- the bare /studio index was retired in Phase P Step 1b.
-  const studio: Route = {
-    key: "studio",
-    label: "Studio",
-    href: `/studio/${slug}`,
-    match: (p) => p === `/studio/${slug}` || p.startsWith(`/studio/${slug}/`),
-  };
-  return [GALLERY_ROUTE, studio, BRAIN_ROUTE, INBOX_ROUTE];
-}
-
-function routesForRole(role: string | null, templateSlug: string | null): ReadonlyArray<Route> {
-  switch (role) {
-    case "admin":
-      return ADMIN_ROUTES;
-    case "operator":
-      return OPERATOR_ROUTES;
-    case "member":
-    case "viewer":
-      return memberRoutes(templateSlug);
-    default:
-      // Unauth (workspace null). Real users get redirected by middleware
-      // before clicking — show the admin shape so the sign-in path stays
-      // accessible from the brand link / search.
-      return ADMIN_ROUTES;
-  }
+function routesForRole(role: string | null): ReadonlyArray<Route> {
+  return role === "viewer" ? VIEWER_ROUTES : PRIMARY_ROUTES;
 }
 
 type AppNavProps = {
@@ -132,12 +91,12 @@ export function AppNav({
   inboxPreview = [],
 }: AppNavProps) {
   const pathname = usePathname() || "";
-  const routes = routesForRole(workspace?.role ?? null, workspace?.templateSlug ?? null);
+  const routes = routesForRole(workspace?.role ?? null);
 
   return (
     <header className="app-nav">
       <div className="container app-nav-inner">
-        <Link href="/queue" className="brand">
+        <Link href="/home" className="brand">
           <span className="brand-mark">bbc</span>
           <span className="brand-word">big brain company</span>
         </Link>
@@ -176,7 +135,7 @@ export function AppNav({
           {user ? (
             <>
               <InboxBell unreadCount={inboxUnread} preview={inboxPreview} />
-              <AvatarMenu user={user} />
+              <AvatarMenu user={user} role={workspace?.role ?? null} />
             </>
           ) : (
             <Link href="/auth/signin" className="btn btn-ghost" style={{ height: 28, padding: "0 12px", fontSize: 12 }}>
@@ -189,7 +148,13 @@ export function AppNav({
   );
 }
 
-function AvatarMenu({ user }: { user: NonNullable<AppNavProps["user"]> }) {
+function AvatarMenu({
+  user,
+  role,
+}: {
+  user: NonNullable<AppNavProps["user"]>;
+  role: string | null;
+}) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const { theme, setTheme } = useTheme();
@@ -232,6 +197,17 @@ function AvatarMenu({ user }: { user: NonNullable<AppNavProps["user"]> }) {
           <div className="avatar-menu-id">
             <div className="nm">{user.label}</div>
           </div>
+          {role === "admin" && (
+            <Link
+              href="/dashboard"
+              className="avatar-menu-item"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+            >
+              <span>Dashboard</span>
+              <span className="mono hint">/dashboard</span>
+            </Link>
+          )}
           <Link
             href="/settings"
             className="avatar-menu-item"
