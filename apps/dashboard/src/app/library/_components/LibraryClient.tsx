@@ -236,11 +236,6 @@ export function LibraryClient({
               <Icons.link /> import from URL
             </button>
           )}
-          {tab === "providers" && (
-            <a href="/marketplace" className="btn btn-ghost">
-              live provider catalog →
-            </a>
-          )}
           {isAdmin && (
             <a href="/library/diagnostics" className="btn btn-ghost">
               diagnostics →

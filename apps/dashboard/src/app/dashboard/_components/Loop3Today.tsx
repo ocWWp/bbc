@@ -18,7 +18,7 @@ export function Loop3Today({ items }: Loop3TodayProps) {
     <section className="home-card" data-testid="loop3-today">
       <header className="home-card-head">
         <h2 className="home-card-title">Loop 3 today</h2>
-        <Link href="/marketplace?recommended=1" className="home-card-link">
+        <Link href="/library?recommended=1" className="home-card-link">
           see all →
         </Link>
       </header>

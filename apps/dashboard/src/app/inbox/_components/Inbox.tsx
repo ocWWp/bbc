@@ -25,7 +25,7 @@ function hrefFor(item: InboxItem): string | null {
     return `/brain/${item.source_memory_id}`;
   }
   if (item.source_kind === "recommendation") {
-    return "/marketplace";
+    return "/library";
   }
   return null;
 }
