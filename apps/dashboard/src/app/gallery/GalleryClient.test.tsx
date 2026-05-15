@@ -38,18 +38,18 @@ const FIXTURES: GalleryTemplate[] = [
 
 describe("GalleryClient", () => {
   it("renders every template by default", () => {
-    render(<GalleryClient templates={FIXTURES} />);
+    render(<GalleryClient templates={FIXTURES} recentRuns={[]} />);
     expect(screen.getByText("Tweet thread")).toBeTruthy();
     expect(screen.getByText("Runway analysis")).toBeTruthy();
   });
   it("filters by search query", () => {
-    render(<GalleryClient templates={FIXTURES} />);
+    render(<GalleryClient templates={FIXTURES} recentRuns={[]} />);
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "runway" } });
     expect(screen.queryByText("Tweet thread")).toBeNull();
     expect(screen.getByText("Runway analysis")).toBeTruthy();
   });
   it("filters by role chip, matching facets too", () => {
-    render(<GalleryClient templates={FIXTURES} />);
+    render(<GalleryClient templates={FIXTURES} recentRuns={[]} />);
     fireEvent.click(screen.getByRole("button", { name: /founder/i }));
     expect(screen.getByText("Runway analysis")).toBeTruthy(); // founder is a facet
     expect(screen.queryByText("Tweet thread")).toBeNull();
