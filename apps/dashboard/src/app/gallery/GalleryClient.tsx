@@ -11,7 +11,6 @@ import { filterGallery } from "@/lib/studio/gallery-filter";
 import type { StudioRole } from "@/lib/studio/template-id";
 import type { PreviewKind } from "@/lib/studio/templates/types";
 import { STUDIO_PRESENTATION, ROLE_ORDER } from "@/lib/studio/studio-presentation";
-import AskBbc from "./AskBbc";
 
 // Friendly output-type label per template kind -- the plain-language "what it
 // produces" trust signal on each card.
@@ -26,19 +25,9 @@ const KIND_LABEL: Record<PreviewKind, string> = {
   plain: "Document",
 };
 
-// One cross-studio run row, shown in the gallery footer. Lifted from the
-// retired /studio index; page.tsx resolves these from studio_runs.
-export type RecentRun = {
-  id: string;
-  template_id: string;
-  task: string;
-  status: string;
-  created_at: string;
-};
+type Props = { templates: GalleryTemplate[] };
 
-type Props = { templates: GalleryTemplate[]; recentRuns: RecentRun[] };
-
-export default function GalleryClient({ templates, recentRuns }: Props) {
+export default function GalleryClient({ templates }: Props) {
   const [query, setQuery] = useState("");
   const [role, setRole] = useState<StudioRole | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -94,9 +83,6 @@ export default function GalleryClient({ templates, recentRuns }: Props) {
           </p>
         </div>
       </header>
-
-      {/* Ask BBC -- task-first router; the fast path above browse-by-template */}
-      <AskBbc />
 
       {/* search */}
       <div className="gal-search">
@@ -226,51 +212,6 @@ export default function GalleryClient({ templates, recentRuns }: Props) {
         </div>
       )}
 
-      {/* recent runs across all studios -- the old /studio index footer */}
-      {recentRuns.length > 0 ? (
-        <section style={{ marginTop: 40 }}>
-          <div className="section-eyebrow" style={{ marginBottom: 14 }}>
-            recent runs across all studios
-          </div>
-          <div className="card" style={{ padding: 0 }}>
-            {recentRuns.slice(0, 8).map((r, i) => (
-              <Link
-                key={r.id}
-                href={`/studio/runs/${r.id}`}
-                className="card-row"
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "160px 1fr 80px",
-                  gap: 16,
-                  alignItems: "center",
-                  textDecoration: "none",
-                  color: "inherit",
-                  borderBottom:
-                    i === Math.min(7, recentRuns.length - 1) ? "none" : undefined,
-                }}
-              >
-                <span className="mono" style={{ fontSize: 11.5, color: "var(--paper-muted)" }}>
-                  {r.template_id}
-                </span>
-                <span
-                  style={{
-                    fontSize: 13.5,
-                    color: "var(--paper-ink-2)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {r.task}
-                </span>
-                <span className="pill muted" style={{ justifySelf: "end" }}>
-                  {r.status}
-                </span>
-              </Link>
-            ))}
-          </div>
-        </section>
-      ) : null}
     </div>
   );
 }
