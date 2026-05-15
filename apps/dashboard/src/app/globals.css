@@ -563,7 +563,6 @@
   border: 1px solid var(--paper-rule);
   border-radius: 100px;
   background: var(--paper);
-  cursor: pointer;
   margin-left: 4px;
 }
 .app-workspace .ws-dot {
@@ -571,7 +570,6 @@
   background: var(--t-decision);
 }
 .app-workspace .ws-name { color: var(--paper-ink); font-weight: 500; }
-.app-workspace .ws-caret { color: var(--paper-muted-2); font-size: 9px; margin-left: 2px; }
 
 .app-routes { display: flex; gap: 2px; margin-left: 16px; }
 .app-route {

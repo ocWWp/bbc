@@ -103,12 +103,11 @@ export function AppNav({
         </Link>
 
         {workspace && (
-          <button className="app-workspace" type="button" aria-label="switch workspace">
+          <div className="app-workspace" aria-label="current workspace">
             <span className="ws-dot" />
             <span className="ws-name">{workspace.name}</span>
             <span className="mono" style={{ color: "var(--paper-muted)" }}>/ {workspace.role}</span>
-            <span className="ws-caret">▾</span>
-          </button>
+          </div>
         )}
 
         <nav className="app-routes" aria-label="primary">
