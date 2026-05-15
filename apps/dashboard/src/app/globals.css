@@ -5980,3 +5980,211 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 .chat-home.no-provider-key .btn {
   margin-top: 10px;
 }
+
+/* ===========================================================================
+   Studio — task composer + workflow grid
+   ===========================================================================
+   The studio's task-first picker. Composer matches /home's pattern (shell
+   with footer meta row) so users get a consistent typing surface across
+   surfaces. Workflow cards lean on a per-kind glyph + an output-type pill
+   so the grid stops reading as a 9-row database dump and starts reading
+   as "9 specific things this studio can make".
+   =========================================================================== */
+
+.studio-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.studio-composer-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+}
+.studio-composer-shell {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  background: var(--paper);
+  transition: border-color 0.15s, box-shadow 0.2s;
+}
+.studio-composer-shell:focus-within {
+  border-color: color-mix(in oklab, var(--ink), transparent 50%);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--paper-accent, var(--accent)), transparent 90%);
+}
+.studio-composer-shell[data-disabled] { opacity: 0.6; }
+.studio-composer-input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 14px 16px 6px;
+  font-family: "Geist", sans-serif;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--ink);
+  resize: vertical;
+  min-height: 84px;
+  border-radius: 14px 14px 0 0;
+}
+.studio-composer-input:focus { outline: none; }
+.studio-composer-input::placeholder {
+  color: var(--paper-muted-2);
+}
+.studio-composer-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 14px 10px;
+  font-family: "Geist Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--paper-muted-2);
+}
+.studio-composer-count { font-variant-numeric: tabular-nums; }
+.studio-composer-count[data-near-limit] { color: var(--paper-warn); }
+.studio-composer-hint { color: var(--paper-muted); }
+
+.studio-grid-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--rule);
+}
+.studio-grid-title {
+  font-family: "Geist", sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  margin: 0;
+}
+.studio-grid-count {
+  font-family: "Geist Mono", monospace;
+  font-size: 11px;
+  color: var(--paper-muted-2);
+  letter-spacing: 0.04em;
+}
+.studio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.studio-tpl-card {
+  --tpl-radius: 14px;
+  position: relative;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 10px;
+  text-align: left;
+  padding: 16px 18px 14px;
+  border: 1px solid var(--rule);
+  border-radius: var(--tpl-radius);
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    border-color 0.18s,
+    background 0.18s,
+    transform 0.1s ease,
+    box-shadow 0.22s;
+}
+.studio-tpl-card:hover:not(:disabled) {
+  border-color: color-mix(in oklab, var(--ink), transparent 70%);
+  background: var(--bg-2);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px -10px rgba(0, 0, 0, 0.12);
+}
+.studio-tpl-card:active:not(:disabled) { transform: scale(0.99); }
+.studio-tpl-card:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--paper-accent, var(--accent)), transparent 30%);
+  outline-offset: 2px;
+}
+.studio-tpl-card:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.studio-tpl-card.is-selected {
+  border-color: var(--ink);
+  background: color-mix(in oklab, var(--paper-accent, var(--accent)), var(--paper) 92%);
+  box-shadow: 0 0 0 1px var(--ink) inset;
+}
+
+.studio-tpl-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--paper-accent, var(--accent)), var(--paper) 88%);
+  color: color-mix(in oklab, var(--paper-accent, var(--accent)), var(--ink) 35%);
+}
+.studio-tpl-card.is-selected .studio-tpl-glyph {
+  background: var(--paper-accent, var(--accent));
+  color: var(--paper);
+}
+
+.studio-tpl-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-family: "Geist", sans-serif;
+  font-size: 15px;
+  font-weight: 550;
+  letter-spacing: -0.012em;
+  color: var(--ink);
+  line-height: 1.25;
+}
+
+.studio-tpl-hint {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  margin: 0;
+  text-wrap: pretty;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.studio-tpl-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in oklab, var(--rule), transparent 40%);
+}
+.studio-tpl-pill {
+  font-family: "Geist Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--paper-muted);
+  text-transform: lowercase;
+  padding: 3px 8px;
+  border-radius: 100px;
+  background: var(--bg-2);
+}
+.studio-tpl-arrow {
+  font-size: 14px;
+  color: var(--paper-muted-2);
+  transition: transform 0.15s ease, color 0.15s;
+}
+.studio-tpl-card:hover:not(:disabled) .studio-tpl-arrow {
+  transform: translateX(2px);
+  color: var(--ink);
+}
+
+@media (max-width: 600px) {
+  .studio-grid { grid-template-columns: 1fr; }
+  .studio-grid-title { font-size: 16px; }
+}

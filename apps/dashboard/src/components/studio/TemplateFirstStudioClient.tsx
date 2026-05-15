@@ -16,6 +16,7 @@ import { OutputBlocks } from "@/components/studio/OutputBlocks";
 import { EditWorkflowChat } from "@/components/studio/EditWorkflowChat";
 import { ActiveOverridesPill } from "@/components/studio/ActiveOverridesPill";
 import { PlanConfirmStage } from "@/components/studio/PlanConfirmStage";
+import { TemplateKindGlyph, kindLabel } from "@/components/studio/TemplateKindGlyph";
 import { previewPlan } from "@/lib/studio/preview-plan-action";
 import { TASK_MIN_LEN, TASK_MAX_LEN } from "@/lib/studio/task-limits";
 import type { PlanPreview } from "@/lib/studio/plan-preview";
@@ -212,25 +213,37 @@ export default function TemplateFirstStudioClient<T extends StudioClientTemplate
     <div className="space-y-8">
       {error ? <ErrorBanner message={error} /> : null}
 
-      <section>
-        <label className="block text-sm font-medium mb-2">{config.copy.taskLabel}</label>
-        <textarea
-          className="w-full min-h-[100px] rounded-md border border-input bg-background p-3 text-sm"
-          placeholder={config.copy.taskPlaceholder}
-          value={task}
-          onChange={(e) => setTask(e.target.value)}
-          disabled={pending}
-        />
-        <p className="mt-1 text-xs text-muted-foreground">
-          {task.length} / {taskMax} chars
-        </p>
+      <section className="studio-composer">
+        <label className="studio-composer-label" htmlFor="studio-task-input">
+          {config.copy.taskLabel}
+        </label>
+        <div className="studio-composer-shell" data-disabled={pending || undefined}>
+          <textarea
+            id="studio-task-input"
+            className="studio-composer-input"
+            placeholder={config.copy.taskPlaceholder}
+            value={task}
+            onChange={(e) => setTask(e.target.value)}
+            disabled={pending}
+            rows={3}
+          />
+          <div className="studio-composer-foot">
+            <span className="studio-composer-count" data-near-limit={task.length > taskMax * 0.9 || undefined}>
+              {task.length.toLocaleString()} / {taskMax.toLocaleString()}
+            </span>
+            <span className="studio-composer-hint" aria-hidden>
+              {canPick ? "Pick a workflow below ↓" : `${TASK_MIN_LEN}+ characters to continue`}
+            </span>
+          </div>
+        </div>
       </section>
 
       <section>
-        <h2 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground mb-3">
-          Pick a workflow
-        </h2>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="studio-grid-head">
+          <h2 className="studio-grid-title">Pick a workflow</h2>
+          <span className="studio-grid-count">{config.templates.length} options</span>
+        </div>
+        <div className="studio-grid">
           {config.templates.map((t) => {
             const isSelected = selected?.id === t.id;
             return (
@@ -239,26 +252,24 @@ export default function TemplateFirstStudioClient<T extends StudioClientTemplate
                 type="button"
                 onClick={() => pickTemplate(t)}
                 disabled={pending || !canPick}
-                className={
-                  "text-left rounded-lg border p-4 transition-colors " +
-                  (isSelected ? "border-foreground bg-accent" : "border-border hover:bg-accent/50") +
-                  " disabled:opacity-50 disabled:cursor-not-allowed"
-                }
+                className={"studio-tpl-card" + (isSelected ? " is-selected" : "")}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="font-medium">{t.label}</div>
+                <span className="studio-tpl-glyph" aria-hidden>
+                  <TemplateKindGlyph kind={t.kind} />
+                </span>
+                <span className="studio-tpl-title">
+                  <span>{t.label}</span>
                   {config.templateBadge?.(t)}
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground">{t.hint}</div>
+                </span>
+                <p className="studio-tpl-hint">{t.hint}</p>
+                <span className="studio-tpl-foot">
+                  <span className="studio-tpl-pill">{kindLabel(t.kind)}</span>
+                  <span className="studio-tpl-arrow" aria-hidden>→</span>
+                </span>
               </button>
             );
           })}
         </div>
-        {!canPick ? (
-          <p className="mt-2 text-xs text-muted-foreground">
-            Describe the task first, then pick a workflow.
-          </p>
-        ) : null}
       </section>
 
       {stage.kind === "configuring" && selected ? (
