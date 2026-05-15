@@ -7,3 +7,11 @@ export type {
   AgentContext,
   Intent,
 } from "./types";
+
+export { buildAgentContext } from "./context-builder";
+export type {
+  ContextDb,
+  BuildArgs,
+  BuildConversationArgs,
+  BuildAnomalyArgs,
+} from "./context-builder";
