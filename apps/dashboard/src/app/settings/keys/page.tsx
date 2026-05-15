@@ -28,9 +28,10 @@ export default async function ApiKeysSettingsPage() {
           <div>
             <div className="h">Bring your own AI</div>
             <div className="sub">
-              Paste your own provider keys. BBC encrypts them per-tenant before
-              storing and never sends them back to the browser. The hosted demo
-              uses the maintainer&apos;s shared key with a small daily cap;
+              Paste your own provider keys. BBC encrypts them server-side with
+              AES-256-GCM before storing — only ciphertext reaches the database,
+              and the plaintext is never returned to the browser. The hosted
+              demo uses the maintainer&apos;s shared key with a small daily cap;
               bringing your own key removes that cap.
             </div>
           </div>
