@@ -19,6 +19,8 @@ import {
   getOrCreateActiveSession,
   type HomeTurn,
 } from "@/lib/home/sessions";
+import { makeReserveQuota, makeReconcileQuota } from "@/lib/quota/rpc";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 // SSE Route Handler. Edge runtime so streaming works on Cloudflare Workers
 // (the v1.6 spike confirmed Route Handlers stream; M1.2 closes the gate
@@ -27,21 +29,12 @@ export const runtime = "edge";
 
 // ---- Stub deps -----------------------------------------------------------
 //
-// M2 ships visible UI end-to-end with a CANNED LLM + no-op quota gate.
-// The real wiring lands incrementally:
-//   - quota RPC: M3 (reserve_quota / reconcile_quota migrations)
-//   - context-builder DB: M3 (memory index excerpt + workspace name reads)
-//   - real Anthropic SDK call: M3 / M5 polish
+// Quota RPCs are real as of M4.1 (reserve_quota / reconcile_quota in
+// migration 0048). The remaining stubs land later:
+//   - context-builder DB: M5 polish (memory index excerpt + workspace name)
+//   - real Anthropic SDK call: M5 polish
 // homeTurn is invoked with the real shape; only the dep implementations
-// are stubbed. The orchestration logic (intent classify, grounding,
-// emit ordering, status lifecycle) is exercised on every turn.
-
-const noopQuotaReserve: HomeTurnDeps["reserveQuota"] = async () => ({
-  ok: true,
-  reservationId: "noop-pre-m3",
-});
-
-const noopQuotaReconcile: HomeTurnDeps["reconcileQuota"] = async () => ({ ok: true });
+// below are stubbed.
 
 const stubBuildContext: HomeTurnDeps["buildContext"] = async (input) => ({
   tenantId: input.tenantId,
@@ -214,9 +207,10 @@ export async function POST(req: NextRequest) {
       };
       req.signal.addEventListener("abort", onAbort, { once: true });
 
+      const supabase = await getSupabaseServerClient();
       const deps: HomeTurnDeps = {
-        reserveQuota: noopQuotaReserve,
-        reconcileQuota: noopQuotaReconcile,
+        reserveQuota: makeReserveQuota(supabase),
+        reconcileQuota: makeReconcileQuota(supabase),
         buildContext: stubBuildContext,
         classify: stubClassify,
         invokeLlm: stubInvokeLlm,
