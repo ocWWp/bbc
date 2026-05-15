@@ -5,6 +5,11 @@
 // generates content -- it only routes, deep-linking into the structured
 // plan-before-run flow. Cost guards mirror proposeWorkflows: Haiku, bounded
 // max_tokens, requireRole("member"), 10/60s rate limit.
+//
+// May also return a single clarifying question with 2-4 chip-style answers
+// when the task is genuinely ambiguous. Hard guardrail: with opts.clarification
+// the LLM is offered only the route_task tool, so it can never demand a
+// second clarify turn (max-1-clarify-per-task contract enforced server-side).
 
 import type Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
@@ -17,6 +22,7 @@ import type { StudioRole } from "@/lib/studio/template-id";
 
 const ROUTE_MODEL = "claude-haiku-4-5-20251001";
 const MAX_TASK_INPUT_LEN = 500;
+const MAX_CLARIFICATION_LEN = 120;
 
 export type RoutedTemplate = {
   templateId: string;
@@ -26,7 +32,8 @@ export type RoutedTemplate = {
 };
 
 export type RouteTaskResult =
-  | { ok: true; candidates: RoutedTemplate[] }
+  | { ok: true; kind: "candidates"; candidates: RoutedTemplate[] }
+  | { ok: true; kind: "clarify"; question: string; suggestions: string[] }
   | { ok: false; error: string };
 
 const routeRateLimits = new Map<string, number[]>();
@@ -54,6 +61,11 @@ const routeToolSchema = z.object({
     )
     .min(1)
     .max(8),
+});
+
+const clarifyToolSchema = z.object({
+  question: z.string().min(1).max(200),
+  suggestions: z.array(z.string().min(1).max(50)).min(2).max(4),
 });
 
 const ROUTE_TOOL = {
@@ -88,7 +100,35 @@ const ROUTE_TOOL = {
   },
 };
 
-export async function routeTask(task: string): Promise<RouteTaskResult> {
+const CLARIFY_TOOL = {
+  name: "clarify",
+  description:
+    "Ask ONE short clarifying question with 2-4 short chip-style answer suggestions. Use ONLY when the task is genuinely ambiguous in a way that one question would meaningfully narrow it. Otherwise, prefer route_task.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      question: {
+        type: "string",
+        description: "One short clarifying question (max 200 chars, ideally <80).",
+      },
+      suggestions: {
+        type: "array",
+        minItems: 2,
+        maxItems: 4,
+        items: {
+          type: "string",
+          description: "Short chip-style answer (max 30 chars).",
+        },
+      },
+    },
+    required: ["question", "suggestions"],
+  },
+};
+
+export async function routeTask(
+  task: string,
+  opts?: { clarification?: string },
+): Promise<RouteTaskResult> {
   const a = await requireActor();
   if (!a.ok) return { ok: false, error: a.output };
   const r = requireRole(a.actor, "member");
@@ -103,6 +143,9 @@ export async function routeTask(task: string): Promise<RouteTaskResult> {
     return { ok: false, error: `Describe what you need in at least ${TASK_MIN_LEN} characters.` };
   }
   const capped = trimmed.slice(0, MAX_TASK_INPUT_LEN);
+  const clarificationRaw = (opts?.clarification ?? "").trim();
+  const hasClarification = clarificationRaw.length > 0;
+  const clarification = clarificationRaw.slice(0, MAX_CLARIFICATION_LEN);
 
   const supabase = await getSupabaseServerClient();
   const clientRes = await getAnthropicClient(supabase, a.actor.tenant_id);
@@ -114,19 +157,35 @@ export async function routeTask(task: string): Promise<RouteTaskResult> {
     .map((t) => `- ${t.id} (${t.label}) [${t.roleLabel}]: ${t.hint}`)
     .join("\n");
 
-  const system =
-    "You route a small-business task to workflow templates across all 8 BBC studios (marketing, engineering, founder, designer, support, finance, legal, people). Pick 2-4 candidates that genuinely fit, best fit first. Never invent template ids -- only use ids from the list. Each rationale must be specific to THIS task -- no generic copy.";
+  // Hard guardrail: when clarification is provided, the LLM is given ONLY the
+  // route_task tool. It cannot ask another clarifying question — that's the
+  // max-1-clarify contract codex insisted on.
+  const tools = hasClarification ? [ROUTE_TOOL] : [ROUTE_TOOL, CLARIFY_TOOL];
+  const tool_choice = hasClarification
+    ? ({ type: "tool" as const, name: ROUTE_TOOL.name })
+    : ({ type: "any" as const });
 
-  const userMessage = [
-    `Task: ${capped}`,
+  const baseSystem =
+    "You route a small-business task to workflow templates across all 8 BBC studios (marketing, engineering, founder, designer, support, finance, legal, people). Never invent template ids -- only use ids from the list. Each rationale must be specific to THIS task -- no generic copy.";
+  const system = hasClarification
+    ? `${baseSystem} The user has already answered one clarifying question. You MUST return route_task candidates now — do not ask for further clarification. Use the clarification to pick 2-4 best-fit candidates.`
+    : `${baseSystem} If the task is genuinely ambiguous in a way that ONE short question (with 2-4 suggested chip answers) would meaningfully narrow, you may use the clarify tool. Otherwise, pick 2-4 candidates with route_task — that is the default.`;
+
+  const userMessageLines = [`Task: ${capped}`];
+  if (hasClarification) userMessageLines.push(`Clarification: ${clarification}`);
+  userMessageLines.push(
     "",
     "Available templates (id, label, [studio], hint):",
     templateLines,
     "",
-    "Return 2-4 candidates via the route_task tool.",
-  ].join("\n");
+    hasClarification
+      ? "Return 2-4 candidates via the route_task tool."
+      : "Return 2-4 candidates via route_task, or one clarifying question via clarify.",
+  );
 
-  console.info(`studio.routeTask: tenant=${a.actor.tenant_id} cost=${costAttribution}`);
+  console.info(
+    `studio.routeTask: tenant=${a.actor.tenant_id} cost=${costAttribution} clarified=${hasClarification}`,
+  );
 
   let resp: Anthropic.Messages.Message;
   try {
@@ -134,9 +193,9 @@ export async function routeTask(task: string): Promise<RouteTaskResult> {
       model: ROUTE_MODEL,
       max_tokens: 1024,
       system,
-      tools: [ROUTE_TOOL],
-      tool_choice: { type: "tool", name: ROUTE_TOOL.name },
-      messages: [{ role: "user", content: userMessage }],
+      tools,
+      tool_choice,
+      messages: [{ role: "user", content: userMessageLines.join("\n") }],
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "unknown";
@@ -146,6 +205,25 @@ export async function routeTask(task: string): Promise<RouteTaskResult> {
   const toolUse = resp.content.find((c) => c.type === "tool_use");
   if (!toolUse || toolUse.type !== "tool_use") {
     return { ok: false, error: "LLM returned no structured routing." };
+  }
+
+  if (toolUse.name === CLARIFY_TOOL.name) {
+    if (hasClarification) {
+      // Defense in depth: server forced tool_choice = route_task, so this
+      // path should be unreachable. If a misbehaving response still lands
+      // here, refuse to surface a second clarify.
+      return { ok: false, error: "Couldn't narrow this down -- try rephrasing what you need." };
+    }
+    const parsedClarify = clarifyToolSchema.safeParse(toolUse.input);
+    if (!parsedClarify.success) {
+      return { ok: false, error: `LLM returned invalid clarify shape: ${parsedClarify.error.issues[0]?.message ?? "unknown"}` };
+    }
+    return {
+      ok: true,
+      kind: "clarify",
+      question: parsedClarify.data.question,
+      suggestions: parsedClarify.data.suggestions,
+    };
   }
 
   const parsed = routeToolSchema.safeParse(toolUse.input);
@@ -175,5 +253,5 @@ export async function routeTask(task: string): Promise<RouteTaskResult> {
     return { ok: false, error: "Couldn't find a good match -- try rephrasing what you need." };
   }
 
-  return { ok: true, candidates };
+  return { ok: true, kind: "candidates", candidates };
 }

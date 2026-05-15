@@ -33,6 +33,13 @@ export default function AskBbc() {
         setCandidates(null);
         return;
       }
+      if (res.kind === "clarify") {
+        // Gallery's AskBbc is being retired in Phase 7; clarify-turn UI lives
+        // in /home's ChatHome. Surface as a soft error here.
+        setError(`${res.question} — try rephrasing with more detail.`);
+        setCandidates(null);
+        return;
+      }
       setRoutedTask(t);
       setCandidates(res.candidates);
     });
