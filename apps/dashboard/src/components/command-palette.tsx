@@ -13,13 +13,15 @@ import {
 } from "@/components/ui/command";
 
 const ROUTES = [
-  { label: "Dashboard", href: "/dashboard", group: "Navigate" },
-  { label: "Queue", href: "/queue", group: "Navigate" },
+  { label: "Home", href: "/home", group: "Navigate" },
+  { label: "Gallery", href: "/gallery", group: "Navigate" },
   { label: "Memory", href: "/memory", group: "Navigate" },
+  { label: "Queue", href: "/queue", group: "Navigate" },
+  { label: "Library", href: "/library", group: "Navigate" },
   { label: "Marketing Studio", href: "/studio/marketing", group: "Navigate" },
   { label: "Team", href: "/settings/team", group: "Navigate" },
   { label: "Settings", href: "/settings", group: "Navigate" },
-  { label: "Marketplace", href: "/marketplace", group: "Navigate" },
+  { label: "Dashboard (admin)", href: "/dashboard", group: "Navigate" },
 ];
 
 // The nav's fake search button dispatches this event to pop the palette open
