@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { findById, isApproved } from "@/lib/read-queue";
+import { readObservationMeta, type ObservationMeta } from "@/lib/home/read-observation-meta";
+import { requireActor } from "@/lib/auth/require-user";
 import ActionButtons from "@/components/ActionButtons";
 import type { Proposal } from "@bbc/store";
 
@@ -74,7 +76,11 @@ export default async function ProposalDetail({ params }: PageProps) {
   const p = await findById(id);
   if (!p) notFound();
 
-  const tag = inferTag(p);
+  const observationMeta = await readObservationMeta(p.proposal_id);
+  const actorRes = await requireActor();
+  const isAdmin = actorRes.ok && actorRes.actor.role === "admin";
+
+  const tag = observationMeta ? "observation" : inferTag(p);
   const reviewed = !!p.manager_review;
   const verdict = p.manager_review?.verdict;
   const canAccept = isApproved(p);
@@ -138,6 +144,8 @@ export default async function ProposalDetail({ params }: PageProps) {
           </span>
         </div>
       )}
+
+      {observationMeta && <ObservationDetail meta={observationMeta} isAdmin={isAdmin} />}
 
       <div className="split-doc">
         <main style={{ display: "flex", flexDirection: "column", gap: 18, minWidth: 0 }}>
@@ -285,5 +293,102 @@ export default async function ProposalDetail({ params }: PageProps) {
         </aside>
       </div>
     </div>
+  );
+}
+
+function ObservationDetail({
+  meta,
+  isAdmin,
+}: {
+  meta: ObservationMeta;
+  isAdmin: boolean;
+}) {
+  const a = meta.anomalySummary;
+  const w = meta.baselineWindow;
+  return (
+    <section
+      className="rounded-xl border border-border bg-card/60 p-4"
+      data-testid="observation-detail"
+      style={{ marginBottom: 18 }}
+    >
+      <div
+        className="text-xs uppercase tracking-wide"
+        style={{ color: "var(--paper-muted)", marginBottom: 8 }}
+      >
+        How BBC found this
+      </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+          gap: "10px 24px",
+          fontSize: 13,
+          lineHeight: 1.6,
+        }}
+      >
+        <div>
+          <div style={{ color: "var(--paper-muted)" }}>Signal</div>
+          <div>
+            <code>{meta.signalSource}</code>
+            {a.metric ? <> · {a.metric}</> : null}
+          </div>
+        </div>
+        <div>
+          <div style={{ color: "var(--paper-muted)" }}>Anomaly</div>
+          <div>
+            {typeof a.delta === "number" ? (
+              <>
+                Δ {a.delta.toFixed(2)} {a.deltaUnits ?? ""}
+                {typeof a.zScore === "number" ? ` · z=${a.zScore.toFixed(2)}` : null}
+              </>
+            ) : (
+              "—"
+            )}
+          </div>
+        </div>
+        <div>
+          <div style={{ color: "var(--paper-muted)" }}>Window</div>
+          <div className="mono" style={{ fontSize: 12 }}>
+            {w.currentStart ? w.currentStart.slice(0, 10) : "—"} →{" "}
+            {w.currentEnd ? w.currentEnd.slice(0, 10) : "—"}
+          </div>
+        </div>
+        <div>
+          <div style={{ color: "var(--paper-muted)" }}>Baseline</div>
+          <div className="mono" style={{ fontSize: 12 }}>
+            {w.baselineStart ? w.baselineStart.slice(0, 10) : "—"} →{" "}
+            {w.baselineEnd ? w.baselineEnd.slice(0, 10) : "—"}
+          </div>
+        </div>
+      </div>
+
+      {meta.citations.length > 0 && (
+        <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {meta.citations.map((id) => (
+            <Link
+              key={id}
+              href={`/memory/${id}`}
+              className="mono"
+              style={{
+                fontSize: 11,
+                padding: "2px 8px",
+                borderRadius: 999,
+                border: "1px solid var(--paper-rule)",
+                color: "var(--paper-ink-2)",
+              }}
+            >
+              memory · {id.slice(0, 6)}
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {isAdmin && (
+        <div style={{ marginTop: 12, fontSize: 11, color: "var(--paper-muted)" }}>
+          run trace:{" "}
+          <span className="mono">{meta.observerRunId}</span>
+        </div>
+      )}
+    </section>
   );
 }
