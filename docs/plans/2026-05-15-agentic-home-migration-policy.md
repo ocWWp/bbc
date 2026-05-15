@@ -379,7 +379,32 @@ revoke insert, update, delete on observer_runs from authenticated;
 ### Mutable vs append-only
 
 - **All fields are append-only at INSERT.** The row is fully populated in one statement at the end of the run; no field is mutated afterward.
-- **No append-only trigger.** Earlier drafts of this doc described a `block_observer_run_mutation()` trigger mirroring `operations_log`. Codex 2026-05-15 P1 #2 correctly flagged that `pg_trigger_depth() = 1` is true even when a SECURITY DEFINER function issues the UPDATE — so the trigger would have blocked the very RPC paths it was meant to allow. The fix: don't use a trigger at all. Direct UPDATE/DELETE grants are revoked from `authenticated`; the only INSERT path is `propose_observation()` (SECURITY DEFINER); and no path UPDATEs after insert.
+- **Single-INSERT design + UPDATE-block trigger (DELETE not gated by trigger).** Earlier drafts had a `pg_trigger_depth() = 1` gate that was mechanically wrong (codex 2026-05-15 P1 #2 — that depth is true under SECURITY DEFINER too). The next revision dropped the trigger entirely, but that left the row mutable by any service-role caller (codex 2026-05-15 P1 re-review #9). The correct shape is: single-INSERT lifecycle PLUS an **unconditional UPDATE-block trigger** (no depth check needed, because no legitimate path needs to UPDATE), and DELETE handled by grants + ON DELETE CASCADE only:
+
+```sql
+create or replace function public.block_observer_run_update()
+  returns trigger language plpgsql security definer
+  set search_path = public as $$
+begin
+  raise exception 'observer_runs is append-only — single-INSERT design, updates forbidden'
+    using errcode = 'P0001';
+end $$;
+revoke execute on function public.block_observer_run_update() from public, anon, authenticated;
+
+create trigger observer_runs_no_update before update on observer_runs
+  for each row execute function public.block_observer_run_update();
+```
+
+This is **stricter than `operations_log`'s trigger**, which uses the depth check to allow internal RPC inserts. Here the depth check is unnecessary because `propose_observation()` only INSERTs; it never UPDATEs. The trigger fires on UPDATE only, so INSERT (the legitimate path) and DELETE both pass through unblocked.
+
+**DELETE is intentionally not behind a trigger.** Reasoning:
+1. ON DELETE CASCADE from `tenants(id)` MUST work to clean up tenant deletion. Wrapping DELETE in a trigger that raises would block tenant teardown (no clean way to distinguish cascade-driven deletes from direct in plpgsql).
+2. Direct DELETE from `authenticated` is already revoked via `revoke insert, update, delete on observer_runs from authenticated` — application code cannot delete rows.
+3. Service-role DELETE (e.g., a future retention-cleanup worker, or admin-driven purge) is an out-of-band operational action that we WANT to allow on this audit table after the retention window. Blocking it would force every retention/purge worker to disable the trigger, which is footgunny.
+
+`tenant_id` is written by `propose_observation()` directly from the verified `p_tenant_id` argument (per RPC step 2). No trigger copies the value from `observer_signals` — picking one source of truth (codex 2026-05-15 P2 #13).
+
+`tenant_id` is written by `propose_observation()` directly from the verified `p_tenant_id` argument (per RPC step 2). No trigger copies the value from `observer_signals` — picking one source of truth (codex 2026-05-15 P2 #13).
 
 ### RPC ownership
 
@@ -388,10 +413,15 @@ Two SECURITY DEFINER RPCs cover the M3 surface:
 - `propose_observation(p_tenant_id uuid, p_signal_id uuid, p_window_start timestamptz, p_window_end timestamptz, p_window_snapshot jsonb, p_anomalies jsonb, p_staged_finding jsonb, p_llm_call_id text, p_llm_tokens_used int, p_status text, p_error_class text, p_proposal_body text, p_proposal_summary text) RETURNS jsonb` — atomic transaction:
   1. Verify `auth.uid() is not null` (any authenticated caller — role check below) AND `public.is_operator_of(p_tenant_id)`.
   2. Verify `p_signal_id` belongs to `p_tenant_id` and is `enabled = true` and not soft-deleted.
-  3. If `p_staged_finding is not null` AND `p_status = 'completed'`: insert into `queue_items` using the same shape as `propose_change()` (proposal_id format `prop_<ts>_observer_<signal_slug>`), with frontmatter that includes the v1.6 observation fields (`type=observation`, `observer_run_id`, `signal_source`, `signal_id`, `anomaly_summary`, `baseline_window`, `citations`). Capture the proposal_id.
-  4. Insert one row into `observer_runs` with `proposals_filed = case when proposal_id is not null then array[proposal_id] else array[]::text[] end`.
-  5. Append `operations_log` (`action='observer_run'`).
-  6. Return `{ok: true, observer_run_id, proposal_id (nullable)}`.
+  3. **Pre-generate the observer_run id at the top of the transaction** — `v_run_id := gen_random_uuid()`. This id has to exist before the queue row is written, because the queue frontmatter MUST carry `observer_run_id` (the dispatch contract for `accept_proposal_observation()` reads it back). Insert order is then deterministic: generate id → write queue row referencing it → write observer_runs row with that id (codex 2026-05-15 P1-OPEN on #6).
+  4. If `p_staged_finding is not null` AND `p_status = 'completed'`: insert into `queue_items` using the same shape as `propose_change()` (proposal_id format `prop_<ts>_observer_<signal_slug>`), with frontmatter that includes the v1.6 observation fields (`type=observation`, `observer_run_id = v_run_id`, `signal_source`, `signal_id`, `anomaly_summary`, `baseline_window`, `citations`). Capture the proposal_id.
+  5. Insert one row into `observer_runs` with `id = v_run_id` AND `proposals_filed = case when proposal_id is not null then array[proposal_id] else array[]::text[] end`.
+  6. Append `operations_log` (`action='observer_run'`).
+  7. Return `{ok: true, observer_run_id: v_run_id, proposal_id (nullable)}`.
+
+  **Argument validation pinned by status (codex 2026-05-15 P2 #8):**
+  - `p_status = 'completed'` requires non-null `p_staged_finding`, `p_proposal_body`, `p_proposal_summary`.
+  - `p_status in ('no_anomaly', 'skipped_cooldown', 'skipped_min_sample', 'quota_exhausted', 'adapter_error', 'llm_error')` requires `p_staged_finding`, `p_proposal_body`, `p_proposal_summary` all null. Inputs are ignored; the row records the negative result.
   - **Why one RPC, not two.** Codex 2026-05-15 P1 #6 flagged that the existing `propose_change()` has a fixed frontmatter shape and cannot carry `observer_run_id`. Rather than extend `propose_change()` (which is part of the queue contract and touched by file-mode parity in `scripts/propose.sh`), v1.6 ships a dedicated RPC that writes both rows in the same transaction. Body parsing is avoided.
 
 - `accept_proposal_observation(p_proposal_id text) RETURNS jsonb` — M3.4. Atomic transaction:
@@ -431,11 +461,14 @@ Chain: `tenants → observer_signals → observer_runs`. Deleting a tenant casca
 
 ### Test cases (M3 acceptance)
 
-1. **Idempotency.** Insert two runs with same `(signal_id, window_start)`. Expect unique-violation error.
-2. **RLS.** Cross-tenant query returns 0 rows.
-3. **Append-only.** Try to UPDATE `status` from outside an RPC. Expect rejection from trigger.
-4. **Proposals_filed mutation.** Call `observer_run_attach_proposal()`; verify array grows. Then attempt direct UPDATE on the column — expect rejection.
-5. **Cascade.** Delete tenant; observer_runs gone.
+1. **Idempotency.** Call `propose_observation()` twice with the same `(signal_id, window_start)`. Expect the second call to raise on the unique constraint.
+2. **RLS read.** Cross-tenant query returns 0 rows.
+3. **No UPDATE path.** Authenticate as service role; attempt `update observer_runs set status='no_anomaly' where id = $1`. Expect rejection from the `observer_runs_no_update` trigger (errcode P0001).
+4. **Authenticated cannot INSERT/UPDATE/DELETE directly.** As authenticated user, attempt each of `insert into observer_runs ...`, `update observer_runs ...`, `delete from observer_runs ...`. All three expect permission denied (grants revoked).
+5. **propose_observation completed path.** Call with `p_status='completed'` + a valid staged_finding; verify both a `queue_items` row AND an `observer_runs` row exist, the queue frontmatter contains `observer_run_id` matching the returned run id, and `proposals_filed` is a length-1 array.
+6. **propose_observation no-anomaly path.** Call with `p_status='no_anomaly'`, all proposal-shaped args null. Verify an `observer_runs` row exists with `proposals_filed = []` and no `queue_items` row was inserted.
+7. **propose_observation validation.** Call with `p_status='completed'` but null `p_staged_finding`. Expect rejection from the input-validation step.
+8. **Cascade.** Delete the parent tenant; observer_runs rows are removed via FK cascade. The `no_update` trigger does NOT fire on DELETE so the cascade succeeds.
 
 ---
 
@@ -476,7 +509,15 @@ The reservation table is the **concurrency primitive** for codex #18's atomic-qu
 
 **Row bootstrap (codex 2026-05-15 P2 #11).** `SELECT FOR UPDATE` requires a row to lock. Migration 0048 includes a one-time backfill for existing tenants (`insert into tenant_quotas (tenant_id) select id from tenants on conflict do nothing`) plus a trigger on `tenants` AFTER INSERT that seeds a new `tenant_quotas` row. `reserve_quota()` itself does NOT INSERT-ON-MISSING because doing so under contention without the seed trigger would race (two callers both INSERT, one wins, the other lock takes effect on a row that already incremented). Trigger-based bootstrap is the single source of truth.
 
-**Stuck-reservation cleanup (codex 2026-05-15 P2 #9).** Reservations whose LLM call crashed mid-flight never get reconciled, and their `estimated_tokens` would otherwise stay subtracted from the budget forever (causing false `tokens_exceeded` after a few orphans accumulate). v1.6 ships **inline lazy cleanup** inside `reserve_quota()`: before computing the new budget, the RPC reconciles any reservations belonging to this tenant where `reconciled_at IS NULL AND reserved_at < now() - interval '5 minutes'` by treating `actual_tokens = estimated_tokens` (worst-case assumption — we keep the budget held), marking them reconciled, and proceeding. This makes orphans self-healing on the next reserve call. A future v1.7 background job will do better cleanup (e.g., refund unused budget after the timeout). v1.6 chooses the conservative path because it cannot prove the LLM call didn't actually complete.
+**Stuck-reservation cleanup (codex 2026-05-15 P2 #9 + #11).** Reservations whose LLM call crashed mid-flight never get reconciled, and their `estimated_tokens` would otherwise stay subtracted from the budget forever (causing false `tokens_exceeded` after a few orphans accumulate). v1.6 ships **inline lazy cleanup** inside `reserve_quota()`, ordered to be race-free:
+
+1. `BEGIN TRANSACTION`.
+2. **`SELECT FOR UPDATE on tenant_quotas WHERE tenant_id = p_tenant_id`** — this is the tenant-wide serialization point. Every concurrent caller for this tenant queues here.
+3. Now that we hold the row lock, UPDATE all reservations belonging to this tenant where `reconciled_at IS NULL AND reserved_at < now() - interval '5 minutes'`: set `reconciled_at = now()`, `actual_tokens = estimated_tokens` (worst-case assumption — we keep the budget held). No other caller can race this cleanup because they're blocked on the same FOR UPDATE lock.
+4. Re-read the (now correct) `tokens_used` value. Validate the new reservation against limits. If OK: increment `tokens_used` by `estimated_tokens`, insert the reservation row, return `{ok: true}`.
+5. `COMMIT`.
+
+The ordering — lock first, then clean up, then check budget — eliminates the race where two callers both run cleanup on the same orphan. A future v1.7 background job will do better cleanup (e.g., refund unused budget after the timeout). v1.6 chooses the conservative path because it cannot prove the LLM call didn't actually complete.
 
 ### RLS
 
