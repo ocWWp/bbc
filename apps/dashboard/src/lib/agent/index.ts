@@ -21,3 +21,13 @@ export type { ToolDef } from "./tools";
 
 export { verifyGrounding } from "./grounding";
 export type { GroundingResult } from "./grounding";
+
+export { reserveQuota, reconcileQuota } from "./quota";
+export type {
+  QuotaKind,
+  ReserveArgs,
+  ReserveResult,
+  ReserveRpc,
+  ReconcileArgs,
+  ReconcileRpc,
+} from "./quota";
