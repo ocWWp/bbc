@@ -18,3 +18,6 @@ export type {
 
 export { TOOLS, toolsForIntent } from "./tools";
 export type { ToolDef } from "./tools";
+
+export { verifyGrounding } from "./grounding";
+export type { GroundingResult } from "./grounding";
