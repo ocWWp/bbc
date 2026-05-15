@@ -17,6 +17,13 @@
 
 **Hard rule across all five tables.** Every state change in user-facing flows appends an `operations_log` row using the existing version-monotonic pattern (`select coalesce(max(v), 0) + 1` per tenant). v1.6 does not introduce a parallel audit table. Observer ephemera live in `observer_runs` itself (which IS the trace), not in operations_log; user-driven actions (enable/disable/run-now/archive) DO log.
 
+**Two existing constraints this doc inherits but re-states for clarity:**
+
+- **memory_files.status DB enum is `('draft', 'active', 'archived')`** per migration 0017_memory_items_schema.sql. There is no `proposed` value. This document's references to memory-row "status" map to this enum. Frontmatter-level lifecycle (`accepted`, `proposed`, `superseded`, `archived`) is independent of the DB column. The observation supertag spec (M0.5, `memory/_schema.md`) pins this mapping: an `observation` memory row exists at DB-level `status='active'` once `accept_proposal_observation()` runs; it never exists with DB-level `status='draft'` or while the queue item is still pending.
+- **memory_type DB enum currently lacks `observation`** per migrations 0017 + 0022 (which added `source_artifact` and `note`). M3 migration 0047 MUST include `alter type public.memory_type add value if not exists 'observation';` before its `insert into memory_files (type, ...) values ('observation', ...)` call, otherwise `accept_proposal_observation()` fails on the enum cast.
+
+**No secrets in stored adapter state.** Across all five tables, jsonb payloads stored as part of normal operation (`observer_signals.config_jsonb`, `observer_runs.window_snapshot`, `home_turns.content_jsonb`, `tenant_quota_reservations` payload, any proposal body or frontmatter) MUST NOT contain: upstream API tokens, OAuth refresh tokens, BYOK provider keys, or any raw upstream credential. Connector credentials live in the existing secrets vault per `apps/dashboard/src/lib/encryption.ts` and are referenced by ID only. Adapter implementations are responsible for stripping credential material before any DB write. Codex review of M0 flagged this explicitly (codex 2026-05-15 P2 #8).
+
 ---
 
 ## 1. `home_sessions`
@@ -41,27 +48,35 @@ create index home_sessions_tenant_user_idx
 
 ### RLS
 
+Follows the convention established by migrations 0003 (`is_member_of`), 0007 (member-scoped reads), and 0020 (`is_member_of` + `created_by = auth.uid()` for self-write). No GUC-based tenant scoping — BBC's existing RLS pattern is **function-call gates**, not `current_setting('app.current_tenant_id')` cookies. Codex review of M0 flagged this explicitly (codex 2026-05-15 P1 #1) — the GUC pattern does not match the rest of the schema and would produce zero-row reads under the current `@supabase/ssr` client.
+
 ```sql
 alter table home_sessions enable row level security;
 
--- Read: any tenant member can see their own sessions; admins see all in tenant.
--- v1.6 ships member-self-only (operators+ may need cross-user audit later — defer).
+-- Read: a user can only see their own sessions, scoped to a tenant they belong to.
 create policy home_sessions_self_read on home_sessions
   for select using (
-    tenant_id = current_setting('app.current_tenant_id', true)::uuid
-    and user_id = auth.uid()
+    public.is_member_of(tenant_id) and user_id = auth.uid()
   );
 
--- Write: insert/update via server-side helpers in src/lib/home/sessions.ts;
--- those run as authenticated user (cookie session). No direct client writes.
-create policy home_sessions_self_write on home_sessions
-  for all using (
-    tenant_id = current_setting('app.current_tenant_id', true)::uuid
-    and user_id = auth.uid()
+-- Insert: same shape — same user, same tenant.
+create policy home_sessions_self_insert on home_sessions
+  for insert with check (
+    public.is_member_of(tenant_id) and user_id = auth.uid()
   );
+
+-- Update: same shape. Used to set last_activity_at, archived_at.
+create policy home_sessions_self_update on home_sessions
+  for update using (
+    public.is_member_of(tenant_id) and user_id = auth.uid()
+  ) with check (
+    public.is_member_of(tenant_id) and user_id = auth.uid()
+  );
+
+-- No DELETE policy — soft-archive only; hard-delete happens via parent cascade.
 ```
 
-**Plain English.** A user can only see and modify their own sessions, scoped to the currently active tenant. Cross-user reads are blocked by RLS, not by app code.
+**Plain English.** A user can only see and modify their own sessions, scoped to a tenant they're a member of. Cross-user reads are blocked by RLS at the DB layer, not by app code.
 
 ### Mutable vs append-only
 
@@ -127,21 +142,43 @@ create index home_turns_session_idx on home_turns(session_id, created_at);
 
 ### RLS
 
+Mirror of `home_sessions` — the gate is delegated through the parent session row using `is_member_of` + `auth.uid()`. No GUC-based scoping (per codex 2026-05-15 P1 #1).
+
 ```sql
 alter table home_turns enable row level security;
 
--- A turn is visible/writable iff its parent session is visible to the caller.
-create policy home_turns_via_session on home_turns
-  for all using (
+-- A turn is reachable only through its parent session being owned by the caller.
+create policy home_turns_via_session_read on home_turns
+  for select using (
     session_id in (
       select id from home_sessions
-       where tenant_id = current_setting('app.current_tenant_id', true)::uuid
-         and user_id = auth.uid()
+       where public.is_member_of(tenant_id) and user_id = auth.uid()
+    )
+  );
+
+create policy home_turns_via_session_insert on home_turns
+  for insert with check (
+    session_id in (
+      select id from home_sessions
+       where public.is_member_of(tenant_id) and user_id = auth.uid()
+    )
+  );
+
+create policy home_turns_via_session_update on home_turns
+  for update using (
+    session_id in (
+      select id from home_sessions
+       where public.is_member_of(tenant_id) and user_id = auth.uid()
+    )
+  ) with check (
+    session_id in (
+      select id from home_sessions
+       where public.is_member_of(tenant_id) and user_id = auth.uid()
     )
   );
 ```
 
-**Plain English.** A turn is reachable only through its parent session — RLS delegates the gate. If the user cannot see the session, they cannot see the turn.
+**Plain English.** A turn is reachable only through its parent session — RLS delegates the gate. If the user cannot see the session, they cannot see, insert, or update the turn.
 
 ### Mutable vs append-only
 
@@ -158,7 +195,7 @@ After `status` reaches a terminal value (`completed`, `aborted`, `failed`), the 
 ### Retention
 
 - Follows the parent session. Archived session → turns remain queryable for 90 days, then a future cleanup hard-deletes alongside the session.
-- **Streaming-orphan recovery.** Turns left `in_progress` past 5 minutes are considered orphaned (browser crashed, network died before `turn-end`). On next /home load, helpers downgrade them to `status='aborted'` with a banner. v1.6 does this at the read path, not via a background job.
+- **Streaming-orphan recovery.** Turns left `in_progress` past 5 minutes are considered orphaned (browser crashed, network died before `turn-end`). On next /home load, helpers downgrade them to `status='aborted'` via a conditional UPDATE — `update home_turns set status='aborted', finalized_at = now() where id = $1 and status = 'in_progress' and created_at < now() - interval '5 minutes'`. The `status = 'in_progress'` predicate is critical (per codex 2026-05-15 P2 #13): without it, a slow load racing with `turn-end` could overwrite a freshly completed turn back to aborted. v1.6 does this at the read path; no background job.
 
 ### Tenant-deletion cascade
 
@@ -217,10 +254,11 @@ create policy observer_signals_member_read on observer_signals
 
 -- Write: operators+ only, via dedicated server actions
 -- (apps/dashboard/src/app/settings/observers/actions.ts, M4.3).
--- The RLS clause is intentionally restrictive; server actions check
--- is_operator_of() before issuing the write so the surface is explicit.
+-- Both USING and WITH CHECK supplied to be explicit (codex 2026-05-15 P2 #14).
 create policy observer_signals_operator_write on observer_signals
   for all using (
+    public.is_member_of(tenant_id) and public.is_operator_of(tenant_id)
+  ) with check (
     public.is_member_of(tenant_id) and public.is_operator_of(tenant_id)
   );
 ```
@@ -277,10 +315,13 @@ Every state change on observer_signals appends to `operations_log`:
 
 ### Schema
 
+Single-write design (codex 2026-05-15 P1 #2 + P2 #12): the row is inserted **once at the end** of the observer run with a terminal `status`. No `in_progress` lifecycle state in v1.6, no append-only triggers, no post-insert UPDATE to `proposals_filed`. If a proposal was filed during the run, the proposal_id is included in the initial INSERT. This is mechanically simpler and avoids the `pg_trigger_depth() = 1` trap that would block SECURITY DEFINER updates.
+
 ```sql
 create table observer_runs (
   id                  uuid primary key default gen_random_uuid(),
   signal_id           uuid not null references observer_signals(id) on delete cascade,
+  tenant_id           uuid not null references public.tenants(id) on delete cascade,
   ran_at              timestamptz not null default now(),
   requested_by        uuid references auth.users(id) on delete set null,
   executed_by         text not null default 'user'
@@ -293,80 +334,86 @@ create table observer_runs (
   proposals_filed     text[] not null default array[]::text[],
   llm_call_id         text,
   llm_tokens_used     integer,
-  status              text not null default 'completed'
-                        check (status in ('completed', 'no_anomaly',
-                                          'skipped_cooldown', 'skipped_min_sample',
-                                          'quota_exhausted', 'failed')),
+  status              text not null
+                        check (status in ('completed',
+                                          'no_anomaly',
+                                          'skipped_cooldown',
+                                          'skipped_min_sample',
+                                          'quota_exhausted',
+                                          'adapter_error',
+                                          'llm_error')),
   error_class         text,
   unique (signal_id, window_start)
 );
 
 create index observer_runs_signal_idx on observer_runs(signal_id, ran_at desc);
+create index observer_runs_tenant_idx on observer_runs(tenant_id, ran_at desc);
 ```
+
+`tenant_id` is denormalized onto the row (per migration 0021 pattern) so RLS lookups don't need to traverse `observer_signals`. The FK + the trigger that copies tenant_id at insert time (see RPC section below) keep the values consistent.
 
 `requested_by` is nullable to support v1.7 cron (`requested_by IS NULL AND executed_by = 'cron'`). v1.6 inserts always carry the authenticated user's id.
 
-`(signal_id, window_start)` is the **idempotency key** for the observer (codex #14). Re-running with the same window cannot duplicate-emit; the unique constraint enforces this at the DB layer.
+`(signal_id, window_start)` is the **idempotency key** (codex 2026-05-15 #14 carryforward). Re-running with the same window cannot duplicate-emit; the unique constraint enforces this at the DB layer.
+
+`status` has no default — the RPC always supplies a terminal value at insert time. There is no `in_progress` value because v1.6 inserts the row only once the run has produced its terminal classification.
 
 ### RLS
 
 ```sql
 alter table observer_runs enable row level security;
 
--- A run is visible iff its parent signal is visible (i.e., same tenant).
-create policy observer_runs_via_signal on observer_runs
-  for select using (
-    signal_id in (
-      select id from observer_signals
-       where public.is_member_of(tenant_id)
-    )
-  );
-
--- Writes go through SECURITY DEFINER RPC observer_run_record() (not exposed
--- as direct INSERT/UPDATE). No row-level write policy needed since direct
--- writes are revoked from authenticated below.
+-- Direct RLS read on tenant_id — cheaper than joining through observer_signals.
+create policy observer_runs_member_read on observer_runs
+  for select using (public.is_member_of(tenant_id));
 ```
 
-After the table is created, revoke direct write grants from authenticated:
+After the table is created, revoke direct write grants from authenticated. All writes go through the SECURITY DEFINER `propose_observation()` RPC (M3, see RPC ownership below). The RPC validates the caller is the tenant's operator+ before inserting.
 
 ```sql
 revoke insert, update, delete on observer_runs from authenticated;
 ```
 
-**Plain English.** A run is reachable only through its parent signal — RLS delegates again. Direct writes are revoked; the only way to insert/update is through the `observer_run_record()` RPC (M3 scope), which the `observerRun()` orchestrator calls under a service actor identity.
+**Plain English.** Any tenant member can READ the audit trail. No client can directly INSERT or UPDATE — the only path is `propose_observation()`, which does the full transaction (observer_run insert + queue insert) atomically.
 
 ### Mutable vs append-only
 
-- **Append-only on insert:** `id`, `signal_id`, `ran_at`, `requested_by`, `executed_by`, `window_start`, `window_end`, `window_snapshot`, `anomalies_jsonb`, `staged_finding`, `llm_call_id`, `llm_tokens_used`, `status`, `error_class`.
-- **Mutable (one-time append):** `proposals_filed` — array append during the `emitObservationProposal()` step in the same transaction. After the run completes, the array is frozen.
-
-Blocked by trigger after `status` reaches terminal:
-
-```sql
-create or replace function public.block_observer_run_mutation()
-  returns trigger language plpgsql security definer
-  set search_path = public as $$
-begin
-  if pg_trigger_depth() = 1 then
-    raise exception 'observer_runs is append-only after creation'
-      using errcode = 'P0001';
-  end if;
-  if tg_op = 'UPDATE' then return new; else return old; end if;
-end $$;
-
-create trigger observer_runs_no_update before update on observer_runs
-  for each row execute function public.block_observer_run_mutation();
-create trigger observer_runs_no_delete before delete on observer_runs
-  for each row execute function public.block_observer_run_mutation();
-```
-
-This is the **direct mirror** of the `block_top_level_log_mutation()` pattern in migration 0007. UPDATE allowed only when called from a SECURITY DEFINER function (depth > 1) — which is how the `proposals_filed` append happens during the observer-run transaction.
+- **All fields are append-only at INSERT.** The row is fully populated in one statement at the end of the run; no field is mutated afterward.
+- **No append-only trigger.** Earlier drafts of this doc described a `block_observer_run_mutation()` trigger mirroring `operations_log`. Codex 2026-05-15 P1 #2 correctly flagged that `pg_trigger_depth() = 1` is true even when a SECURITY DEFINER function issues the UPDATE — so the trigger would have blocked the very RPC paths it was meant to allow. The fix: don't use a trigger at all. Direct UPDATE/DELETE grants are revoked from `authenticated`; the only INSERT path is `propose_observation()` (SECURITY DEFINER); and no path UPDATEs after insert.
 
 ### RPC ownership
 
-- `observer_run_record(p_signal_id, p_window_start, p_window_end, ...)` — SECURITY DEFINER, called by `observerRun()` orchestrator (M3). Inserts the row, verifies tenant ownership, returns the row id.
-- `observer_run_attach_proposal(p_run_id, p_proposal_id)` — SECURITY DEFINER, called inside the same transaction after `propose_change()` succeeds. Appends `p_proposal_id` to `proposals_filed`.
-- `accept_proposal_observation(p_proposal_id)` — SECURITY DEFINER, M3.4. Atomically: creates memory_files row from `observer_runs.staged_finding`, marks queue item accepted, appends operations_log. Resolves the run by joining via the proposal frontmatter's `observer_run_id`.
+Two SECURITY DEFINER RPCs cover the M3 surface:
+
+- `propose_observation(p_tenant_id uuid, p_signal_id uuid, p_window_start timestamptz, p_window_end timestamptz, p_window_snapshot jsonb, p_anomalies jsonb, p_staged_finding jsonb, p_llm_call_id text, p_llm_tokens_used int, p_status text, p_error_class text, p_proposal_body text, p_proposal_summary text) RETURNS jsonb` — atomic transaction:
+  1. Verify `auth.uid() is not null` (any authenticated caller — role check below) AND `public.is_operator_of(p_tenant_id)`.
+  2. Verify `p_signal_id` belongs to `p_tenant_id` and is `enabled = true` and not soft-deleted.
+  3. If `p_staged_finding is not null` AND `p_status = 'completed'`: insert into `queue_items` using the same shape as `propose_change()` (proposal_id format `prop_<ts>_observer_<signal_slug>`), with frontmatter that includes the v1.6 observation fields (`type=observation`, `observer_run_id`, `signal_source`, `signal_id`, `anomaly_summary`, `baseline_window`, `citations`). Capture the proposal_id.
+  4. Insert one row into `observer_runs` with `proposals_filed = case when proposal_id is not null then array[proposal_id] else array[]::text[] end`.
+  5. Append `operations_log` (`action='observer_run'`).
+  6. Return `{ok: true, observer_run_id, proposal_id (nullable)}`.
+  - **Why one RPC, not two.** Codex 2026-05-15 P1 #6 flagged that the existing `propose_change()` has a fixed frontmatter shape and cannot carry `observer_run_id`. Rather than extend `propose_change()` (which is part of the queue contract and touched by file-mode parity in `scripts/propose.sh`), v1.6 ships a dedicated RPC that writes both rows in the same transaction. Body parsing is avoided.
+
+- `accept_proposal_observation(p_proposal_id text) RETURNS jsonb` — M3.4. Atomic transaction:
+  1. Verify `public.is_operator_of(...)` against the queue item's tenant.
+  2. Verify the queue item exists, `status='pending'`, and the frontmatter `type = 'observation'`.
+  3. Read `observer_run_id` from frontmatter; verify the matching `observer_runs` row exists and belongs to the same tenant.
+  4. Create the `memory_files` row from `observer_runs.staged_finding`: `type = 'observation'` (requires the enum migration below), `status = 'active'` (the DB-level enum value — see top-of-doc clarification), tenant_id matched, frontmatter copied from `staged_finding`.
+  5. Mark `queue_items.status = 'accepted'`; insert into `proposals_accepted`.
+  6. Append `operations_log` (`action='accept_observation'`, payload includes both `proposal_id` and `observer_run_id`).
+  7. Return `{ok: true, memory_file_id}`.
+
+- **memory_type enum extension** (codex 2026-05-15 P1 #4) — migration 0047 MUST run `alter type public.memory_type add value if not exists 'observation';` before any `insert ... values ('observation'::memory_type)`. ALTER TYPE ADD VALUE is non-transactional in older Postgres but is fine on Supabase's current Postgres 15. Migration must commit this enum change before any RPC body that references it executes. If you bundle into one migration file, put the `alter type` at the top, separated by an explicit transaction boundary if your migration runner supports it; otherwise split into 0047a (enum) and 0047b (RPC).
+
+- **Queue accept dispatch** (codex 2026-05-15 P1 #5) — the existing `accept_proposal()` only marks the queue item accepted + appends operations_log; it does not create memory rows. To avoid divergent code paths, M3.6's `/queue/[id]/page.tsx` server action inspects the queue item's frontmatter; if `type === 'observation'`, it calls `accept_proposal_observation()`; otherwise it falls through to the existing `accept_proposal()`. The dispatch lives in the route's server action, not in a SQL function (avoids touching the existing accept_proposal contract). Document this in M3.6's task description.
+
+### Caller identity for v1.6
+
+Codex 2026-05-15 P1 #7 flagged the "service actor" framing as ambiguous. v1.6 reality:
+
+- `POST /api/observer/run-now/:signalId` is always invoked from a cookie-authenticated user session (`requireRole(actor, "operator")`). The Route Handler creates a Supabase server client bound to the user's session; `auth.uid()` returns the user inside both `propose_observation()` and `accept_proposal_observation()`. `requested_by = auth.uid()` and `executed_by = 'user'`.
+- There is **no separate service-actor identity in v1.6.** The "service actor" framing only matters for v1.7's cron path, where `auth.uid()` will be null and the cron worker must pass `requested_by = null` + `executed_by = 'cron'` plus a service-role JWT that the RPC accepts.
+- v1.6's RPC implementation MAY accept `requested_by` as a parameter (defaulting to `auth.uid()`) to make the v1.7 transition additive. Required behavior for v1.6: the RPC raises `unauthorized` if `auth.uid()` is null.
 
 ### Retention
 
@@ -427,6 +474,10 @@ create index tenant_quota_reservations_tenant_idx
 
 The reservation table is the **concurrency primitive** for codex #18's atomic-quota fix. `reserve_quota()` opens a transaction, takes `SELECT FOR UPDATE` on the `tenant_quotas` row, validates the budget, increments `tokens_used` by `estimated_tokens`, inserts the reservation row, commits. After the LLM call returns, `reconcile_quota(reservation_id, actual_tokens)` adjusts `tokens_used` by `(actual_tokens - estimated_tokens)` and marks the reservation reconciled.
 
+**Row bootstrap (codex 2026-05-15 P2 #11).** `SELECT FOR UPDATE` requires a row to lock. Migration 0048 includes a one-time backfill for existing tenants (`insert into tenant_quotas (tenant_id) select id from tenants on conflict do nothing`) plus a trigger on `tenants` AFTER INSERT that seeds a new `tenant_quotas` row. `reserve_quota()` itself does NOT INSERT-ON-MISSING because doing so under contention without the seed trigger would race (two callers both INSERT, one wins, the other lock takes effect on a row that already incremented). Trigger-based bootstrap is the single source of truth.
+
+**Stuck-reservation cleanup (codex 2026-05-15 P2 #9).** Reservations whose LLM call crashed mid-flight never get reconciled, and their `estimated_tokens` would otherwise stay subtracted from the budget forever (causing false `tokens_exceeded` after a few orphans accumulate). v1.6 ships **inline lazy cleanup** inside `reserve_quota()`: before computing the new budget, the RPC reconciles any reservations belonging to this tenant where `reconciled_at IS NULL AND reserved_at < now() - interval '5 minutes'` by treating `actual_tokens = estimated_tokens` (worst-case assumption — we keep the budget held), marking them reconciled, and proceeding. This makes orphans self-healing on the next reserve call. A future v1.7 background job will do better cleanup (e.g., refund unused budget after the timeout). v1.6 chooses the conservative path because it cannot prove the LLM call didn't actually complete.
+
 ### RLS
 
 ```sql
@@ -469,6 +520,8 @@ Both RPCs are SECURITY DEFINER and the **only** code paths that touch these tabl
 
 Per ADR-0012 / migration 0039, callers may be any authenticated role (the gate is at the route handler, not the RPC). v1.6 callers: `homeTurn` (cookie-auth user) and `observerRun` (service actor — but currently always invoked from a cookie-auth user-driven endpoint).
 
+**Per-user hourly cap is deferred (codex 2026-05-15 P2 #10).** The design doc mentions `max_turns_per_user_per_hour` as a hard cap, but `tenant_quotas` is keyed by `tenant_id` only — no per-`(tenant_id, actor_id, hour_bucket)` counter exists. Adding that schema in v1.6 isn't necessary because the demo scenarios are single-user-per-tenant. v1.6 ships with `turns_count` tracked at tenant scope only; the per-user-per-hour cap is **dropped from v1.6** and revisited in v1.7 along with cron + multi-user scenarios. Track this as an explicit v1.7 follow-up below.
+
 ### Retention
 
 - **tenant_quotas:** persistent (one row per tenant; values reset daily by `reserve_quota`).
@@ -508,4 +561,5 @@ These invariants tie the five tables together and must hold across all v1.6 migr
 - **Hard-delete cleanup jobs.** v1.6 sets `archived_at` / `deleted_at` but never hard-deletes. v1.7 needs cleanup workers + a written policy on legal-hold cases.
 - **Cross-tenant admin visibility.** A future capability for hosted-demo support staff to read across tenants for debugging. v1.6 RLS is strict per-tenant; relaxing requires a new ADR.
 - **Per-tenant quota override UI.** v1.6 hardcodes defaults from a config file (M4.1). A future /settings/usage page exposes override knobs to admins.
-- **Quota reservation TTL.** v1.6 has no TTL — if `reconcile_quota` is never called (orchestrator crashes), the reservation persists and over-counts. A future cleanup job reconciles abandoned reservations after 5 minutes by writing `actual_tokens = estimated_tokens`. Track as a v1.7 known-follow-up.
+- **Quota reservation refunds.** v1.6 ships **conservative inline cleanup** (orphans get `actual = estimated`, see Quota section). v1.7 will refine: background worker that distinguishes "LLM call definitively didn't complete" from "orchestrator crashed after a successful call," and refunds budget appropriately.
+- **Per-user hourly cap.** Dropped from v1.6 (see Quota section). v1.7 adds `(tenant_id, actor_id, hour_bucket)` counter table or equivalent, alongside multi-user scenarios + cron quota gating.

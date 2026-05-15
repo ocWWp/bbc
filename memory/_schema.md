@@ -60,7 +60,13 @@ Why a dedicated supertag, not `fact`? Three reasons:
 2. **Different cascade behavior.** If the parent `observer_runs` row is purged at end-of-retention, the `observation` memory row can survive as durable knowledge — but only if it was reviewed and accepted. Type lets queries and cleanup distinguish.
 3. **Distinct frontmatter shape.** The five fields above don't fit cleanly on `fact` or `note` (which doesn't even exist in this schema — ADR-0008 referenced it informally; v1.6's `observation` is the concrete realization).
 
-Note that `proposed` status for `observation` rows is **handled by the queue** — no `memory_files` row exists with `status='proposed'` for observations. The row is created only after `accept_proposal_observation()` runs (per migration 0047, M3.4 of the v1.6 plan). This means an `observation` memory file always has `status='accepted'` or `status='archived'` (post-rejection cleanup of the staged_finding) — never `proposed`. Codex review of the v1.6 design flagged the "proposed memory rows leaking into citations" risk; this convention closes it.
+**Status mapping (DB-mode vs frontmatter, codex 2026-05-15 P1 #3).** The `memory_files` table's `status` DB column uses the enum `('draft', 'active', 'archived')` (from migration 0017). The frontmatter `status:` field uses the lifecycle vocabulary above (`accepted`, `proposed`, `superseded`, `archived`). For `observation` rows specifically:
+
+- Frontmatter `status: accepted` → DB `memory_files.status = 'active'`. Once `accept_proposal_observation()` runs, the row is citeable (existing brain reads in `apps/dashboard/src/lib/brain-api.ts` filter for `status='active'`).
+- Frontmatter `status: archived` → DB `memory_files.status = 'archived'` (post-rejection cleanup or admin-driven supersession).
+- **Frontmatter `status: proposed` is never persisted for observations.** The "proposed" lifecycle stage lives in `queue_items` only; the `memory_files` row does not exist until accept. This closes the codex #15 risk (proposed memory rows leaking into citation surfaces).
+
+The `memory_type` DB enum (also from migration 0017, extended by 0022) does not yet include `observation`. M3 migration 0047 must `alter type public.memory_type add value if not exists 'observation';` before its first `insert ... ('observation'::memory_type)` (codex 2026-05-15 P1 #4).
 
 ### Body
 

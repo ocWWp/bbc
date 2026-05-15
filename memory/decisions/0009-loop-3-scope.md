@@ -155,6 +155,7 @@ The original constraints carry forward verbatim. The amendment adds explicit cla
 - **No silent state changes.** No `observer_signals` row exists until the user clicks `Set up this watch` after seeing the agent's preview card; no signal is active until the user clicks `Enable watching` from `/settings/observers` or the action card. No PostHog calls happen before step 2.
 - **Per-signal kill-switch is mandatory.** Default `enabled=false` on row create. Disabling restores zero external traffic for that signal within one observer run window.
 - **No PII in proposal bodies.** Carries forward from the original Privacy floor. v1.6 adapter restricts to aggregate metric series, so this is enforced by construction.
+- **No secrets in stored adapter state.** Adapter implementations MUST NOT persist upstream API tokens, OAuth refresh tokens, BYOK provider keys, or other raw credential material into `observer_signals.config_jsonb`, `observer_runs.window_snapshot`, proposal bodies, or proposal frontmatter. Credentials live in the existing secrets vault per `apps/dashboard/src/lib/encryption.ts` and are referenced by ID only. v1.6's `posthog.metric` adapter stores the BYOK key ID in `config_jsonb`, never the key itself. (Per codex 2026-05-15 P2 #8.)
 
 ### Trigger frequency for v1.6 — manual only
 
