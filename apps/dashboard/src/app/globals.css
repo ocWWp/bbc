@@ -5981,6 +5981,166 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   margin-top: 10px;
 }
 
+/* ---- intent toggle (Make draft / Ask brain) ----
+   Sits above the composer-shell. Two equal-width pill buttons in a low-key
+   container. Make draft is the default. The toggle is a setting, not a
+   destination, so it stays visually quieter than the composer-submit pill. */
+.intent-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  padding: 3px;
+  margin-bottom: 10px;
+  background: var(--bg-2);
+  border: 1px solid var(--rule);
+  border-radius: 100px;
+}
+.intent-toggle-btn {
+  font-family: "Geist", sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  padding: 8px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--paper-muted);
+  border-radius: 100px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.intent-toggle-btn:hover { color: var(--ink); }
+.intent-toggle-btn[data-on] {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow:
+    0 1px 2px rgba(20, 18, 12, 0.06),
+    0 0 0 1px var(--rule);
+}
+.intent-toggle-btn:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--paper-accent, var(--accent)), transparent 30%);
+  outline-offset: 2px;
+}
+
+/* ---- brain results (Ask brain stage) ----
+   Source-backed hits. Same paper-card feel as the recent-runs strip but a
+   touch more breathing room (this is the answer-shaped output, not a quiet
+   meta strip). Type chip on the left, title in the middle, relative time on
+   the right — each row is a click-through to /brain/[id]. */
+.brain-results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  background: var(--paper);
+  padding: 16px 18px 14px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.brain-results-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.brain-results-head .eyebrow {
+  font-family: "Geist Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+  color: var(--paper-muted);
+}
+.brain-results-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.brain-results-list li + li { border-top: 1px solid var(--rule); }
+.brain-hit {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 10px;
+  margin: 0 -10px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.12s;
+}
+.brain-hit:hover { background: var(--bg-2); }
+.brain-hit:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--paper-accent, var(--accent)), transparent 30%);
+  outline-offset: -2px;
+}
+.brain-hit-type {
+  font-family: "Geist Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  color: var(--paper-muted);
+  padding: 3px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 100px;
+  background: var(--bg-2);
+  white-space: nowrap;
+}
+.brain-hit-title {
+  font-family: "Geist", sans-serif;
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.brain-hit-time {
+  font-family: "Geist Mono", monospace;
+  font-size: 11.5px;
+  color: var(--paper-muted-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.brain-results-foot {
+  font-size: 11.5px;
+  color: var(--paper-muted-2);
+  margin: 0;
+  padding-top: 6px;
+  border-top: 1px dashed var(--rule);
+  line-height: 1.5;
+}
+.brain-results-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 20px 8px 6px;
+  max-width: 480px;
+  margin: 0 auto;
+}
+.brain-results-empty p {
+  font-size: 14px;
+  color: var(--paper-muted);
+  margin: 0;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+@media (max-width: 540px) {
+  .brain-hit {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    column-gap: 10px;
+    row-gap: 4px;
+  }
+  .brain-hit-time {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
 /* ===========================================================================
    Studio — task composer + workflow grid
    ===========================================================================

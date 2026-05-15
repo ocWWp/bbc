@@ -3,8 +3,15 @@
 // ChatHome: conversational-routing surface for /home. Wraps routeTask in a
 // constrained state machine so the page never drifts into chat-thread mode.
 //
-// State machine: idle → thinking → (candidates | clarify | error)
-// Max 1 clarify turn per task — enforced server-side (routeTask with
+// State machine: idle → thinking → (candidates | clarify | brain_results | error)
+// Two intents, declared by the user via a segmented control:
+//   - "make" → submit() calls routeTask() and lands in candidates/clarify
+//   - "ask"  → submit() calls searchBrain() and lands in brain_results
+// Codex consult (2026-05-15) settled on the explicit Read-vs-Make split rather
+// than auto-classifying intent server-side — synthesizing fluent answers from
+// incomplete memory is a citation-liability risk we're not taking on in Phase P.
+//
+// Max 1 clarify turn per make-task — enforced server-side (routeTask with
 // opts.clarification forces tool_choice=route_task) and client-side by
 // rejecting any clarify response that comes back from a CLARIFIED request.
 // We use the closure-local `clarification` arg as the per-task signal, not
@@ -17,16 +24,24 @@ import {
   routeTask,
   type RoutedTemplate,
 } from "@/lib/studio/route-task-action";
+import {
+  searchBrain,
+  type BrainHit,
+} from "@/lib/home/search-brain-action";
 import { TASK_MIN_LEN } from "@/lib/studio/task-limits";
 import StarterPrompts from "./StarterPrompts";
 import RecentRunsStrip, { type RecentRun } from "./RecentRunsStrip";
+import BrainResults from "./BrainResults";
 
 type Stage =
   | { kind: "idle" }
   | { kind: "thinking" }
   | { kind: "candidates"; candidates: RoutedTemplate[]; clarification?: string }
   | { kind: "clarify"; question: string; suggestions: string[]; task: string }
+  | { kind: "brain_results"; query: string; hits: ReadonlyArray<BrainHit> }
   | { kind: "error"; message: string };
+
+type Intent = "make" | "ask";
 
 type Role = "member" | "operator" | "admin" | "viewer";
 
@@ -36,10 +51,21 @@ export type ChatHomeProps = {
   recentRuns: ReadonlyArray<RecentRun>;
 };
 
+const PLACEHOLDER: Record<Intent, string> = {
+  make: "e.g. follow up with a customer who churned, or draft an NDA for a contractor",
+  ask: "e.g. when did we sign Stripe? what's our runway? who owns the auth migration?",
+};
+
+const SUBMIT_LABEL: Record<Intent, string> = {
+  make: "Ask BBC",
+  ask: "Search brain",
+};
+
 export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeProps) {
   const recentRunsCount = recentRuns.length;
   const router = useRouter();
   const [task, setTask] = useState("");
+  const [intent, setIntent] = useState<Intent>("make");
   const [stage, setStage] = useState<Stage>({ kind: "idle" });
   const [, startTransition] = useTransition();
 
@@ -70,7 +96,7 @@ export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeP
     );
   }
 
-  const submit = (taskText: string, clarification?: string) => {
+  const submitMake = (taskText: string, clarification?: string) => {
     const t = taskText.trim();
     if (t.length < TASK_MIN_LEN) {
       setStage({ kind: "error", message: "Describe what you need in a few more words." });
@@ -108,9 +134,34 @@ export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeP
     });
   };
 
+  const submitAsk = (taskText: string) => {
+    const t = taskText.trim();
+    if (t.length < TASK_MIN_LEN) {
+      setStage({ kind: "error", message: "Describe what you're looking for in a few more words." });
+      return;
+    }
+    setStage({ kind: "thinking" });
+    startTransition(async () => {
+      const res = await searchBrain(t);
+      if (!res.ok) {
+        setStage({ kind: "error", message: res.error });
+        return;
+      }
+      setStage({ kind: "brain_results", query: t, hits: res.hits });
+    });
+  };
+
+  const submit = (taskText: string, clarification?: string) => {
+    if (intent === "ask") {
+      submitAsk(taskText);
+      return;
+    }
+    submitMake(taskText, clarification);
+  };
+
   const onClarifyClick = (suggestion: string) => {
     if (stage.kind !== "clarify") return;
-    submit(stage.task, suggestion);
+    submitMake(stage.task, suggestion);
   };
 
   const onCandidateClick = (c: RoutedTemplate) => {
@@ -131,6 +182,18 @@ export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeP
   };
 
   const onRephrase = () => {
+    setStage({ kind: "idle" });
+  };
+
+  const onResetBrain = () => {
+    setStage({ kind: "idle" });
+  };
+
+  const onIntentChange = (next: Intent) => {
+    if (next === intent) return;
+    setIntent(next);
+    // Switching intent always returns to idle — a half-loaded candidates list
+    // or brain hits for the *other* intent would be confusing.
     setStage({ kind: "idle" });
   };
 
@@ -158,46 +221,79 @@ export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeP
         </p>
       </header>
 
-      {stage.kind === "clarify" ? (
-        <section className="chat-home-clarify" aria-live="polite">
-          <p className="clarify-task-recall">
-            <span className="muted">your task —</span> &ldquo;{stage.task}&rdquo;
-          </p>
-          <span className="clarify-eyebrow">BBC needs one detail</span>
-          <p className="clarify-question">{stage.question}</p>
-          <div className="clarify-chips">
-            {stage.suggestions.map((s) => (
-              <button
-                key={s}
-                type="button"
-                className="chip"
-                data-kind="answer"
-                onClick={() => onClarifyClick(s)}
-                aria-label={`answer: ${s}`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
+      <section className="chat-home-composer">
+        <div
+          className="intent-toggle"
+          role="tablist"
+          aria-label="What do you want to do?"
+        >
           <button
             type="button"
-            className="link-quiet"
-            onClick={onRephrase}
+            role="tab"
+            aria-selected={intent === "make"}
+            className="intent-toggle-btn"
+            data-on={intent === "make" || undefined}
+            onClick={() => onIntentChange("make")}
           >
-            or rephrase →
+            Make draft
           </button>
-        </section>
-      ) : (
-        <section className="chat-home-composer">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={intent === "ask"}
+            className="intent-toggle-btn"
+            data-on={intent === "ask" || undefined}
+            onClick={() => onIntentChange("ask")}
+          >
+            Ask brain
+          </button>
+        </div>
+
+        {stage.kind === "clarify" ? (
+          <section className="chat-home-clarify" aria-live="polite">
+            <p className="clarify-task-recall">
+              <span className="muted">your task —</span> &ldquo;{stage.task}&rdquo;
+            </p>
+            <span className="clarify-eyebrow">BBC needs one detail</span>
+            <p className="clarify-question">{stage.question}</p>
+            <div className="clarify-chips">
+              {stage.suggestions.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  className="chip"
+                  data-kind="answer"
+                  onClick={() => onClarifyClick(s)}
+                  aria-label={`answer: ${s}`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="link-quiet"
+              onClick={onRephrase}
+            >
+              or rephrase →
+            </button>
+          </section>
+        ) : stage.kind === "brain_results" ? (
+          <BrainResults
+            query={stage.query}
+            hits={stage.hits}
+            onReset={onResetBrain}
+          />
+        ) : (
           <div className="composer-shell" data-disabled={stage.kind === "thinking" || undefined}>
             <textarea
               className="chat-home-input"
               value={task}
               onChange={(e) => setTask(e.target.value)}
               onKeyDown={onKey}
-              placeholder="e.g. follow up with a customer who churned, or draft an NDA for a contractor"
+              placeholder={PLACEHOLDER[intent]}
               rows={3}
-              aria-label="Describe what you need"
+              aria-label={intent === "make" ? "Describe what you need" : "Search your brain"}
               disabled={stage.kind === "thinking"}
             />
             <div className="composer-foot">
@@ -210,19 +306,21 @@ export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeP
                 className="composer-submit"
                 onClick={() => submit(task)}
                 disabled={!canSubmit}
-                aria-label="Ask BBC"
+                aria-label={SUBMIT_LABEL[intent]}
               >
-                <span>Ask BBC</span>
+                <span>{SUBMIT_LABEL[intent]}</span>
                 <span className="composer-submit-arrow" aria-hidden>→</span>
               </button>
             </div>
           </div>
-        </section>
-      )}
+        )}
+      </section>
 
       {stage.kind === "thinking" && (
         <div className="chat-home-stage" data-state="thinking" aria-live="polite">
-          <span className="thinking-eyebrow">routing…</span>
+          <span className="thinking-eyebrow">
+            {intent === "ask" ? "searching brain…" : "routing…"}
+          </span>
           <div className="thinking-skeleton" aria-hidden>
             <span className="skel-row" style={{ width: "60%" }} />
             <span className="skel-row" style={{ width: "80%" }} />

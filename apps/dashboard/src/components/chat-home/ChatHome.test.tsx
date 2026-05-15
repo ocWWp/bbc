@@ -8,6 +8,11 @@ vi.mock("@/lib/studio/route-task-action", () => ({
   routeTask: (...a: unknown[]) => routeTask(...a),
 }));
 
+const searchBrain = vi.fn();
+vi.mock("@/lib/home/search-brain-action", () => ({
+  searchBrain: (...a: unknown[]) => searchBrain(...a),
+}));
+
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 
@@ -22,6 +27,7 @@ const defaultProps = {
 
 beforeEach(() => {
   routeTask.mockReset();
+  searchBrain.mockReset();
   push.mockReset();
 });
 afterEach(cleanup);
@@ -252,5 +258,135 @@ describe("ChatHome — codex review fixes", () => {
     const calledWith = push.mock.calls[0]?.[0] as string;
     expect(calledWith).toContain(encodeURIComponent("write an NDA for a contractor"));
     expect(calledWith).not.toContain("%E2%80%94"); // em dash not present (no clarification appended)
+  });
+});
+
+describe("ChatHome — Read vs Make intent toggle (Option D)", () => {
+  it("defaults to Make draft intent: submit calls routeTask, never searchBrain", async () => {
+    routeTask.mockResolvedValue({
+      ok: true,
+      kind: "candidates",
+      candidates: [{ templateId: "legal:nda", owningRole: "legal", label: "NDA", rationale: "fits" }],
+    });
+    render(<ChatHome {...defaultProps} />);
+    // Make draft tab is on by default.
+    const makeTab = screen.getByRole("tab", { name: /make draft/i });
+    expect(makeTab.getAttribute("aria-selected")).toBe("true");
+
+    fireEvent.change(screen.getByRole("textbox", { name: /describe/i }), {
+      target: { value: "write an NDA for a contractor" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /ask bbc/i }));
+    await waitFor(() => expect(routeTask).toHaveBeenCalledTimes(1));
+    expect(searchBrain).not.toHaveBeenCalled();
+  });
+
+  it("switching to Ask brain re-labels the submit and routes through searchBrain (not routeTask)", async () => {
+    searchBrain.mockResolvedValue({
+      ok: true,
+      hits: [
+        { id: "m1", type: "decision", title: "Q3 metrics targets", updated_at: "2026-04-12T00:00:00Z" },
+      ],
+    });
+    render(<ChatHome {...defaultProps} />);
+    fireEvent.click(screen.getByRole("tab", { name: /ask brain/i }));
+
+    // Submit pill should now say "Search brain", and the textbox accessible
+    // name should reflect the intent.
+    expect(screen.getByRole("button", { name: /search brain/i })).toBeTruthy();
+    const input = screen.getByRole("textbox", { name: /search your brain/i });
+    fireEvent.change(input, { target: { value: "Q3 metrics" } });
+    fireEvent.click(screen.getByRole("button", { name: /search brain/i }));
+
+    await waitFor(() => expect(searchBrain).toHaveBeenCalledWith("Q3 metrics"));
+    expect(routeTask).not.toHaveBeenCalled();
+  });
+
+  it("Ask brain with hits renders BrainResults; clicking a hit deep-links to /brain/[id]", async () => {
+    searchBrain.mockResolvedValue({
+      ok: true,
+      hits: [
+        { id: "mem-abc", type: "decision", title: "Q3 metrics targets", updated_at: "2026-04-12T00:00:00Z" },
+        { id: "mem-def", type: "glossary", title: "runway", updated_at: "2026-05-10T00:00:00Z" },
+      ],
+    });
+    render(<ChatHome {...defaultProps} />);
+    fireEvent.click(screen.getByRole("tab", { name: /ask brain/i }));
+    fireEvent.change(screen.getByRole("textbox", { name: /search your brain/i }), {
+      target: { value: "Q3 metrics" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /search brain/i }));
+
+    await waitFor(() => expect(screen.getByText("Q3 metrics targets")).toBeTruthy());
+    expect(screen.getByText("runway")).toBeTruthy();
+    expect(screen.getByText(/2 matches in your brain/i)).toBeTruthy();
+
+    const link = screen.getByText("Q3 metrics targets").closest("a");
+    expect(link?.getAttribute("href")).toBe("/brain/mem-abc");
+  });
+
+  it("Ask brain with 0 hits renders empty state echoing the query (no synthesis)", async () => {
+    searchBrain.mockResolvedValue({ ok: true, hits: [] });
+    render(<ChatHome {...defaultProps} />);
+    fireEvent.click(screen.getByRole("tab", { name: /ask brain/i }));
+    fireEvent.change(screen.getByRole("textbox", { name: /search your brain/i }), {
+      target: { value: "how is the company doing rn" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /search brain/i }));
+
+    await waitFor(() => expect(screen.getByText(/no matches for/i)).toBeTruthy());
+    // The query is echoed; nothing is generated about the company.
+    expect(screen.getByText(/no matches for/i).textContent).toContain("how is the company doing rn");
+    expect(screen.getByRole("link", { name: /open brain/i })).toBeTruthy();
+  });
+
+  it("Ask brain failure renders the error stage with the server message", async () => {
+    searchBrain.mockResolvedValue({ ok: false, error: "Too many searches. Wait a minute and try again." });
+    render(<ChatHome {...defaultProps} />);
+    fireEvent.click(screen.getByRole("tab", { name: /ask brain/i }));
+    fireEvent.change(screen.getByRole("textbox", { name: /search your brain/i }), {
+      target: { value: "anything substantive" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /search brain/i }));
+    await waitFor(() => expect(screen.getByText(/too many searches/i)).toBeTruthy());
+  });
+
+  it("clicking 'new search' from brain results returns to the composer (idle stage)", async () => {
+    searchBrain.mockResolvedValue({
+      ok: true,
+      hits: [{ id: "m1", type: "decision", title: "Q3 metrics targets", updated_at: "2026-04-12T00:00:00Z" }],
+    });
+    render(<ChatHome {...defaultProps} />);
+    fireEvent.click(screen.getByRole("tab", { name: /ask brain/i }));
+    fireEvent.change(screen.getByRole("textbox", { name: /search your brain/i }), {
+      target: { value: "Q3 metrics" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /search brain/i }));
+    await waitFor(() => screen.getByText("Q3 metrics targets"));
+
+    fireEvent.click(screen.getByRole("button", { name: /new search/i }));
+    // Composer should be visible again with the search-brain label still on.
+    expect(screen.getByRole("textbox", { name: /search your brain/i })).toBeTruthy();
+    expect(screen.queryByText("Q3 metrics targets")).toBeNull();
+  });
+
+  it("switching intent from ask back to make resets the stage and re-labels the submit", async () => {
+    searchBrain.mockResolvedValue({
+      ok: true,
+      hits: [{ id: "m1", type: "decision", title: "Q3 metrics targets", updated_at: "2026-04-12T00:00:00Z" }],
+    });
+    render(<ChatHome {...defaultProps} />);
+    fireEvent.click(screen.getByRole("tab", { name: /ask brain/i }));
+    fireEvent.change(screen.getByRole("textbox", { name: /search your brain/i }), {
+      target: { value: "Q3 metrics" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /search brain/i }));
+    await waitFor(() => screen.getByText("Q3 metrics targets"));
+
+    // Flip back to Make draft — the brain hits must clear so they don't
+    // contaminate the routing surface.
+    fireEvent.click(screen.getByRole("tab", { name: /make draft/i }));
+    expect(screen.queryByText("Q3 metrics targets")).toBeNull();
+    expect(screen.getByRole("button", { name: /ask bbc/i })).toBeTruthy();
   });
 });
