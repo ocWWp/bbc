@@ -23,7 +23,7 @@ describe("AppNav", () => {
   });
 
   it.each(["admin", "operator", "member"] as const)(
-    "shows the same 6 primary items for %s",
+    "shows the same 5 primary items for %s",
     (role) => {
       render(<AppNav {...baseProps} workspace={{ ...baseProps.workspace, role }} />);
       expect(screen.getByRole("link", { name: "Home" })).toBeTruthy();
@@ -31,7 +31,7 @@ describe("AppNav", () => {
       expect(screen.getByRole("link", { name: "Memory" })).toBeTruthy();
       expect(screen.getByRole("link", { name: /Queue/ })).toBeTruthy();
       expect(screen.getByRole("link", { name: "Library" })).toBeTruthy();
-      expect(screen.getByRole("link", { name: "Settings" })).toBeTruthy();
+      expect(screen.queryByRole("link", { name: "Settings" })).toBeNull();
     },
   );
 
@@ -49,6 +49,12 @@ describe("AppNav", () => {
     render(<AppNav {...baseProps} />);
     fireEvent.click(screen.getByRole("button", { expanded: false, name: "A" }));
     expect(screen.getByRole("menuitem", { name: /Dashboard/ })).toBeTruthy();
+  });
+
+  it("shows Settings link in avatar menu", () => {
+    render(<AppNav {...baseProps} />);
+    fireEvent.click(screen.getByRole("button", { expanded: false, name: "A" }));
+    expect(screen.getByRole("menuitem", { name: /^Settings/ })).toBeTruthy();
   });
 
   it("non-admin does not see Dashboard in avatar menu", () => {

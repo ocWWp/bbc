@@ -5,9 +5,10 @@
 // /studio-shaped subset with Brain + Inbox.
 //
 // Post-Step-2 contract:
-//   admin / operator / member  -> Home, Gallery, Memory, Queue, Library, Settings
+//   admin / operator / member  -> Home, Gallery, Memory, Queue, Library
 //   viewer                     -> Home, Gallery, Memory, Library  (read-only)
 //
+// Settings moved into the avatar dropdown (account-level, not a primary route).
 // /brain is reached via the root redirect for viewers, not the nav; the inbox
 // lives next to the avatar bell.
 //
@@ -40,11 +41,11 @@ function getNav() {
   return screen.getByRole("navigation", { name: /primary/i });
 }
 
-const PRIMARY = ["Home", "Gallery", "Memory", "Queue", "Library", "Settings"] as const;
+const PRIMARY = ["Home", "Gallery", "Memory", "Queue", "Library"] as const;
 
 describe("AppNav — role-aware route visibility", () => {
   it.each(["admin", "operator", "member"] as const)(
-    "%s sees the full 6-item primary nav",
+    "%s sees the full 5-item primary nav",
     (role) => {
       render(
         <AppNav
@@ -57,6 +58,7 @@ describe("AppNav — role-aware route visibility", () => {
       for (const label of PRIMARY) {
         expect(within(nav).getByText(label)).toBeDefined();
       }
+      expect(within(nav).queryByText("Settings")).toBeNull();
       expect(within(nav).queryByText("Brain")).toBeNull();
       expect(within(nav).queryByText("Inbox")).toBeNull();
       expect(within(nav).queryByText("Studio")).toBeNull();

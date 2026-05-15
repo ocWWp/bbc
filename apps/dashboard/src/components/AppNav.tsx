@@ -49,19 +49,12 @@ const LIBRARY_ROUTE: Route = {
   match: (p) =>
     p === "/library" || p.startsWith("/library/") || p === "/marketplace" || p.startsWith("/marketplace/"),
 };
-const SETTINGS_ROUTE: Route = {
-  key: "settings",
-  label: "Settings",
-  href: "/settings",
-  match: (p) => p === "/settings" || p.startsWith("/settings/"),
-};
 const PRIMARY_ROUTES: ReadonlyArray<Route> = [
   HOME_ROUTE,
   GALLERY_ROUTE,
   MEMORY_ROUTE,
   QUEUE_ROUTE,
   LIBRARY_ROUTE,
-  SETTINGS_ROUTE,
 ];
 const VIEWER_ROUTES: ReadonlyArray<Route> = [
   HOME_ROUTE,
@@ -213,6 +206,15 @@ function AvatarMenu({
               <span className="mono hint">/dashboard</span>
             </Link>
           )}
+          <Link
+            href="/settings"
+            className="avatar-menu-item"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+          >
+            <span>Settings</span>
+            <span className="mono hint">/settings</span>
+          </Link>
           <Link
             href="/settings/keys"
             className="avatar-menu-item"
