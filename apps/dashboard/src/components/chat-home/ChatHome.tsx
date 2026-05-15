@@ -15,6 +15,8 @@ import {
   type RoutedTemplate,
 } from "@/lib/studio/route-task-action";
 import { TASK_MIN_LEN } from "@/lib/studio/task-limits";
+import StarterPrompts from "./StarterPrompts";
+import RecentRunsStrip, { type RecentRun } from "./RecentRunsStrip";
 
 type Stage =
   | { kind: "idle" }
@@ -28,10 +30,11 @@ type Role = "member" | "operator" | "admin" | "viewer";
 export type ChatHomeProps = {
   role: Role;
   hasProviderKey: boolean;
-  recentRunsCount: number;
+  recentRuns: ReadonlyArray<RecentRun>;
 };
 
-export default function ChatHome({ role, hasProviderKey, recentRunsCount }: ChatHomeProps) {
+export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeProps) {
+  const recentRunsCount = recentRuns.length;
   const router = useRouter();
   const [task, setTask] = useState("");
   const [stage, setStage] = useState<Stage>({ kind: "idle" });
@@ -239,51 +242,12 @@ export default function ChatHome({ role, hasProviderKey, recentRunsCount }: Chat
         </div>
       )}
 
-      <ChatHomeStarters
+      <StarterPrompts
         promoted={recentRunsCount === 0}
         onPick={onStarterPick}
       />
-    </div>
-  );
-}
 
-// Static starter list — local to this file until Task 11 extracts StarterPrompts.
-const STARTER_PROMPTS = [
-  { label: "Draft an NDA", task: "draft an NDA for a contractor" },
-  { label: "Win-back email", task: "write a win-back email for a churned customer" },
-  { label: "Board memo", task: "draft a board update memo" },
-  { label: "Bug ack", task: "acknowledge a bug report from a customer" },
-  { label: "Blog post", task: "draft a blog post about our latest feature" },
-  { label: "Job description", task: "write a job description for a senior engineer" },
-] as const;
-
-function ChatHomeStarters({
-  promoted,
-  onPick,
-}: {
-  promoted: boolean;
-  onPick: (task: string) => void;
-}) {
-  return (
-    <div className={`chat-home-starters ${promoted ? "is-promoted" : ""}`}>
-      {promoted && (
-        <span className="eyebrow">
-          <span className="dot" aria-hidden /> no runs yet · pick a starter
-        </span>
-      )}
-      <div className="starter-pills">
-        {STARTER_PROMPTS.map((p) => (
-          <button
-            key={p.label}
-            type="button"
-            className="chip"
-            data-kind="starter"
-            onClick={() => onPick(p.task)}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
+      <RecentRunsStrip runs={recentRuns} />
     </div>
   );
 }

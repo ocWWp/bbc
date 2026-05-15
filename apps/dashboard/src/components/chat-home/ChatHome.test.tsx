@@ -14,7 +14,10 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 const defaultProps = {
   role: "member" as const,
   hasProviderKey: true,
-  recentRunsCount: 3,
+  recentRuns: [
+    { id: "r1", template_id: "legal:nda", task: "earlier task", status: "complete", created_at: "2026-05-13T00:00:00Z" },
+    { id: "r2", template_id: "marketing:custom", task: "another", status: "complete", created_at: "2026-05-12T00:00:00Z" },
+  ],
 };
 
 beforeEach(() => {
