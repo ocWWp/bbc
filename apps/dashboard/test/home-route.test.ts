@@ -1,6 +1,9 @@
-// Task 25 of v1.5 launch polish. /home is admin-only. Other roles get
-// bounced to their /studio/<role>. Mirrors the pattern from
-// test/role-aware-root.test.ts.
+// /home is admin-only. Other roles get bounced to their /studio/<role>.
+// Mirrors the pattern from test/role-aware-root.test.ts.
+//
+// v1.6 M2: page now renders the conversational ChatHome (server fetches
+// active session + queue depth for the greeting). The mocks below stub
+// those reads so the test stays page-shape-focused, not query-focused.
 
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
@@ -8,29 +11,12 @@ vi.mock("@/lib/auth/require-user", () => ({
   requireActor: vi.fn(),
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
-  getSupabaseServerClient: vi.fn(async () => ({})),
-}));
-
-vi.mock("@/lib/home/read-brain-health", () => ({
-  readBrainHealth: vi.fn(async () => ({
-    totalMemories: 47,
-    byType: {} as Record<string, number>,
-    awaitingReview: 3,
-    lastSeedAt: "2026-05-09T00:00:00Z",
-  })),
+vi.mock("@/lib/home/sessions", () => ({
+  getActiveSessionWithTurns: vi.fn(async () => null),
 }));
 
 vi.mock("@/lib/home/read-queue-summary", () => ({
   readQueueSummary: vi.fn(async () => ({ pendingCount: 0, topPending: [] })),
-}));
-
-vi.mock("@/lib/home/read-team-activity", () => ({
-  readTeamActivity: vi.fn(async () => ({ members: [] })),
-}));
-
-vi.mock("@/lib/loop3/read-recommendations", () => ({
-  readPendingRecommendations: vi.fn(async () => []),
 }));
 
 vi.mock("next/navigation", () => ({
