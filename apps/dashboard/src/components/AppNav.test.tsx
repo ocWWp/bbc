@@ -56,4 +56,13 @@ describe("AppNav", () => {
     fireEvent.click(screen.getByRole("button", { expanded: false, name: "A" }));
     expect(screen.queryByRole("menuitem", { name: /Dashboard/ })).toBeNull();
   });
+
+  it("nav search button dispatches the open-command-palette event", () => {
+    const listener = vi.fn();
+    window.addEventListener("bbc:open-command-palette", listener);
+    render(<AppNav {...baseProps} />);
+    fireEvent.click(screen.getByRole("button", { name: /open command palette/i }));
+    expect(listener).toHaveBeenCalledTimes(1);
+    window.removeEventListener("bbc:open-command-palette", listener);
+  });
 });

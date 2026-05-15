@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import { InboxBell } from "./InboxBell";
+import { openCommandPalette } from "./command-palette";
 import type { InboxItem } from "@/lib/inbox/read-inbox";
 
 type Route = {
@@ -128,10 +129,15 @@ export function AppNav({
         </nav>
 
         <div className="app-nav-right">
-          <div className="app-search" aria-hidden>
+          <button
+            type="button"
+            className="app-search"
+            onClick={openCommandPalette}
+            aria-label="Open command palette"
+          >
             <span className="placeholder">search memory…</span>
             <span className="kbd">⌘K</span>
-          </div>
+          </button>
           {user ? (
             <>
               <InboxBell unreadCount={inboxUnread} preview={inboxPreview} />

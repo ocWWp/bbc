@@ -22,19 +22,34 @@ const ROUTES = [
   { label: "Marketplace", href: "/marketplace", group: "Navigate" },
 ];
 
+// The nav's fake search button dispatches this event to pop the palette open
+// without us having to hoist palette state up to a layout-level context.
+export const OPEN_COMMAND_PALETTE_EVENT = "bbc:open-command-palette";
+
+export function openCommandPalette() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(OPEN_COMMAND_PALETTE_EVENT));
+  }
+}
+
 export function CommandPalette() {
   const [open, setOpen] = React.useState(false);
   const router = useRouter();
 
   React.useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
+    const onKey = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         setOpen((prev) => !prev);
       }
     };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
+    const onOpen = () => setOpen(true);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener(OPEN_COMMAND_PALETTE_EVENT, onOpen);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener(OPEN_COMMAND_PALETTE_EVENT, onOpen);
+    };
   }, []);
 
   return (
