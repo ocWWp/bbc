@@ -7,7 +7,7 @@ import type { QueueSummary as QueueSummaryData } from "@/lib/home/read-queue-sum
 import type { PendingRec } from "@/lib/loop3/read-recommendations";
 import type { TeamActivity as TeamActivityData } from "@/lib/home/read-team-activity";
 
-export type HomeDashboardProps = {
+export type AdminDashboardProps = {
   tenantSlug: string;
   brain: BrainHealthData;
   queue: QueueSummaryData;
@@ -15,21 +15,21 @@ export type HomeDashboardProps = {
   activity: TeamActivityData;
 };
 
-export function HomeDashboard({
+export function AdminDashboard({
   tenantSlug,
   brain,
   queue,
   loop3,
   activity,
-}: HomeDashboardProps) {
+}: AdminDashboardProps) {
   return (
-    <div className="container page home-page" data-testid="home-dashboard">
+    <div className="container page home-page" data-testid="admin-dashboard">
       <header className="page-head">
         <div className="page-head-left">
           <div className="page-crumb">
             <span className="current">{tenantSlug}</span>
             <span className="sep">/</span>
-            <span className="current">home</span>
+            <span className="current">dashboard</span>
           </div>
           <h1 className="page-title">
             today <span className="serif">— at a glance</span>
