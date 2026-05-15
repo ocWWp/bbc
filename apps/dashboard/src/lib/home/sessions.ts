@@ -1,0 +1,150 @@
+import "server-only";
+
+import type { Json } from "@/lib/supabase/database.types";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
+
+export type TurnRole = "user" | "agent";
+export type TurnStatus = "in_progress" | "completed" | "aborted" | "failed";
+
+export type HomeSession = {
+  id: string;
+  tenant_id: string;
+  user_id: string;
+  started_at: string;
+  last_activity_at: string;
+  archived_at: string | null;
+};
+
+export type HomeTurn = {
+  id: string;
+  session_id: string;
+  role: TurnRole;
+  status: TurnStatus;
+  content_jsonb: Json;
+  created_at: string;
+  finalized_at: string | null;
+};
+
+/**
+ * Returns the user's active /home session, creating one if none exists.
+ * "Active" = archived_at IS NULL. There's at most one active session per
+ * (tenant_id, user_id) by convention; if multiple exist, we return the most
+ * recent and archive the older ones in a follow-up cleanup (not on read).
+ */
+export async function getOrCreateActiveSession(
+  tenantId: string,
+  userId: string,
+): Promise<HomeSession> {
+  const supabase = await getSupabaseServerClient();
+
+  const { data: existing, error: readErr } = await supabase
+    .from("home_sessions")
+    .select("*")
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId)
+    .is("archived_at", null)
+    .order("last_activity_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (readErr) throw new Error(`home_sessions read failed: ${readErr.message}`);
+  if (existing) return existing as HomeSession;
+
+  const { data: inserted, error: insErr } = await supabase
+    .from("home_sessions")
+    .insert({ tenant_id: tenantId, user_id: userId })
+    .select("*")
+    .single();
+
+  if (insErr || !inserted) {
+    throw new Error(`home_sessions insert failed: ${insErr?.message ?? "no row"}`);
+  }
+  return inserted as HomeSession;
+}
+
+export async function archiveSession(sessionId: string): Promise<void> {
+  const supabase = await getSupabaseServerClient();
+  const { error } = await supabase
+    .from("home_sessions")
+    .update({ archived_at: new Date().toISOString() })
+    .eq("id", sessionId);
+  if (error) throw new Error(`home_sessions archive failed: ${error.message}`);
+}
+
+export async function appendTurn(
+  sessionId: string,
+  role: TurnRole,
+  content: Json,
+  status: TurnStatus = "completed",
+): Promise<HomeTurn> {
+  const supabase = await getSupabaseServerClient();
+  const finalized = status === "in_progress" ? null : new Date().toISOString();
+  const { data, error } = await supabase
+    .from("home_turns")
+    .insert({
+      session_id: sessionId,
+      role,
+      status,
+      content_jsonb: content,
+      finalized_at: finalized,
+    })
+    .select("*")
+    .single();
+  if (error || !data) {
+    throw new Error(`home_turns insert failed: ${error?.message ?? "no row"}`);
+  }
+  // Bump session.last_activity_at so the active-session lookup is ordered
+  // by recent activity, not just session-start time.
+  await supabase
+    .from("home_sessions")
+    .update({ last_activity_at: new Date().toISOString() })
+    .eq("id", sessionId);
+  return data as HomeTurn;
+}
+
+export async function finalizeTurn(
+  turnId: string,
+  content: Json,
+  status: Exclude<TurnStatus, "in_progress">,
+): Promise<void> {
+  const supabase = await getSupabaseServerClient();
+  const { error } = await supabase
+    .from("home_turns")
+    .update({
+      content_jsonb: content,
+      status,
+      finalized_at: new Date().toISOString(),
+    })
+    .eq("id", turnId);
+  if (error) throw new Error(`home_turns finalize failed: ${error.message}`);
+}
+
+export async function getActiveSessionWithTurns(
+  tenantId: string,
+  userId: string,
+  limit = 50,
+): Promise<{ session: HomeSession; turns: HomeTurn[] } | null> {
+  const supabase = await getSupabaseServerClient();
+  const { data: session, error: sErr } = await supabase
+    .from("home_sessions")
+    .select("*")
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId)
+    .is("archived_at", null)
+    .order("last_activity_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (sErr) throw new Error(`home_sessions read failed: ${sErr.message}`);
+  if (!session) return null;
+
+  const { data: turns, error: tErr } = await supabase
+    .from("home_turns")
+    .select("*")
+    .eq("session_id", session.id)
+    .order("created_at", { ascending: true })
+    .limit(limit);
+
+  if (tErr) throw new Error(`home_turns read failed: ${tErr.message}`);
+  return { session: session as HomeSession, turns: (turns ?? []) as HomeTurn[] };
+}
