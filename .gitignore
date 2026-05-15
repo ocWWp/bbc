@@ -42,3 +42,9 @@ node_modules
 # Claude Code scheduled-task runtime state
 .claude/scheduled_tasks.lock
 .gstack/
+
+# Design canvas mockups (Claude Design port reference, 19MB) — not app code
+docs/design/library/bbc/project/
+
+# Codex session ID cache (per-machine state, see /codex skill)
+.context/
