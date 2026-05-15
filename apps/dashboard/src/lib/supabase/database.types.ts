@@ -24,6 +24,18 @@ export type Database = {
         Update: { bound_at?: string; notes?: string | null; provider_id?: string; provisional?: boolean; role?: string; tenant_id?: string }
         Relationships: [{ foreignKeyName: "bindings_tenant_id_fkey"; columns: ["tenant_id"]; isOneToOne: false; referencedRelation: "tenants"; referencedColumns: ["id"] }]
       }
+      home_sessions: {
+        Row: { archived_at: string | null; id: string; last_activity_at: string; started_at: string; tenant_id: string; user_id: string }
+        Insert: { archived_at?: string | null; id?: string; last_activity_at?: string; started_at?: string; tenant_id: string; user_id: string }
+        Update: { archived_at?: string | null; id?: string; last_activity_at?: string; started_at?: string; tenant_id?: string; user_id?: string }
+        Relationships: [{ foreignKeyName: "home_sessions_tenant_id_fkey"; columns: ["tenant_id"]; isOneToOne: false; referencedRelation: "tenants"; referencedColumns: ["id"] }]
+      }
+      home_turns: {
+        Row: { content_jsonb: Json; created_at: string; finalized_at: string | null; id: string; role: string; session_id: string; status: string }
+        Insert: { content_jsonb?: Json; created_at?: string; finalized_at?: string | null; id?: string; role: string; session_id: string; status?: string }
+        Update: { content_jsonb?: Json; created_at?: string; finalized_at?: string | null; id?: string; role?: string; session_id?: string; status?: string }
+        Relationships: [{ foreignKeyName: "home_turns_session_id_fkey"; columns: ["session_id"]; isOneToOne: false; referencedRelation: "home_sessions"; referencedColumns: ["id"] }]
+      }
       memory_files: {
         Row: { body_blocks: Json; content: string; created_at: string; fields: Json; frontmatter: Json; id: string; path: string; slug: string | null; status: Database["public"]["Enums"]["memory_status"]; tenant_id: string; title: string | null; type: Database["public"]["Enums"]["memory_type"] | null; updated_at: string }
         Insert: { body_blocks?: Json; content: string; created_at?: string; fields?: Json; frontmatter?: Json; id?: string; path: string; slug?: string | null; status?: Database["public"]["Enums"]["memory_status"]; tenant_id: string; title?: string | null; type?: Database["public"]["Enums"]["memory_type"] | null; updated_at?: string }
