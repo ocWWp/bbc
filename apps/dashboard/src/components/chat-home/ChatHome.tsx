@@ -61,6 +61,16 @@ const SUBMIT_LABEL: Record<Intent, string> = {
   ask: "Search brain",
 };
 
+// Make-flow needs a fuller task description for routeTask to classify well.
+// Ask-flow is a keyword search — short terms like "runway" or "stripe" are
+// the natural input shape and the server-side searchBrain only enforces 2
+// chars. Per-intent min keeps the client gate from blocking legitimate
+// brain queries.
+const MIN_INPUT_LEN: Record<Intent, number> = {
+  make: TASK_MIN_LEN,
+  ask: 2,
+};
+
 export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeProps) {
   const recentRunsCount = recentRuns.length;
   const router = useRouter();
@@ -136,8 +146,8 @@ export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeP
 
   const submitAsk = (taskText: string) => {
     const t = taskText.trim();
-    if (t.length < TASK_MIN_LEN) {
-      setStage({ kind: "error", message: "Describe what you're looking for in a few more words." });
+    if (t.length < MIN_INPUT_LEN.ask) {
+      setStage({ kind: "error", message: "Type at least 2 characters to search." });
       return;
     }
     setStage({ kind: "thinking" });
@@ -204,7 +214,8 @@ export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeP
     }
   };
 
-  const canSubmit = task.trim().length >= TASK_MIN_LEN && stage.kind !== "thinking";
+  const canSubmit =
+    task.trim().length >= MIN_INPUT_LEN[intent] && stage.kind !== "thinking";
 
   return (
     <div className="chat-home">
