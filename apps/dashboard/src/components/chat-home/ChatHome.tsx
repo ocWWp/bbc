@@ -147,10 +147,10 @@ export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeP
     <div className="chat-home">
       <header className="chat-home-head">
         <span className="eyebrow">
-          <span className="dot" aria-hidden /> ask bbc · the fast path
+          <span className="dot" aria-hidden /> ask bbc
         </span>
         <h1 className="chat-home-title">
-          Tell BBC what you <span className="serif">need</span>.
+          What can we <span className="serif">make</span> today?
         </h1>
         <p className="chat-home-blurb">
           Describe the work in your own words. BBC routes it to the right workflow across all
@@ -189,7 +189,7 @@ export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeP
         </section>
       ) : (
         <section className="chat-home-composer">
-          <div className="composer-row">
+          <div className="composer-shell" data-disabled={stage.kind === "thinking" || undefined}>
             <textarea
               className="chat-home-input"
               value={task}
@@ -200,19 +200,23 @@ export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeP
               aria-label="Describe what you need"
               disabled={stage.kind === "thinking"}
             />
-            <button
-              type="button"
-              className="btn primary chat-home-submit"
-              onClick={() => submit(task)}
-              disabled={!canSubmit}
-            >
-              Ask BBC
-            </button>
+            <div className="composer-foot">
+              <span className="composer-hint" aria-hidden>
+                <kbd>⌘</kbd>
+                <kbd>↵</kbd> to send
+              </span>
+              <button
+                type="button"
+                className="composer-submit"
+                onClick={() => submit(task)}
+                disabled={!canSubmit}
+                aria-label="Ask BBC"
+              >
+                <span>Ask BBC</span>
+                <span className="composer-submit-arrow" aria-hidden>→</span>
+              </button>
+            </div>
           </div>
-          <p className="composer-hint">
-            <kbd>⌘</kbd>
-            <kbd>↵</kbd> to send
-          </p>
         </section>
       )}
 

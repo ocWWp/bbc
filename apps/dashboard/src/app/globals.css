@@ -5448,34 +5448,42 @@ mark.mark-skill { --mark-color: var(--t-skill); }
    across /gallery. Polish pass lands in Phase 10 Task 23.
    =========================================================================== */
 .chat-home {
-  max-width: 760px;
+  max-width: 720px;
   margin: 0 auto;
-  padding: 56px 24px 80px;
+  padding: 88px 24px 96px;
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 32px;
 }
-.chat-home-head { display: flex; flex-direction: column; gap: 10px; }
+.chat-home-head {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+  text-align: center;
+}
 .chat-home-head .eyebrow {
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex; align-items: center; gap: 7px;
   font-family: "Geist Mono", monospace;
   font-size: 11px;
   color: var(--paper-muted);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: lowercase;
 }
 .chat-home-head .eyebrow .dot {
-  width: 6px; height: 6px; border-radius: 50%;
+  width: 7px; height: 7px; border-radius: 50%;
   background: var(--paper-accent, var(--accent));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--paper-accent, var(--accent)), transparent 80%);
 }
 .chat-home-title {
   font-family: "Geist", sans-serif;
-  font-size: 36px;
+  font-size: 44px;
   font-weight: 600;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
+  line-height: 1.05;
+  letter-spacing: -0.025em;
   color: var(--ink);
   margin: 0;
+  text-wrap: balance;
 }
 .chat-home-title .serif {
   font-family: "Source Serif 4", "Source Serif Pro", Georgia, serif;
@@ -5488,64 +5496,73 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   line-height: 1.55;
   color: var(--ink-2);
   margin: 0;
-  max-width: 60ch;
+  max-width: 56ch;
   text-wrap: pretty;
 }
 @media (max-width: 600px) {
-  .chat-home { padding: 32px 18px 64px; gap: 20px; }
-  .chat-home-title { font-size: 28px; }
+  .chat-home { padding: 48px 18px 72px; gap: 22px; }
+  .chat-home-title { font-size: 30px; }
+  .chat-home-blurb { font-size: 14px; }
 }
 
-/* ---- composer (input + submit) ---- */
-.chat-home-composer { display: flex; flex-direction: column; gap: 6px; }
-.composer-row {
-  display: flex; align-items: stretch; gap: 10px;
-}
-@media (max-width: 540px) { .composer-row { flex-direction: column; } }
-.chat-home-input {
-  flex: 1; min-width: 0;
+/* ---- composer (textarea + integrated submit) ----
+   One shell with the textarea on top and a footer row containing the kbd
+   hint on the left and the primary submit on the right. Looks closer to
+   Copilot / Gemini than a side-by-side button. */
+.chat-home-composer { display: flex; flex-direction: column; }
+.composer-shell {
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--rule);
-  border-radius: 12px;
-  background: var(--bg);
-  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--paper);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 8px 24px -12px rgba(0, 0, 0, 0.08);
+  transition: border-color 0.15s, box-shadow 0.2s;
+}
+.composer-shell:focus-within {
+  border-color: color-mix(in oklab, var(--ink), transparent 50%);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.05),
+    0 12px 32px -12px rgba(0, 0, 0, 0.12),
+    0 0 0 4px color-mix(in oklab, var(--paper-accent, var(--accent)), transparent 90%);
+}
+.composer-shell[data-disabled] { opacity: 0.7; }
+.chat-home-input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 18px 20px 8px;
   font-family: "Geist", sans-serif;
   font-size: 16px;
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--ink);
   resize: none;
-  min-height: 90px;
-  transition: border-color 0.15s, background 0.15s;
+  min-height: 96px;
+  border-radius: 16px 16px 0 0;
 }
-.chat-home-input:focus {
-  outline: none;
-  border-color: var(--ink);
-  background: var(--paper);
-}
+.chat-home-input:focus { outline: none; }
 .chat-home-input::placeholder {
   color: var(--paper-muted-2);
   font-style: italic;
 }
-.chat-home-input:disabled {
-  opacity: 0.6;
-  cursor: wait;
-  background: var(--bg-2);
-}
-.chat-home-submit {
-  flex-shrink: 0;
-  align-self: stretch;
-  min-width: 124px;
-  font-weight: 500;
-}
-@media (max-width: 540px) {
-  .chat-home-submit { align-self: flex-end; min-width: 0; padding: 10px 22px; }
+.chat-home-input:disabled { cursor: wait; }
+.composer-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px 12px 20px;
 }
 .composer-hint {
   font-size: 11.5px;
   color: var(--paper-muted-2);
-  text-align: right;
-  margin: 0;
   font-family: "Geist Mono", monospace;
   letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 .composer-hint kbd {
   font-family: "Geist Mono", monospace;
@@ -5554,21 +5571,60 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   border: 1px solid var(--rule);
   border-bottom-width: 2px;
   border-radius: 4px;
-  margin: 0 1px;
   background: var(--paper);
   color: var(--ink-2);
+}
+.composer-submit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 16px 0 18px;
+  border-radius: 100px;
+  background: var(--ink);
+  color: var(--paper);
+  border: 0;
+  font-family: "Geist", sans-serif;
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  transition: transform 0.08s ease, background 0.15s, opacity 0.15s;
+}
+.composer-submit:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--ink), var(--paper-accent, var(--accent)) 20%);
+}
+.composer-submit:active:not(:disabled) { transform: scale(0.97); }
+.composer-submit:disabled {
+  background: color-mix(in oklab, var(--ink), transparent 70%);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+.composer-submit-arrow {
+  font-size: 14px;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+.composer-submit:hover:not(:disabled) .composer-submit-arrow {
+  transform: translateX(2px);
+}
+@media (max-width: 540px) {
+  .composer-foot { padding: 8px 12px 12px 16px; }
+  .composer-hint { display: none; }
+  .composer-submit { flex: 1; justify-content: center; }
 }
 
 /* ---- clarify card ---- */
 .chat-home-clarify {
   border: 1px solid var(--rule);
   border-left: 3px solid var(--paper-accent, var(--accent));
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--paper);
-  padding: 22px 22px 18px;
+  padding: 24px 24px 20px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  box-shadow: 0 4px 20px -10px rgba(0, 0, 0, 0.08);
 }
 .clarify-task-recall {
   font-size: 12.5px;
@@ -5619,6 +5675,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 
 /* ---- chips (clarify answers + starter pills) ---- */
 .chip {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -5626,14 +5683,20 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   border-radius: 100px;
   font-family: "Geist", sans-serif;
   cursor: pointer;
-  transition: background 0.12s, border-color 0.12s, transform 0.06s;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, transform 0.08s ease;
   color: var(--ink);
+}
+/* Extend hit-area to ~40x40 without shifting visuals */
+.chip::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
 }
 .chip:focus-visible {
   outline: 2px solid color-mix(in oklab, var(--paper-accent, var(--accent)), transparent 30%);
   outline-offset: 2px;
 }
-.chip:active { transform: scale(0.98); }
+.chip:active { transform: scale(0.96); }
 
 .chip[data-kind="answer"] {
   height: 38px;
@@ -5731,20 +5794,21 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   align-items: center;
   gap: 14px;
   text-align: left;
-  padding: 14px 16px;
+  padding: 16px 18px;
   border: 1px solid var(--rule);
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--paper);
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s, transform 0.08s;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s ease, box-shadow 0.2s;
   color: var(--ink);
 }
 .candidate-card:hover {
   background: var(--bg-2);
   border-color: var(--rule-2);
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px -6px rgba(0, 0, 0, 0.08);
 }
-.candidate-card:active { transform: translateY(0); }
+.candidate-card:active { transform: scale(0.99); }
 .candidate-card:focus-visible {
   outline: 2px solid color-mix(in oklab, var(--paper-accent, var(--accent)), transparent 30%);
   outline-offset: 2px;
@@ -5800,7 +5864,8 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 .chat-home-starters {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
+  align-items: center;
 }
 .chat-home-starters .eyebrow {
   display: inline-flex;
@@ -5820,13 +5885,13 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  justify-content: center;
 }
 .chat-home-starters.is-promoted {
-  padding-top: 12px;
-  border-top: 1px dashed var(--rule);
+  padding-top: 14px;
 }
 .chat-home-starters.is-promoted .chip[data-kind="starter"] {
-  border-width: 1.5px;
+  border-color: color-mix(in oklab, var(--paper-accent, var(--accent)), var(--rule) 50%);
 }
 
 /* ---- recent runs strip ---- */
@@ -5834,8 +5899,9 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 16px;
+  margin-top: 8px;
 }
+.chat-home-runs-head { display: flex; align-items: center; }
 .chat-home-runs .eyebrow {
   display: inline-flex;
   font-family: "Geist Mono", monospace;
@@ -5849,15 +5915,15 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   margin: 0;
   padding: 0;
   border: 1px solid var(--rule);
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--paper);
   overflow: hidden;
 }
 .chat-home-runs .runs-list li + li { border-top: 1px solid var(--rule); }
 .chat-home-runs .run-row {
   display: grid;
-  grid-template-columns: 150px minmax(0, 1fr) 80px;
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: 12px;
   align-items: center;
   padding: 12px 16px;
   text-decoration: none;
@@ -5865,33 +5931,52 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   transition: background 0.12s;
 }
 .chat-home-runs .run-row:hover { background: var(--bg-2); }
+.chat-home-runs .run-task {
+  font-size: 14px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 450;
+}
 .chat-home-runs .run-template {
   font-family: "Geist Mono", monospace;
   font-size: 11px;
   color: var(--paper-muted);
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--bg-2);
   white-space: nowrap;
+  max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.chat-home-runs .run-task {
-  font-size: 13.5px;
-  color: var(--ink-2);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.chat-home-runs .run-status {
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
 }
-.chat-home-runs .run-status { justify-self: end; }
+.chat-home-runs .run-time {
+  font-family: "Geist Mono", monospace;
+  font-size: 11px;
+  color: var(--paper-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 32px;
+  text-align: right;
+}
 @media (max-width: 540px) {
-  .chat-home-runs .run-row { grid-template-columns: 110px minmax(0, 1fr); }
+  .chat-home-runs .run-row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+  .chat-home-runs .run-template,
   .chat-home-runs .run-status { display: none; }
 }
 
 /* ---- no-provider-key gate ---- */
 .chat-home.no-provider-key {
   gap: 14px;
-  padding-top: 80px;
+  padding-top: 120px;
+  align-items: center;
+  text-align: center;
 }
+.chat-home.no-provider-key .eyebrow { justify-content: center; }
 .chat-home.no-provider-key .btn {
-  align-self: flex-start;
-  margin-top: 6px;
+  margin-top: 10px;
 }
