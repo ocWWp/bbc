@@ -134,7 +134,7 @@ export function AppNav({
             onClick={openCommandPalette}
             aria-label="Open command palette"
           >
-            <span className="placeholder">search memory…</span>
+            <span className="placeholder">jump to…</span>
             <span className="kbd">⌘K</span>
           </button>
           {user ? (
@@ -213,15 +213,6 @@ function AvatarMenu({
               <span className="mono hint">/dashboard</span>
             </Link>
           )}
-          <Link
-            href="/settings"
-            className="avatar-menu-item"
-            role="menuitem"
-            onClick={() => setOpen(false)}
-          >
-            <span>Settings</span>
-            <span className="mono hint">/settings</span>
-          </Link>
           <Link
             href="/settings/keys"
             className="avatar-menu-item"
