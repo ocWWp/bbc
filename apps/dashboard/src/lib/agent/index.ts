@@ -56,3 +56,17 @@ export type {
   ClassifyFn,
   InvokeLlmFn,
 } from "./home-turn";
+
+export { observerRun } from "./observer-run";
+export type {
+  ObserverRunArgs,
+  ObserverRunDeps,
+  ObserverRunResult,
+  SignalPollResult,
+  AnomalyDetection,
+  PollSignalFn,
+  DetectAnomalyFn,
+  BuildAnomalyContextFn,
+  InvokeObserverLlmFn,
+  EmitProposalFn,
+} from "./observer-run";
