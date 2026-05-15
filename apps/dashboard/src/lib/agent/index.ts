@@ -43,3 +43,16 @@ export type {
   EmitResult,
   ProposeObservationRpc,
 } from "./proposal-emitter";
+
+export { homeTurn } from "./home-turn";
+export type {
+  HomeTurnArgs,
+  HomeTurnDeps,
+  LlmResult,
+  LlmToolCall,
+  SseEvent,
+  Emit,
+  BuildContextFn,
+  ClassifyFn,
+  InvokeLlmFn,
+} from "./home-turn";
