@@ -31,3 +31,6 @@ export type {
   ReconcileArgs,
   ReconcileRpc,
 } from "./quota";
+
+export { classifyIntent } from "./classify";
+export type { ClassifierLlm } from "./classify";
