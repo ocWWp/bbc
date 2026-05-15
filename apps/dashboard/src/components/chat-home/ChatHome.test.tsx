@@ -446,6 +446,31 @@ describe("ChatHome — Read vs Make intent toggle (Option D)", () => {
     expect(screen.queryByText("STALE-NDA")).toBeNull();
   });
 
+  it("server-action promise rejection (not { ok: false }) lands on the error stage, not stuck thinking", async () => {
+    searchBrain.mockRejectedValue(new Error("network exploded"));
+    render(<ChatHome {...defaultProps} />);
+    fireEvent.click(screen.getByRole("tab", { name: /ask brain/i }));
+    fireEvent.change(screen.getByRole("textbox", { name: /search your brain/i }), {
+      target: { value: "anything substantive" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /search brain/i }));
+    // Should land on error stage, not stick at thinking.
+    await waitFor(() => expect(screen.getByText(/search failed/i)).toBeTruthy());
+    // Thinking eyebrow is gone.
+    expect(screen.queryByText(/searching brain/i)).toBeNull();
+  });
+
+  it("routeTask promise rejection (not { ok: false }) lands on the error stage, not stuck thinking", async () => {
+    routeTask.mockRejectedValue(new Error("network exploded"));
+    render(<ChatHome {...defaultProps} />);
+    fireEvent.change(screen.getByRole("textbox", { name: /describe/i }), {
+      target: { value: "draft an NDA" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /ask bbc/i }));
+    await waitFor(() => expect(screen.getByText(/something went wrong/i)).toBeTruthy());
+    expect(screen.queryByText(/routing…/i)).toBeNull();
+  });
+
   it("candidates carry the routed task: clicking a candidate AFTER typing a new task routes the ORIGINAL task (not the live input)", async () => {
     routeTask.mockResolvedValue({
       ok: true,

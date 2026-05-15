@@ -105,7 +105,17 @@ export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeP
     const myId = ++requestIdRef.current;
     setStage({ kind: "thinking" });
     startTransition(async () => {
-      const res = await routeTask(t, clarification ? { clarification } : undefined);
+      let res: Awaited<ReturnType<typeof routeTask>>;
+      try {
+        res = await routeTask(t, clarification ? { clarification } : undefined);
+      } catch {
+        // Server action threw (network blip, serialization error, unhandled
+        // exception). Without this catch the stage sticks at "thinking"
+        // forever. Codex review caught this on 2026-05-15.
+        if (requestIdRef.current !== myId) return;
+        setStage({ kind: "error", message: "Something went wrong. Try again." });
+        return;
+      }
       // Stale-response guard: if the user submitted another task or flipped
       // intent while this request was in flight, drop the result on the floor.
       if (requestIdRef.current !== myId) return;
@@ -151,7 +161,14 @@ export default function ChatHome({ role, hasProviderKey, recentRuns }: ChatHomeP
     const myId = ++requestIdRef.current;
     setStage({ kind: "thinking" });
     startTransition(async () => {
-      const res = await searchBrain(t);
+      let res: Awaited<ReturnType<typeof searchBrain>>;
+      try {
+        res = await searchBrain(t);
+      } catch {
+        if (requestIdRef.current !== myId) return;
+        setStage({ kind: "error", message: "Search failed. Try again in a moment." });
+        return;
+      }
       if (requestIdRef.current !== myId) return;
       if (!res.ok) {
         setStage({ kind: "error", message: res.error });
