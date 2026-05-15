@@ -12,6 +12,7 @@ export async function middleware(request: NextRequest) {
     nextUrl.pathname.startsWith("/api/auth") ||
     nextUrl.pathname.startsWith("/api/mcp") ||  // MCP server: authenticates via Bearer api-key, not session
     nextUrl.pathname.startsWith("/api/v1") ||   // REST brain API: same Bearer api-key auth
+    nextUrl.pathname.startsWith("/api/spike-v16") ||  // v1.6 M1.2 SSE spike: no auth so we can curl it; deleted after M2
     nextUrl.pathname.startsWith("/invite") ||  // invitation landing pages must be reachable without a session
     nextUrl.pathname.startsWith("/landing");   // public marketing page
 
