@@ -165,8 +165,8 @@ export default async function QueuePage() {
             this queue for review. Run one to see how the loop closes.
           </p>
           <div className="e-actions">
-            <Link href="/studio" className="btn btn-primary btn-lg">
-              open /studio
+            <Link href="/gallery" className="btn btn-primary btn-lg">
+              open the gallery
             </Link>
             <Link href="/log" className="btn btn-ghost btn-lg">
               view activity log

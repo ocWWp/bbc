@@ -117,7 +117,7 @@ export async function acceptRun(runId: string): Promise<AcceptResult> {
   }
 
   revalidatePath(`/studio/runs/${runId}`);
-  revalidatePath("/studio");
+  revalidatePath("/gallery");
   if (proposals.length > 0) revalidatePath("/queue");
   return { ok: true, proposals, artifacts };
 }
@@ -139,6 +139,6 @@ export async function rejectRun(runId: string): Promise<ReviewResult> {
   if (error) return { ok: false, error: error.message };
 
   revalidatePath(`/studio/runs/${runId}`);
-  revalidatePath("/studio");
+  revalidatePath("/gallery");
   return { ok: true };
 }

@@ -27,12 +27,6 @@ const GALLERY_ROUTE: Route = {
   href: "/gallery",
   match: (p) => p === "/gallery" || p.startsWith("/gallery/"),
 };
-const STUDIO_ROUTE: Route = {
-  key: "studio",
-  label: "Studio",
-  href: "/studio",
-  match: (p) => p === "/studio" || p.startsWith("/studio/"),
-};
 const MEMORY_ROUTE: Route = {
   key: "memory",
   label: "Memory",
@@ -76,7 +70,7 @@ const INBOX_ROUTE: Route = {
 
 const ADMIN_ROUTES: ReadonlyArray<Route> = [
   HOME_ROUTE,
-  STUDIO_ROUTE,
+  GALLERY_ROUTE,
   MEMORY_ROUTE,
   QUEUE_ROUTE,
   LIBRARY_ROUTE,
@@ -84,7 +78,6 @@ const ADMIN_ROUTES: ReadonlyArray<Route> = [
 ];
 const OPERATOR_ROUTES: ReadonlyArray<Route> = [
   GALLERY_ROUTE,
-  STUDIO_ROUTE,
   MEMORY_ROUTE,
   QUEUE_ROUTE,
   LIBRARY_ROUTE,
@@ -93,8 +86,11 @@ const OPERATOR_ROUTES: ReadonlyArray<Route> = [
 
 function memberRoutes(templateSlug: string | null): ReadonlyArray<Route> {
   const slug = (templateSlug ?? "marketing").toLowerCase();
+  // Per-member studio link points straight at the member's own studio
+  // (/studio/<slug>) -- the bare /studio index was retired in Phase P Step 1b.
   const studio: Route = {
-    ...STUDIO_ROUTE,
+    key: "studio",
+    label: "Studio",
     href: `/studio/${slug}`,
     match: (p) => p === `/studio/${slug}` || p.startsWith(`/studio/${slug}/`),
   };

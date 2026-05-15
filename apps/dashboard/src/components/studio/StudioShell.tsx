@@ -49,7 +49,7 @@ export function StudioShell({
     <div className="studio-shell" data-role={role} style={style}>
       <header className="studio-shell-head">
         <div className="studio-shell-crumb">
-          <Link href="/studio" className="studio-shell-tenant">
+          <Link href="/gallery" className="studio-shell-tenant">
             {tenantName}
           </Link>
           <span className="studio-shell-sep">/</span>

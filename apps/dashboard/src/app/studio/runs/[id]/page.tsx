@@ -136,7 +136,7 @@ export default async function StudioRunPage({
       <header className="page-head">
         <div className="page-head-left">
           <div className="page-crumb">
-            <Link href="/studio">studio</Link>
+            <Link href="/gallery">gallery</Link>
             <span className="sep">/</span>
             <Link href={`/studio/${studio}`}>{studio}</Link>
             <span className="sep">/</span>

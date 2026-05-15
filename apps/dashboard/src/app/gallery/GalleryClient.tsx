@@ -93,11 +93,6 @@ export default function GalleryClient({ templates, recentRuns }: Props) {
             saved or sent.
           </p>
         </div>
-        <div className="page-actions">
-          <Link href="/studio" className="btn btn-ghost">
-            browse by studio
-          </Link>
-        </div>
       </header>
 
       {/* Ask BBC -- task-first router; the fast path above browse-by-template */}

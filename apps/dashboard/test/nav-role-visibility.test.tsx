@@ -2,9 +2,12 @@
 //
 // Task 13 of v1.5 launch polish; updated in Phase P (Task A4). AppNav renders
 // different route lists per role:
-//   admin     -> Home, Studio, Memory, Queue, Library, Settings
-//   operator  -> Gallery, Studio, Memory, Queue, Library, Settings
+//   admin     -> Home, Gallery, Memory, Queue, Library, Settings
+//   operator  -> Gallery, Memory, Queue, Library, Settings
 //   member    -> Gallery, Studio (/studio/<slug>), Brain, Inbox
+//
+// The bare /studio index was retired in Phase P Step 1b -- admin/operator now
+// land on /gallery; member keeps a per-member /studio/<slug> link.
 //
 // This is UI chrome, not authorization — RLS at the SQL layer (ADR-0012,
 // migration 0042) is the real gate. Nav hiding is the visible part.
@@ -36,7 +39,7 @@ function getNav() {
 }
 
 describe("AppNav — role-aware route visibility", () => {
-  it("admin sees Home + Studio + Memory + Queue + Library + Settings", () => {
+  it("admin sees Home + Gallery + Memory + Queue + Library + Settings", () => {
     render(
       <AppNav
         pendingCount={0}
@@ -46,7 +49,7 @@ describe("AppNav — role-aware route visibility", () => {
     );
     const nav = getNav();
     expect(within(nav).getByText("Home")).toBeDefined();
-    expect(within(nav).getByText("Studio")).toBeDefined();
+    expect(within(nav).getByText("Gallery")).toBeDefined();
     expect(within(nav).getByText("Memory")).toBeDefined();
     expect(within(nav).getByText("Queue")).toBeDefined();
     expect(within(nav).getByText("Library")).toBeDefined();
@@ -66,7 +69,7 @@ describe("AppNav — role-aware route visibility", () => {
     const nav = getNav();
     expect(within(nav).queryByText("Home")).toBeNull();
     expect(within(nav).getByText("Gallery")).toBeDefined();
-    expect(within(nav).getByText("Studio")).toBeDefined();
+    expect(within(nav).queryByText("Studio")).toBeNull();
     expect(within(nav).getByText("Memory")).toBeDefined();
     expect(within(nav).getByText("Queue")).toBeDefined();
     expect(within(nav).getByText("Library")).toBeDefined();
@@ -124,7 +127,7 @@ describe("AppNav — role-aware route visibility", () => {
     // before clicking, so this is a safety default.
     render(<AppNav pendingCount={0} user={noUser} workspace={null} />);
     const nav = getNav();
-    expect(within(nav).getByText("Studio")).toBeDefined();
+    expect(within(nav).getByText("Gallery")).toBeDefined();
     expect(within(nav).getByText("Memory")).toBeDefined();
     expect(within(nav).getByText("Queue")).toBeDefined();
     expect(within(nav).getByText("Library")).toBeDefined();

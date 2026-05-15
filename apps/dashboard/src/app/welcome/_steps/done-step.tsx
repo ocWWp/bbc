@@ -76,7 +76,7 @@ export function DoneStep({ count, firstId, tenantSlug, proposals }: Props) {
               <span>↵</span>
             </span>
           </Link>
-          <Link className="next-card" href="/studio">
+          <Link className="next-card" href="/gallery">
             <span className="h">
               run a <span className="serif">studio</span>.
             </span>

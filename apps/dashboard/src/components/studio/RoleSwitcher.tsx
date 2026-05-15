@@ -24,10 +24,10 @@ export function RoleSwitcher({ active }: { active: StudioRole }) {
       className="flex items-center gap-1.5 text-xs flex-wrap justify-end"
     >
       <Link
-        href="/studio"
+        href="/gallery"
         className="rounded-full border px-2.5 py-1 text-muted-foreground hover:text-foreground transition-colors"
       >
-        ← all
+        ← gallery
       </Link>
       {STUDIO_ROLES.map((r) => {
         const isActive = r === active;
