@@ -7,7 +7,7 @@ Every file under `memory/` MUST have YAML frontmatter matching this schema. Vali
 ```yaml
 ---
 id: mem_<YYYY-MM-DD>_<short-slug>      # stable, unique, sortable
-type: principle | fact | decision | runbook | glossary | rule
+type: principle | fact | decision | runbook | glossary | rule | observation
 scope: org | product:tenant | repo:<name> | leaf:<name>
 layer: main | manager | distribution
 source: human:<who> | leaf:<name> | manager | external:<url>
@@ -24,7 +24,7 @@ status: accepted | proposed | superseded | archived
 ### Field rules
 
 - **id** — `mem_` prefix, ISO date, hyphen-slug. Once published, never change.
-- **type** — pick one. Use `decision` for ADR-style records (`memory/decisions/`); use `principle` for top-level rules; `fact` for observations; `runbook` for procedures; `glossary` for term definitions; `rule` for enforceable constraints.
+- **type** — pick one. Use `decision` for ADR-style records (`memory/decisions/`); use `principle` for top-level rules; `fact` for static observations captured manually; `runbook` for procedures; `glossary` for term definitions; `rule` for enforceable constraints; `observation` for **Loop 3 observer findings** generated against external signal adapters (per ADR-0009 v1.6 amendment) — lands at `memory/observations/<observer_run_id>.md`, requires the extra frontmatter fields below.
 - **scope** — how broadly does this apply. `org` = company-wide; `product:tenant` = the the tenant's product; `repo:<<tenant-app-web>>` = single repo; `leaf:<name>` = single Distribution leaf only.
 - **layer** — where the file lives in the trust hierarchy. Promoting a fact from leaf to org bumps both `layer` and `owning_layer`.
 - **source** — where the fact came from. Lets us re-derive provenance.
@@ -32,6 +32,41 @@ status: accepted | proposed | superseded | archived
 - **supersedes** — if this file replaces older ones, list their ids. The replaced files get `status: superseded` and stay in place.
 - **provenance** — appended automatically by `scripts/accept.sh` when a proposal modifies this file.
 - **status** — start as `accepted` for direct writes; queue-born files start `proposed` and become `accepted` on dequeue.
+
+### Extra fields required for `type: observation` (v1.6+)
+
+Files with `type: observation` MUST carry these additional frontmatter fields:
+
+```yaml
+observer_run_id: <uuid>              # FK into observer_runs.id — the run that produced this finding
+signal_source: <capability-class>.<implementation>   # e.g., posthog.metric
+signal_id: <uuid>                    # FK into observer_signals.id
+anomaly_summary:
+  metric: <string>                   # what the signal watched (e.g., "weekly-active-users")
+  delta: <number>                    # observed change vs baseline (signed; can be percentage or raw)
+  delta_units: <string>              # "ratio" | "percent" | "absolute"
+  z_score: <number>                  # Z-score that triggered the proposal (informational; v1.6 uses Z-score only)
+baseline_window:
+  current_start: <ISO-8601 UTC>
+  current_end: <ISO-8601 UTC>
+  baseline_start: <ISO-8601 UTC>
+  baseline_end: <ISO-8601 UTC>
+citations: [<memory_id>, ...]        # memory IDs the agent's hypothesis cites; verified by GroundingVerifier
+```
+
+Why a dedicated supertag, not `fact`? Three reasons:
+
+1. **Different review lens.** A `fact` is a stable assertion about the world; an `observation` is a time-bounded anomaly hypothesis. Reviewers should know the difference at a glance.
+2. **Different cascade behavior.** If the parent `observer_runs` row is purged at end-of-retention, the `observation` memory row can survive as durable knowledge — but only if it was reviewed and accepted. Type lets queries and cleanup distinguish.
+3. **Distinct frontmatter shape.** The five fields above don't fit cleanly on `fact` or `note` (which doesn't even exist in this schema — ADR-0008 referenced it informally; v1.6's `observation` is the concrete realization).
+
+**Status mapping (DB-mode vs frontmatter, codex 2026-05-15 P1 #3).** The `memory_files` table's `status` DB column uses the enum `('draft', 'active', 'archived')` (from migration 0017). The frontmatter `status:` field uses the lifecycle vocabulary above (`accepted`, `proposed`, `superseded`, `archived`). For `observation` rows specifically:
+
+- Frontmatter `status: accepted` → DB `memory_files.status = 'active'`. Once `accept_proposal_observation()` runs, the row is citeable (existing brain reads in `apps/dashboard/src/lib/brain-api.ts` filter for `status='active'`).
+- Frontmatter `status: archived` → DB `memory_files.status = 'archived'` (post-rejection cleanup or admin-driven supersession).
+- **Frontmatter `status: proposed` is never persisted for observations.** The "proposed" lifecycle stage lives in `queue_items` only; the `memory_files` row does not exist until accept. This closes the codex #15 risk (proposed memory rows leaking into citation surfaces).
+
+The `memory_type` DB enum (also from migration 0017, extended by 0022) does not yet include `observation`. M3 migration 0047 must `alter type public.memory_type add value if not exists 'observation';` before its first `insert ... ('observation'::memory_type)` (codex 2026-05-15 P1 #4).
 
 ### Body
 
@@ -41,7 +76,7 @@ After the frontmatter, write Markdown freely. Headings, lists, code blocks, `[[w
 
 `memory/<category>/<short-kebab-slug>.md`
 
-Category is one of: `product`, `design`, `tech`, `ops`, `people`, `glossary`, `decisions`. The slug should be human-readable, not the id.
+Category is one of: `product`, `design`, `tech`, `ops`, `people`, `glossary`, `decisions`, `observations`. The slug should be human-readable, not the id. For `type: observation`, the slug is the `observer_run_id` (UUID) so the file path encodes the audit linkage — see `apps/dashboard/supabase/migrations/0047_accept_observation_proposal.sql` (M3.4).
 
 ## Examples
 
