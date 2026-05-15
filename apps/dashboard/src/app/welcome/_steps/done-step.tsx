@@ -76,15 +76,15 @@ export function DoneStep({ count, firstId, tenantSlug, proposals }: Props) {
               <span>↵</span>
             </span>
           </Link>
-          <Link className="next-card" href="/gallery">
+          <Link className="next-card" href="/home">
             <span className="h">
-              open the <span className="serif">gallery</span>.
+              start a <span className="serif">task</span>.
             </span>
             <span className="b">
-              pick a template. it&apos;ll pull from your brain and draft something to review.
+              just type what you need. BBC routes you to the right studio, pulling from your brain.
             </span>
             <span className="tail">
-              <span>→ /gallery</span>
+              <span>→ /home</span>
               <span>↗</span>
             </span>
           </Link>

@@ -25,7 +25,7 @@ export function SeedDemoBrainButton() {
         setError(r.error);
         return;
       }
-      router.push("/gallery");
+      router.push("/home");
     });
   };
 
