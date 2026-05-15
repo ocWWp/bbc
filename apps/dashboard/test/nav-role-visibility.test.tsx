@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
 //
-// Task 13 of v1.5 launch polish; updated in Phase P (Task A4). AppNav renders
-// different route lists per role:
-//   admin     -> Home, Gallery, Memory, Queue, Library, Settings
-//   operator  -> Gallery, Memory, Queue, Library, Settings
-//   member    -> Gallery, Studio (/studio/<slug>), Brain, Inbox
+// Phase P Step 2 (Task 17) flattened the per-role nav. Pre-Step-2 nav drifted
+// by acting role: admin saw 6 items, operator 5 (no Home), member a
+// /studio-shaped subset with Brain + Inbox.
 //
-// The bare /studio index was retired in Phase P Step 1b -- admin/operator now
-// land on /gallery; member keeps a per-member /studio/<slug> link.
+// Post-Step-2 contract:
+//   admin / operator / member  -> Home, Gallery, Memory, Queue, Library, Settings
+//   viewer                     -> Home, Gallery, Memory, Library  (read-only)
+//
+// /brain is reached via the root redirect for viewers, not the nav; the inbox
+// lives next to the avatar bell.
 //
 // This is UI chrome, not authorization — RLS at the SQL layer (ADR-0012,
 // migration 0042) is the real gate. Nav hiding is the visible part.
@@ -38,102 +40,59 @@ function getNav() {
   return screen.getByRole("navigation", { name: /primary/i });
 }
 
+const PRIMARY = ["Home", "Gallery", "Memory", "Queue", "Library", "Settings"] as const;
+
 describe("AppNav — role-aware route visibility", () => {
-  it("admin sees Home + Gallery + Memory + Queue + Library + Settings", () => {
+  it.each(["admin", "operator", "member"] as const)(
+    "%s sees the full 6-item primary nav",
+    (role) => {
+      render(
+        <AppNav
+          pendingCount={0}
+          user={baseUser}
+          workspace={workspace(role, "marketing")}
+        />,
+      );
+      const nav = getNav();
+      for (const label of PRIMARY) {
+        expect(within(nav).getByText(label)).toBeDefined();
+      }
+      expect(within(nav).queryByText("Brain")).toBeNull();
+      expect(within(nav).queryByText("Inbox")).toBeNull();
+      expect(within(nav).queryByText("Studio")).toBeNull();
+    },
+  );
+
+  it("viewer sees the read-only subset (no Queue, no Settings)", () => {
     render(
       <AppNav
         pendingCount={0}
         user={baseUser}
-        workspace={workspace("admin", "marketing")}
+        workspace={workspace("viewer", null)}
       />,
     );
     const nav = getNav();
     expect(within(nav).getByText("Home")).toBeDefined();
     expect(within(nav).getByText("Gallery")).toBeDefined();
     expect(within(nav).getByText("Memory")).toBeDefined();
-    expect(within(nav).getByText("Queue")).toBeDefined();
     expect(within(nav).getByText("Library")).toBeDefined();
-    expect(within(nav).getByText("Settings")).toBeDefined();
-    expect(within(nav).queryByText("Brain")).toBeNull();
-    expect(within(nav).queryByText("Inbox")).toBeNull();
-  });
-
-  it("operator sees Gallery + admin nav minus Home", () => {
-    render(
-      <AppNav
-        pendingCount={0}
-        user={baseUser}
-        workspace={workspace("operator", "marketing")}
-      />,
-    );
-    const nav = getNav();
-    expect(within(nav).queryByText("Home")).toBeNull();
-    expect(within(nav).getByText("Gallery")).toBeDefined();
-    expect(within(nav).queryByText("Studio")).toBeNull();
-    expect(within(nav).getByText("Memory")).toBeDefined();
-    expect(within(nav).getByText("Queue")).toBeDefined();
-    expect(within(nav).getByText("Library")).toBeDefined();
-    expect(within(nav).getByText("Settings")).toBeDefined();
-    expect(within(nav).queryByText("Brain")).toBeNull();
-  });
-
-  it("member sees only Gallery + Studio + Brain + Inbox", () => {
-    render(
-      <AppNav
-        pendingCount={0}
-        user={baseUser}
-        workspace={workspace("member", "engineering")}
-      />,
-    );
-    const nav = getNav();
-    expect(within(nav).getByText("Gallery")).toBeDefined();
-    expect(within(nav).getByText("Studio")).toBeDefined();
-    expect(within(nav).getByText("Brain")).toBeDefined();
-    expect(within(nav).getByText("Inbox")).toBeDefined();
-    expect(within(nav).queryByText("Home")).toBeNull();
-    expect(within(nav).queryByText("Memory")).toBeNull();
     expect(within(nav).queryByText("Queue")).toBeNull();
-    expect(within(nav).queryByText("Library")).toBeNull();
     expect(within(nav).queryByText("Settings")).toBeNull();
+    expect(within(nav).queryByText("Brain")).toBeNull();
   });
 
-  it("member with templateSlug='engineering' points Studio at /studio/engineering", () => {
-    render(
-      <AppNav
-        pendingCount={0}
-        user={baseUser}
-        workspace={workspace("member", "engineering")}
-      />,
-    );
-    const link = screen.getByRole("link", { name: /^Studio$/ }) as HTMLAnchorElement;
-    expect(link.getAttribute("href")).toBe("/studio/engineering");
-  });
-
-  it("member with templateSlug=null falls back to /studio/marketing", () => {
-    render(
-      <AppNav
-        pendingCount={0}
-        user={baseUser}
-        workspace={workspace("member", null)}
-      />,
-    );
-    const link = screen.getByRole("link", { name: /^Studio$/ }) as HTMLAnchorElement;
-    expect(link.getAttribute("href")).toBe("/studio/marketing");
-  });
-
-  it("unauth (no workspace) still renders the legacy admin nav so signin flow works", () => {
+  it("unauth (no workspace) falls back to the primary nav so signin flow works", () => {
     // When workspace is null, AppNav has no role to switch on; we fall back
-    // to the admin route list. Real unauth users get redirected by middleware
+    // to the full primary list. Real unauth users get redirected by middleware
     // before clicking, so this is a safety default.
     render(<AppNav pendingCount={0} user={noUser} workspace={null} />);
     const nav = getNav();
-    expect(within(nav).getByText("Gallery")).toBeDefined();
-    expect(within(nav).getByText("Memory")).toBeDefined();
-    expect(within(nav).getByText("Queue")).toBeDefined();
-    expect(within(nav).getByText("Library")).toBeDefined();
+    for (const label of PRIMARY) {
+      expect(within(nav).getByText(label)).toBeDefined();
+    }
   });
 
-  it("Queue badge shows when pendingCount > 0 (admin nav)", () => {
+  it("Queue badge shows when pendingCount > 0", () => {
     render(
       <AppNav
         pendingCount={3}
