@@ -130,6 +130,9 @@ function makeSupabaseStub(initial: {
           if (initial.errorOn?.sessionsInsert && table === "home_sessions") {
             return { data: null, error: initial.errorOn.sessionsInsert };
           }
+          // Commit the staged row into state only after the success branch.
+          if (table === "home_sessions") state.sessions.push(row);
+          else state.turns.push(row);
           return { data: row, error: null };
         }
         const rows = applyMultiRow();
@@ -139,9 +142,11 @@ function makeSupabaseStub(initial: {
       },
       insert: (row: Row) => {
         mode = "insert";
+        // Stage the prepared row on the stub but do NOT commit to state.* yet.
+        // The insert is only "applied" once .single() resolves successfully;
+        // an errored .single() must not leave a phantom row in state. The
+        // commit happens in single() below.
         const next: Row = { id: `${table}-${Date.now()}-${Math.random()}`, ...row };
-        if (table === "home_sessions") state.sessions.push(next);
-        else state.turns.push(next);
         state.lastInsertTable = table;
         state.lastInsertRow = next;
         return query;
