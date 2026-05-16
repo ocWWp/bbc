@@ -26,36 +26,28 @@ vi.mock("@/lib/auth/require-user", () => ({
 
 // Stub the session helpers so the route doesn't try to hit Supabase
 // when we only care about pre-stream branches.
-vi.mock("@/lib/home/sessions", () => ({
-  getOrCreateActiveSession: vi.fn(async () => ({
-    id: "s1",
-    tenant_id: "t1",
-    user_id: "u1",
-    started_at: "2026-05-15T00:00:00Z",
-    last_activity_at: "2026-05-15T00:00:00Z",
-    archived_at: null,
-  })),
-  getActiveSessionWithTurns: vi.fn(async () => ({
-    session: {
-      id: "s1",
-      tenant_id: "t1",
-      user_id: "u1",
-      started_at: "2026-05-15T00:00:00Z",
-      last_activity_at: "2026-05-15T00:00:00Z",
-      archived_at: null,
+const { sessionMocks } = vi.hoisted(() => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const anyFn = (impl?: (...args: any[]) => any) => vi.fn(impl as any) as any;
+  return {
+    sessionMocks: {
+      createSession: anyFn(),
+      getSessionWithTurns: anyFn(),
+      appendTurn: anyFn(),
+      finalizeTurn: anyFn(),
+      softDeleteSession: anyFn(),
+      updateSessionTitle: anyFn(),
     },
-    turns: [],
-  })),
-  appendTurn: vi.fn(async () => ({
-    id: "turn-x",
-    session_id: "s1",
-    role: "agent",
-    status: "in_progress",
-    content_jsonb: {},
-    created_at: "2026-05-15T00:00:00Z",
-    finalized_at: null,
-  })),
-  finalizeTurn: vi.fn(async () => {}),
+  };
+});
+
+vi.mock("@/lib/home/sessions", () => ({
+  createSession: sessionMocks.createSession,
+  getSessionWithTurns: sessionMocks.getSessionWithTurns,
+  appendTurn: sessionMocks.appendTurn,
+  finalizeTurn: sessionMocks.finalizeTurn,
+  softDeleteSession: sessionMocks.softDeleteSession,
+  updateSessionTitle: sessionMocks.updateSessionTitle,
 }));
 
 // Quota RPC happy-path stub. Real wiring is exercised in the RLS test;
@@ -131,8 +123,58 @@ function makeReq(body: unknown): Request {
   });
 }
 
+const VALID_UUID = "11111111-2222-3333-4444-555555555555";
+
+function adminActor() {
+  return {
+    user_id: "u1",
+    tenant_id: "t1",
+    provider: "github" as const,
+    identifier: "alice",
+    actor: "human:github:alice",
+    tenant_slug: "acme",
+    role: "admin" as const,
+    templateSlug: null,
+  };
+}
+
 beforeEach(() => {
   requireActorMock.mockReset();
+  // Re-establish default happy-path implementations after clearing.
+  sessionMocks.createSession.mockClear();
+  sessionMocks.createSession.mockResolvedValue({
+    id: "new-session-1",
+    tenant_id: "t1",
+    user_id: "u1",
+    started_at: "2026-05-15T00:00:00Z",
+    last_activity_at: "2026-05-15T00:00:00Z",
+    archived_at: null,
+  });
+  sessionMocks.getSessionWithTurns.mockClear();
+  sessionMocks.getSessionWithTurns.mockResolvedValue({
+    session: {
+      id: "s1",
+      tenant_id: "t1",
+      user_id: "u1",
+      started_at: "2026-05-15T00:00:00Z",
+      last_activity_at: "2026-05-15T00:00:00Z",
+      archived_at: null,
+    },
+    turns: [],
+  });
+  sessionMocks.appendTurn.mockClear();
+  sessionMocks.appendTurn.mockResolvedValue({
+    id: "turn-x",
+    session_id: "s1",
+    role: "agent",
+    status: "in_progress",
+    content_jsonb: {},
+    created_at: "2026-05-15T00:00:00Z",
+    finalized_at: null,
+  });
+  sessionMocks.finalizeTurn.mockClear();
+  sessionMocks.softDeleteSession.mockClear();
+  sessionMocks.updateSessionTitle.mockClear();
 });
 
 describe("POST /api/home/turn — pre-stream branches", () => {
@@ -241,6 +283,78 @@ describe("POST /api/home/turn — pre-stream branches", () => {
       makeReq({ userText: "hi", sessionId: "" }) as never,
     );
     expect(res.status).toBe(200);
+  });
+
+  it("returns 410 when sessionId is not found", async () => {
+    requireActorMock.mockResolvedValue({ ok: true, actor: adminActor() });
+    sessionMocks.getSessionWithTurns.mockResolvedValueOnce(null);
+    const res = await POST(
+      makeReq({ userText: "hi", sessionId: VALID_UUID }) as never,
+    );
+    expect(res.status).toBe(410);
+    const json = await res.json();
+    expect(json.error).toBe("session_not_found");
+  });
+
+  it("returns 410 when getSessionWithTurns excludes by ownership", async () => {
+    requireActorMock.mockResolvedValue({ ok: true, actor: adminActor() });
+    // The helper returns null for foreign tenant / archived / not-found —
+    // route doesn't distinguish; all of them collapse to 410.
+    sessionMocks.getSessionWithTurns.mockResolvedValueOnce(null);
+    const res = await POST(
+      makeReq({ userText: "hi", sessionId: VALID_UUID }) as never,
+    );
+    expect(res.status).toBe(410);
+  });
+
+  it("creates a new session when sessionId is absent", async () => {
+    requireActorMock.mockResolvedValue({ ok: true, actor: adminActor() });
+    const res = await POST(makeReq({ userText: "hi" }) as never);
+    expect(res.status).toBe(200);
+    expect(sessionMocks.createSession).toHaveBeenCalledWith("t1", "u1");
+    expect(sessionMocks.getSessionWithTurns).not.toHaveBeenCalled();
+  });
+
+  it("uses existing session + ownership-filtered turns when sessionId provided", async () => {
+    requireActorMock.mockResolvedValue({ ok: true, actor: adminActor() });
+    sessionMocks.getSessionWithTurns.mockResolvedValueOnce({
+      session: {
+        id: VALID_UUID,
+        tenant_id: "t1",
+        user_id: "u1",
+        started_at: "2026-05-15T00:00:00Z",
+        last_activity_at: "2026-05-15T00:00:00Z",
+        archived_at: null,
+      },
+      turns: [
+        {
+          id: "u1",
+          session_id: VALID_UUID,
+          role: "user",
+          status: "completed",
+          content_jsonb: { text: "previous" },
+          created_at: "2026-05-15T00:00:00Z",
+          finalized_at: "2026-05-15T00:00:00Z",
+        },
+      ],
+    });
+    const res = await POST(
+      makeReq({ userText: "follow up", sessionId: VALID_UUID }) as never,
+    );
+    expect(res.status).toBe(200);
+    expect(sessionMocks.createSession).not.toHaveBeenCalled();
+    expect(sessionMocks.getSessionWithTurns).toHaveBeenCalledWith(
+      VALID_UUID,
+      "t1",
+      "u1",
+      20,
+    );
+    // appendTurn was called against the existing session id.
+    expect(sessionMocks.appendTurn).toHaveBeenCalledWith(
+      VALID_UUID,
+      "user",
+      expect.objectContaining({ text: "follow up" }),
+    );
   });
 
   it("opens an SSE response on the happy path", async () => {

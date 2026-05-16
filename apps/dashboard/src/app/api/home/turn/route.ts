@@ -14,9 +14,12 @@ import { classifyIntent } from "@/lib/agent/classify";
 import { requireActor, requireRole } from "@/lib/auth/require-user";
 import {
   appendTurn,
+  createSession,
   finalizeTurn,
-  getActiveSessionWithTurns,
-  getOrCreateActiveSession,
+  getSessionWithTurns,
+  softDeleteSession,
+  updateSessionTitle,
+  type HomeSession,
   type HomeTurn,
 } from "@/lib/home/sessions";
 import { makeRealClassify } from "@/lib/home/real-classify";
@@ -117,23 +120,88 @@ async function postImpl(req: NextRequest) {
   // plain HTTP error (not a half-opened SSE). Wrap so the body reveals the
   // real cause instead of an opaque 500 — the chat UI surfaces res.status
   // and the body text in the failed-turn banner.
-  let session: Awaited<ReturnType<typeof getOrCreateActiveSession>>;
+  //
+  // Two paths:
+  //   sessionId present → strict ownership read; 410 on miss
+  //   sessionId absent  → create a brand-new session, no recent context
+  let session: HomeSession;
   let recent: ConversationTurn[];
+  let isNewSession = false;
+  try {
+    if (sessionId !== null) {
+      const found = await getSessionWithTurns(
+        sessionId,
+        actor.tenant_id,
+        actor.user_id,
+        20,
+      );
+      if (!found) {
+        return Response.json({ error: "session_not_found" }, { status: 410 });
+      }
+      session = found.session;
+      recent = found.turns
+        .filter((t) => t.role === "user" || t.role === "agent")
+        .map((t) => ({
+          role: t.role,
+          text: extractText(t.content_jsonb),
+        }));
+    } else {
+      session = await createSession(actor.tenant_id, actor.user_id);
+      recent = [];
+      isNewSession = true;
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[home/turn] session resolution failed:", msg, err);
+    return new Response(`home_turn setup failed: ${msg}`, { status: 500 });
+  }
+
+  // Persist the user turn. If the insert fails on a brand-new session, soft-
+  // delete the just-created row so we don't leave an orphan empty session
+  // cluttering the rail. The assistant turn is created in status='in_progress'
+  // so a page refresh mid-stream can render an 'interrupted' banner instead
+  // of a partial-looking message.
   let assistant: Awaited<ReturnType<typeof appendTurn>>;
   try {
-    session = await getOrCreateActiveSession(actor.tenant_id, actor.user_id);
-    const existing = await getActiveSessionWithTurns(actor.tenant_id, actor.user_id, 20);
-    recent = (existing?.turns ?? [])
-      .filter((t) => t.role === "user" || t.role === "agent")
-      .map((t) => ({
-        role: t.role,
-        text: extractText(t.content_jsonb),
-      }));
-
-    // Persist the user turn immediately. The assistant turn is created in
-    // status='in_progress' so a page refresh mid-stream can render an
-    // 'interrupted' banner instead of a partial-looking message.
     await appendTurn(session.id, "user", { text: userText });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[home/turn] user-turn insert failed:", msg, err);
+    if (isNewSession) {
+      try {
+        await softDeleteSession(session.id, actor.tenant_id, actor.user_id);
+      } catch (cleanupErr) {
+        console.error(
+          "[home/turn] orphan session cleanup failed:",
+          cleanupErr instanceof Error ? cleanupErr.message : cleanupErr,
+        );
+      }
+    }
+    return Response.json({ error: "turn_insert_failed" }, { status: 500 });
+  }
+
+  // Write a derived title for brand-new sessions so the rail can render
+  // something more useful than "(empty)". Existing sessions keep whatever
+  // title they were created with.
+  if (isNewSession) {
+    try {
+      await updateSessionTitle(
+        session.id,
+        userText,
+        actor.tenant_id,
+        actor.user_id,
+      );
+    } catch (titleErr) {
+      // Title is best-effort — failures shouldn't kill the turn. The rail
+      // falls back to "(empty)" via listSessions().
+      console.error(
+        "[home/turn] updateSessionTitle failed:",
+        titleErr instanceof Error ? titleErr.message : titleErr,
+      );
+    }
+  }
+
+  try {
     assistant = await appendTurn(
       session.id,
       "agent",
@@ -142,7 +210,7 @@ async function postImpl(req: NextRequest) {
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error("[home/turn] pre-stream failure:", msg, err);
+    console.error("[home/turn] assistant-turn insert failed:", msg, err);
     return new Response(`home_turn setup failed: ${msg}`, { status: 500 });
   }
 

@@ -338,6 +338,32 @@ export async function createSession(
 }
 
 /**
+ * Sets `home_sessions.title` to `deriveTitle(rawText)` for the given session,
+ * gated on (tenant_id, user_id) for defense-in-depth (matches the pattern
+ * in `softDeleteSession`). Used by the turn route on the first user message
+ * of a brand-new session so the rail can render something more useful than
+ * "(empty)".
+ *
+ * Throws on supabase error so the caller can decide whether to swallow
+ * (best-effort title) or propagate.
+ */
+export async function updateSessionTitle(
+  sessionId: string,
+  rawText: string,
+  tenantId: string,
+  userId: string,
+): Promise<void> {
+  const supabase = await getSupabaseServerClient();
+  const { error } = await supabase
+    .from("home_sessions")
+    .update({ title: deriveTitle(rawText) })
+    .eq("id", sessionId)
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId);
+  if (error) throw new Error(`updateSessionTitle failed: ${error.message}`);
+}
+
+/**
  * Derive a short, human-readable session title from the first user message.
  * Used by the rail (PR-C) and the title-on-first-turn write path. Pure —
  * no DB. Collapses whitespace, trims, caps at ~40 chars, prefers word
