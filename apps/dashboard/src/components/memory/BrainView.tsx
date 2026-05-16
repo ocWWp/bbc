@@ -72,6 +72,14 @@ export function BrainView({ nodes, embedded = false }: { nodes: BrainNode[]; emb
   const [rotX, setRotX] = useState(-0.15);
   const [zoom, setZoom] = useState(1);
   const [hover, setHover] = useState<string | null>(null);
+  // Node title labels depend on floating-point projection math that drifts
+  // between SSR and client (depth > 0.55 threshold flips). Gate labels behind
+  // a mounted flag so they only render client-side — eliminates the React
+  // hydration warning that surfaces as a "1 Issue" toast on /memory?view=brain.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const dragRef = useRef<{ x: number; y: number; rx: number; ry: number } | null>(null);
   const autoRef = useRef(true);
 
@@ -319,14 +327,14 @@ export function BrainView({ nodes, embedded = false }: { nodes: BrainNode[]; emb
             >
               <circle r={r2(r * 2.2)} fill={`var(--t-${n.tag})`} opacity={r2(0.1 * op)} />
               <circle r={r2(r)} fill={`var(--t-${n.tag})`} opacity={r2(op)} />
-              {front && (isHover || depth > 0.55) && (
+              {mounted && front && (isHover || depth > 0.55) && (
                 <text
-                  x={r + 5}
+                  x={r2(r + 5)}
                   y={3}
                   fontFamily="var(--font-geist-mono), monospace"
                   fontSize={10}
                   fill={isHover ? "var(--paper-ink)" : "var(--paper-muted)"}
-                  opacity={op}
+                  opacity={r2(op)}
                 >
                   {n.title.length > 26 ? n.title.slice(0, 26) + "…" : n.title}
                 </text>
