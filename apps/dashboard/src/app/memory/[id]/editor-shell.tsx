@@ -8,6 +8,7 @@ import type { PartialBlock } from "@blocknote/core";
 import { TypedForm } from "@/components/memory/typed-form";
 import { TypeChip } from "@/components/memory/type-chip";
 import { RelationPicker } from "@/components/memory/relation-picker";
+import { WorkspaceCrumb } from "@/components/WorkspaceCrumb";
 import { archiveMemoryItem, publishMemoryItem, updateMemoryItem } from "../actions";
 
 // BlockNote pulls @blocknote/mantine which touches `window` at module
@@ -34,7 +35,7 @@ type Relations = {
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
-export function EditorShell({ item, relations }: { item: MemoryItemRow; relations: Relations }) {
+export function EditorShell({ item, relations, tenantSlug }: { item: MemoryItemRow; relations: Relations; tenantSlug: string }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -73,7 +74,7 @@ export function EditorShell({ item, relations }: { item: MemoryItemRow; relation
       <header className="page-head">
         <div className="page-head-left">
           <div className="page-crumb">
-            <Link href="/queue">acme</Link>
+            <WorkspaceCrumb tenantSlug={tenantSlug} />
             <span className="sep">/</span>
             <Link href="/memory">memory</Link>
             <span className="sep">/</span>

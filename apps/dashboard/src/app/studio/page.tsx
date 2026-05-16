@@ -18,6 +18,7 @@ import { listClientSupportTemplates } from "@/lib/studio/support-templates/regis
 import { listClientFinanceTemplates } from "@/lib/studio/finance-templates/registry";
 import { listClientLegalTemplates } from "@/lib/studio/legal-templates/registry";
 import { listClientHrTemplates } from "@/lib/studio/hr-templates/registry";
+import { WorkspaceCrumb } from "@/components/WorkspaceCrumb";
 
 export const metadata = {
   title: "Studio · BBC",
@@ -157,7 +158,7 @@ export default async function StudioIndexPage() {
       <header className="page-head">
         <div className="page-head-left">
           <div className="page-crumb">
-            <Link href="/queue">acme</Link>
+            <WorkspaceCrumb tenantSlug={a.actor.tenant_slug} />
             <span className="sep">/</span>
             <span className="current">studio</span>
           </div>

@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { requireActor } from "@/lib/auth/require-user";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { MemoryTabs } from "@/components/MemoryTabs";
+import { WorkspaceCrumb } from "@/components/WorkspaceCrumb";
 
 export const dynamic = "force-dynamic";
 
@@ -90,6 +93,8 @@ const DIRECT_OPTIONS = [
 ];
 
 export default async function SourcesPage() {
+  const a = await requireActor();
+  if (!a.ok) redirect("/auth/signin?callbackUrl=%2Fsources");
   const recent = await loadRecentSources();
 
   return (
@@ -98,7 +103,7 @@ export default async function SourcesPage() {
       <header className="page-head">
         <div className="page-head-left">
           <div className="page-crumb">
-            <Link href="/queue">acme</Link>
+            <WorkspaceCrumb tenantSlug={a.actor.tenant_slug} />
             <span className="sep">/</span>
             <Link href="/memory">memory</Link>
             <span className="sep">/</span>

@@ -23,6 +23,7 @@ import { DetailDrawer } from "./DetailDrawer";
 import { ImportDrawer } from "./ImportDrawer";
 import type { PendingRec } from "@/lib/loop3/read-recommendations";
 import { dismissRecommendationAction } from "@/lib/loop3/actions";
+import { WorkspaceCrumb } from "@/components/WorkspaceCrumb";
 
 type Tab = "default" | "skills" | "connectors" | "providers";
 
@@ -52,6 +53,8 @@ export type LibraryClientProps = {
    *  in the header for admins only; non-admins don't see it (the route
    *  itself 404s for them via requireRole). */
   isAdmin?: boolean;
+  /** Workspace slug for the breadcrumb root. */
+  tenantSlug: string;
 };
 
 export function LibraryClient({
@@ -59,6 +62,7 @@ export function LibraryClient({
   catalogConnectors,
   recommendations,
   isAdmin = false,
+  tenantSlug,
 }: LibraryClientProps) {
   const allSkills = importedSkills.length === 0 ? SKILLS : [...importedSkills, ...SKILLS];
   const connectors = catalogConnectors ?? CONNECTORS;
@@ -217,7 +221,7 @@ export function LibraryClient({
       <header className="page-head">
         <div className="page-head-left">
           <div className="page-crumb">
-            <span className="current">acme</span>
+            <WorkspaceCrumb tenantSlug={tenantSlug} />
             <span className="sep">/</span>
             <span className="current">library</span>
             {tab !== "default" && (
