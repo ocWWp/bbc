@@ -8,6 +8,7 @@ import {
   type Emit,
   type HomeTurnDeps,
   type InvokeLlmFn,
+  type LlmToolCall,
   type Role,
   type SseEvent,
 } from "@/lib/agent";
@@ -19,6 +20,7 @@ import {
   getOrCreateActiveSession,
   type HomeTurn,
 } from "@/lib/home/sessions";
+import { POSTHOG_METRIC_CATALOG } from "@/lib/integrations/posthog";
 import { makeReserveQuota, makeReconcileQuota } from "@/lib/quota/rpc";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -62,6 +64,20 @@ const stubClassify: HomeTurnDeps["classify"] = async ({ text }) => {
   return "explain";
 };
 
+function matchMetric(text: string) {
+  const t = text.toLowerCase();
+  for (const m of POSTHOG_METRIC_CATALOG) {
+    if (t.includes(m.id.replace(/_/g, " ")) || t.includes(m.label.toLowerCase())) {
+      return m;
+    }
+  }
+  // Loose keyword fallbacks so "watch my churn rate" finds something
+  // even if the user's wording doesn't match the catalog literally.
+  if (t.includes("churn")) return POSTHOG_METRIC_CATALOG.find((m) => m.id === "activation_rate") ?? POSTHOG_METRIC_CATALOG[0];
+  if (t.includes("user")) return POSTHOG_METRIC_CATALOG.find((m) => m.id === "dau") ?? POSTHOG_METRIC_CATALOG[0];
+  return POSTHOG_METRIC_CATALOG[0];
+}
+
 const stubInvokeLlm: InvokeLlmFn = async ({ intent, ctx }) => {
   const last = ctx.buffer.kind === "conversation" ? ctx.buffer.userInput : "";
   const text = (() => {
@@ -70,8 +86,10 @@ const stubInvokeLlm: InvokeLlmFn = async ({ intent, ctx }) => {
         return `You can open that from the left nav. Want me to take you there?`;
       case "draft":
         return `Drafting now — give me one second.`;
-      case "watch":
-        return `I'll watch for it and surface anything that shows up.`;
+      case "watch": {
+        const m = matchMetric(last);
+        return `I can set up a watch on ${m.label}. Click below to wire it up — nothing runs until you enable it.`;
+      }
       case "explain":
         return `Got it: "${last}". (Stub response — real LLM lands in M3.)`;
       case "meta":
@@ -81,16 +99,34 @@ const stubInvokeLlm: InvokeLlmFn = async ({ intent, ctx }) => {
         return `Tell me a little more — what are you trying to do?`;
     }
   })();
-  const toolCalls =
-    intent === "navigate"
-      ? [
-          {
-            name: "route_match",
-            input: { query: last },
-            output: { route: "/memory", label: "Memory" },
+  const toolCalls: LlmToolCall[] = (() => {
+    if (intent === "navigate") {
+      return [
+        {
+          name: "route_match",
+          input: { query: last },
+          output: { route: "/memory", label: "Memory" },
+        },
+      ];
+    }
+    if (intent === "watch") {
+      const m = matchMetric(last);
+      return [
+        {
+          name: "watch_proposed",
+          input: { query: last },
+          output: {
+            metric: m.id,
+            metricLabel: m.label,
+            source: "posthog",
+            projectId: process.env.POSTHOG_PROJECT_ID ?? "",
+            region: (process.env.POSTHOG_REGION as "us" | "eu") || "us",
           },
-        ]
-      : [];
+        },
+      ];
+    }
+    return [];
+  })();
   return { text, toolCalls, tokens: 0 };
 };
 

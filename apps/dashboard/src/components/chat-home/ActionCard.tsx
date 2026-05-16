@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+
+import { enableSignal } from "@/app/settings/observers/actions";
 
 // Action-card kinds the agent can emit. Keep this list narrow on purpose
 // — every kind needs an explicit UI; unknown kinds render as a labeled
@@ -77,15 +80,128 @@ function DraftStartedBody({ payload }: { payload: unknown }) {
   );
 }
 
+type WatchStep = "idle" | "setting-up" | "ready" | "enabling" | "enabled" | "error";
+
 function WatchProposedBody({ payload }: { payload: unknown }) {
   const p = asObj(payload);
-  const metric = typeof p.metric === "string" ? p.metric : "signal";
-  const source = typeof p.source === "string" ? p.source : "";
+  const metric = typeof p.metric === "string" ? p.metric : "";
+  const metricLabel = typeof p.metricLabel === "string" ? p.metricLabel : metric;
+  const source = typeof p.source === "string" ? p.source : "posthog";
+  const projectId = typeof p.projectId === "string" ? p.projectId : undefined;
+  const region = p.region === "us" || p.region === "eu" ? p.region : undefined;
+
+  const [step, setStep] = useState<WatchStep>("idle");
+  const [signalId, setSignalId] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  async function onSetup() {
+    if (!metric) {
+      setStep("error");
+      setErrorMsg("Card is missing the metric — ask BBC to propose again.");
+      return;
+    }
+    setStep("setting-up");
+    setErrorMsg(null);
+    try {
+      const res = await fetch("/api/observer/signals/setup", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ metric, projectId, region }),
+      });
+      const body = (await res.json().catch(() => null)) as
+        | { ok: true; signalId: string }
+        | { ok: false; error: string }
+        | null;
+      if (!res.ok || !body || body.ok === false) {
+        setStep("error");
+        setErrorMsg(body && body.ok === false ? body.error : `Setup failed (HTTP ${res.status})`);
+        return;
+      }
+      setSignalId(body.signalId);
+      setStep("ready");
+    } catch (e) {
+      setStep("error");
+      setErrorMsg(e instanceof Error ? e.message : "Setup failed.");
+    }
+  }
+
+  async function onEnable() {
+    if (!signalId) return;
+    setStep("enabling");
+    setErrorMsg(null);
+    const res = await enableSignal(signalId);
+    if (!res.ok) {
+      setStep("error");
+      setErrorMsg(res.error);
+      return;
+    }
+    setStep("enabled");
+  }
+
   return (
     <div>
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">Watch proposal</div>
-      <div className="font-medium">{metric}</div>
-      {source ? <div className="text-xs text-muted-foreground">via {source}</div> : null}
+      <div className="text-xs uppercase tracking-wide text-muted-foreground">
+        Watch proposal
+      </div>
+      <div className="font-medium">{metricLabel || "signal"}</div>
+      <div className="text-xs text-muted-foreground">via {source}</div>
+
+      {errorMsg && (
+        <div className="mt-2 rounded bg-destructive/10 p-2 text-xs text-destructive">
+          {errorMsg}
+        </div>
+      )}
+
+      <div className="mt-3 flex items-center gap-2">
+        {step === "idle" && (
+          <button
+            type="button"
+            className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted"
+            onClick={onSetup}
+            disabled={!metric}
+          >
+            Set up this watch →
+          </button>
+        )}
+        {step === "setting-up" && (
+          <span className="text-sm text-muted-foreground">Setting up…</span>
+        )}
+        {step === "ready" && (
+          <button
+            type="button"
+            className="rounded-md border border-primary bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90"
+            onClick={onEnable}
+          >
+            Enable watching →
+          </button>
+        )}
+        {step === "enabling" && (
+          <span className="text-sm text-muted-foreground">Enabling…</span>
+        )}
+        {step === "enabled" && (
+          <div className="flex items-center gap-3 text-sm">
+            <span className="font-medium text-primary">Watching ✓</span>
+            <Link
+              href={`/settings/observers/${signalId}/runs`}
+              className="text-xs text-muted-foreground underline"
+            >
+              View runs
+            </Link>
+          </div>
+        )}
+        {step === "error" && (
+          <button
+            type="button"
+            className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted"
+            onClick={() => {
+              setStep("idle");
+              setErrorMsg(null);
+            }}
+          >
+            Try again
+          </button>
+        )}
+      </div>
     </div>
   );
 }
