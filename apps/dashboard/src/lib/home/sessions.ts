@@ -187,6 +187,45 @@ export function isNotStubTurn(turn: HomeTurn): boolean {
 }
 
 /**
+ * Reads a session by id, strictly gated on (tenant_id, user_id, not-archived).
+ * Returns null when not found, foreign-tenant, or archived — no error.
+ *
+ * Replaces `getActiveSessionWithTurns` (PR-C M4): the rail picks an explicit
+ * sessionId from the URL, so the read needs to be by-id rather than "the most
+ * recent active one". Applies the same `isNotStubTurn` filter to returned
+ * turns to hide v1.6 stub replies that still live in some tenants' history.
+ */
+export async function getSessionWithTurns(
+  sessionId: string,
+  tenantId: string,
+  userId: string,
+  limit = 50,
+): Promise<{ session: HomeSession; turns: HomeTurn[] } | null> {
+  const supabase = await getSupabaseServerClient();
+  const { data: session, error: sErr } = await supabase
+    .from("home_sessions")
+    .select("*")
+    .eq("id", sessionId)
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId)
+    .is("archived_at", null)
+    .maybeSingle();
+  if (sErr) throw new Error(`getSessionWithTurns read failed: ${sErr.message}`);
+  if (!session) return null;
+
+  const { data: turns, error: tErr } = await supabase
+    .from("home_turns")
+    .select("*")
+    .eq("session_id", sessionId)
+    .order("created_at", { ascending: true })
+    .limit(limit);
+  if (tErr) throw new Error(`getSessionWithTurns turns read failed: ${tErr.message}`);
+
+  const all = (turns ?? []) as HomeTurn[];
+  return { session: session as HomeSession, turns: all.filter(isNotStubTurn) };
+}
+
+/**
  * Returns the user's most recent non-archived session, or null if none.
  *
  * Read-only counterpart to `createSession` — callers decide whether to

@@ -437,6 +437,91 @@ describe("createSession", () => {
   });
 });
 
+describe("getSessionWithTurns", () => {
+  function sessionRow(over: Partial<Row> = {}): Row {
+    return {
+      id: "s1",
+      tenant_id: "t1",
+      user_id: "u1",
+      archived_at: null,
+      started_at: "2026-05-15T00:00:00Z",
+      last_activity_at: "2026-05-15T00:00:00Z",
+      ...over,
+    };
+  }
+  function turnRow(over: Partial<Row> = {}): Row {
+    return {
+      id: `turn-${Math.random()}`,
+      session_id: "s1",
+      role: "user",
+      status: "completed",
+      content_jsonb: { text: "hi" },
+      created_at: "2026-05-15T00:00:00Z",
+      finalized_at: "2026-05-15T00:00:00Z",
+      ...over,
+    };
+  }
+
+  it("returns null for not-found id", async () => {
+    expect(await getSessionWithTurns("ghost", "t1", "u1")).toBeNull();
+  });
+
+  it("returns null for foreign tenant", async () => {
+    stub = makeSupabaseStub({ sessions: [sessionRow()] });
+    expect(await getSessionWithTurns("s1", "wrong-tenant", "u1")).toBeNull();
+  });
+
+  it("returns null for archived session", async () => {
+    stub = makeSupabaseStub({
+      sessions: [sessionRow({ archived_at: "2026-05-15T00:00:00Z" })],
+    });
+    expect(await getSessionWithTurns("s1", "t1", "u1")).toBeNull();
+  });
+
+  it("returns session + filtered turns for happy path", async () => {
+    stub = makeSupabaseStub({
+      sessions: [sessionRow()],
+      turns: [
+        turnRow({ id: "u1", role: "user", content_jsonb: { text: "ping" } }),
+        turnRow({ id: "a1", role: "agent", content_jsonb: { text: "real reply that's long enough" } }),
+      ],
+    });
+    const out = await getSessionWithTurns("s1", "t1", "u1");
+    expect(out?.session.id).toBe("s1");
+    expect(out?.turns).toHaveLength(2);
+  });
+
+  it("filters v1.6 stub agent turns out of returned turns", async () => {
+    stub = makeSupabaseStub({
+      sessions: [sessionRow()],
+      turns: [
+        turnRow({ id: "u1", role: "user", content_jsonb: { text: "ping" } }),
+        turnRow({
+          id: "stub",
+          role: "agent",
+          content_jsonb: { text: "what's up?" },
+        }),
+        turnRow({
+          id: "real",
+          role: "agent",
+          content_jsonb: { text: "what platform are you targeting?" },
+        }),
+      ],
+    });
+    const out = await getSessionWithTurns("s1", "t1", "u1");
+    const ids = (out?.turns ?? []).map((t) => t.id);
+    expect(ids).toContain("u1");
+    expect(ids).toContain("real");
+    expect(ids).not.toContain("stub");
+  });
+
+  it("applies the turn limit", async () => {
+    stub = makeSupabaseStub({ sessions: [sessionRow()] });
+    await getSessionWithTurns("s1", "t1", "u1", 5);
+    expect(stub._state.lastSelectLimit).toBe(5);
+  });
+});
+
 describe("deriveTitle", () => {
   it("returns '(empty)' for empty string", () => {
     expect(deriveTitle("")).toBe("(empty)");
