@@ -206,6 +206,7 @@ import {
   getSessionWithTurns,
   listSessions,
   softDeleteSession,
+  updateSessionTitle,
 } from "./sessions";
 
 beforeEach(() => {
@@ -656,6 +657,77 @@ describe("softDeleteSession", () => {
     await expect(softDeleteSession("s1", "t1", "u1")).rejects.toThrow(
       /no rows matched/,
     );
+  });
+});
+
+describe("updateSessionTitle", () => {
+  it("writes deriveTitle(rawText) to the matched row", async () => {
+    stub = makeSupabaseStub({
+      sessions: [
+        {
+          id: "s1",
+          tenant_id: "t1",
+          user_id: "u1",
+          archived_at: null,
+          title: null,
+          last_activity_at: "2026-05-15T00:00:00Z",
+        },
+      ],
+    });
+    await updateSessionTitle("s1", "draft a thank-you note", "t1", "u1");
+    expect(stub._state.lastUpdateTable).toBe("home_sessions");
+    expect((stub._state.lastUpdatePatch as Row).title).toBe(
+      "draft a thank-you note",
+    );
+    // ownership predicate applied
+    expect(stub._state.lastUpdateFilters).toEqual({
+      id: "s1",
+      tenant_id: "t1",
+      user_id: "u1",
+    });
+    // row actually mutated
+    expect((stub._state.sessions[0] as Row).title).toBe(
+      "draft a thank-you note",
+    );
+  });
+
+  it("truncates long text via deriveTitle", async () => {
+    stub = makeSupabaseStub({
+      sessions: [
+        {
+          id: "s1",
+          tenant_id: "t1",
+          user_id: "u1",
+          archived_at: null,
+          title: null,
+          last_activity_at: "2026-05-15T00:00:00Z",
+        },
+      ],
+    });
+    const long =
+      "draft a thank you note to oscartry about the meeting we had yesterday";
+    await updateSessionTitle("s1", long, "t1", "u1");
+    const written = (stub._state.lastUpdatePatch as Row).title as string;
+    expect(written.endsWith("...")).toBe(true);
+    expect(written.length).toBeLessThanOrEqual(43);
+  });
+
+  it("does not mutate other tenant's rows", async () => {
+    stub = makeSupabaseStub({
+      sessions: [
+        {
+          id: "s1",
+          tenant_id: "other-tenant",
+          user_id: "u1",
+          archived_at: null,
+          title: "original",
+          last_activity_at: "2026-05-15T00:00:00Z",
+        },
+      ],
+    });
+    await updateSessionTitle("s1", "should not write", "t1", "u1");
+    // The ownership predicate filtered the row out; title stays.
+    expect((stub._state.sessions[0] as Row).title).toBe("original");
   });
 });
 

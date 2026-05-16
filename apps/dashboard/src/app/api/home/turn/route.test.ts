@@ -357,6 +357,77 @@ describe("POST /api/home/turn — pre-stream branches", () => {
     );
   });
 
+  it("writes a derived title when creating a new session", async () => {
+    requireActorMock.mockResolvedValue({ ok: true, actor: adminActor() });
+    const res = await POST(
+      makeReq({ userText: "Draft a thank-you to oscartry" }) as never,
+    );
+    expect(res.status).toBe(200);
+    expect(sessionMocks.updateSessionTitle).toHaveBeenCalledWith(
+      "new-session-1",
+      "Draft a thank-you to oscartry",
+      "t1",
+      "u1",
+    );
+  });
+
+  it("does NOT write title for an existing session", async () => {
+    requireActorMock.mockResolvedValue({ ok: true, actor: adminActor() });
+    sessionMocks.getSessionWithTurns.mockResolvedValueOnce({
+      session: {
+        id: VALID_UUID,
+        tenant_id: "t1",
+        user_id: "u1",
+        started_at: "2026-05-15T00:00:00Z",
+        last_activity_at: "2026-05-15T00:00:00Z",
+        archived_at: null,
+      },
+      turns: [],
+    });
+    const res = await POST(
+      makeReq({ userText: "follow up", sessionId: VALID_UUID }) as never,
+    );
+    expect(res.status).toBe(200);
+    expect(sessionMocks.updateSessionTitle).not.toHaveBeenCalled();
+  });
+
+  it("soft-deletes the new session when user-turn insert fails", async () => {
+    requireActorMock.mockResolvedValue({ ok: true, actor: adminActor() });
+    sessionMocks.appendTurn.mockRejectedValueOnce(new Error("db down"));
+    const res = await POST(makeReq({ userText: "hi" }) as never);
+    expect(res.status).toBe(500);
+    const json = await res.json();
+    expect(json.error).toBe("turn_insert_failed");
+    expect(sessionMocks.softDeleteSession).toHaveBeenCalledWith(
+      "new-session-1",
+      "t1",
+      "u1",
+    );
+    // No SSE was opened — title write never happened.
+    expect(sessionMocks.updateSessionTitle).not.toHaveBeenCalled();
+  });
+
+  it("does NOT soft-delete on user-turn insert failure for existing session", async () => {
+    requireActorMock.mockResolvedValue({ ok: true, actor: adminActor() });
+    sessionMocks.getSessionWithTurns.mockResolvedValueOnce({
+      session: {
+        id: VALID_UUID,
+        tenant_id: "t1",
+        user_id: "u1",
+        started_at: "2026-05-15T00:00:00Z",
+        last_activity_at: "2026-05-15T00:00:00Z",
+        archived_at: null,
+      },
+      turns: [],
+    });
+    sessionMocks.appendTurn.mockRejectedValueOnce(new Error("db down"));
+    const res = await POST(
+      makeReq({ userText: "hi", sessionId: VALID_UUID }) as never,
+    );
+    expect(res.status).toBe(500);
+    expect(sessionMocks.softDeleteSession).not.toHaveBeenCalled();
+  });
+
   it("opens an SSE response on the happy path", async () => {
     requireActorMock.mockResolvedValue({
       ok: true,
