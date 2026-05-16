@@ -4718,3 +4718,139 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   color: var(--paper-muted);
   margin-top: 8px;
 }
+
+/* ============================================================
+   /home — Ramp-flavored visual pilot (v1.7).
+   Scoped to .home-pilot so it cannot bleed into Studio, Memory,
+   Settings, etc. Per [[feedback-visual-quality-matters]] the
+   reference is Ramp: warm off-white + dotted grid + crisp white
+   cards + acid yellow accent. Full design system pass is v1.8.
+   ============================================================ */
+
+.home-pilot {
+  /* Warm off-white base — Ramp's hero background. */
+  --home-bg: #faf7f2;
+  --home-card: #ffffff;
+  --home-ink: #15140f;
+  --home-ink-muted: #6b6657;
+  --home-rule: #e5dfd1;
+  --home-rule-strong: #d2cab5;
+  /* Acid yellow for primary CTAs. Reads on both light + dark. */
+  --home-accent: #e0ff54;
+  --home-accent-ink: #15140f;
+  /* Dotted grid: 18px cell, ~6% black dots. */
+  --home-grid-color: rgba(21, 20, 15, 0.07);
+  --home-grid-size: 18px;
+
+  background-color: var(--home-bg);
+  background-image: radial-gradient(
+    circle,
+    var(--home-grid-color) 1px,
+    transparent 1px
+  );
+  background-size: var(--home-grid-size) var(--home-grid-size);
+  background-position: 0 0;
+  color: var(--home-ink);
+  /* Cover the viewport even when chat is empty so the grid reads as a surface. */
+  min-height: 100vh;
+}
+
+.dark .home-pilot {
+  --home-bg: #100f0c;
+  --home-card: #1a1814;
+  --home-ink: #f1ede0;
+  --home-ink-muted: #8a8676;
+  --home-rule: #2a261d;
+  --home-rule-strong: #3a3528;
+  --home-grid-color: rgba(241, 237, 224, 0.05);
+}
+
+/* Page-head + headline polish — bolder ink, less line. */
+.home-pilot .page-head {
+  border-bottom-color: var(--home-rule);
+}
+.home-pilot .page-title {
+  color: var(--home-ink);
+}
+.home-pilot .page-crumb,
+.home-pilot .page-crumb .current {
+  color: var(--home-ink-muted);
+}
+
+/* User bubbles: crisp white card with strong border, no gradient.
+   Replaces shadcn's `bg-primary text-primary-foreground` look. */
+.home-pilot [data-testid^="turn-user-"] > div {
+  background: var(--home-card) !important;
+  color: var(--home-ink) !important;
+  border: 1px solid var(--home-rule-strong) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 1px 0 var(--home-rule);
+}
+
+/* Agent bubbles: same card material, slightly warmer fill so it still
+   reads as the "other side" of the conversation. */
+.home-pilot [data-testid^="turn-agent-"] > div {
+  background: color-mix(in oklab, var(--home-card), var(--home-bg) 35%) !important;
+  color: var(--home-ink) !important;
+  border: 1px solid var(--home-rule) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 1px 0 var(--home-rule);
+}
+
+/* Empty-state greeting: drop the dashed muted look for a crisp card. */
+.home-pilot [data-testid="empty-greeting"] {
+  background: var(--home-card) !important;
+  border: 1px solid var(--home-rule) !important;
+  color: var(--home-ink) !important;
+  box-shadow: 0 1px 0 var(--home-rule);
+}
+
+/* Watching strip chips. */
+.home-pilot [data-testid="watching-strip"] button {
+  background: var(--home-card);
+  border-color: var(--home-rule);
+  color: var(--home-ink);
+}
+
+/* Composer bar: solid card on the grid, not a translucent blur. */
+.home-pilot .home-composer {
+  background: var(--home-card);
+  border-top: 1px solid var(--home-rule-strong);
+  /* Override Tailwind's bottom-bar transparency utilities. */
+  backdrop-filter: none;
+}
+.home-pilot .home-composer textarea {
+  background: var(--home-bg);
+  border: 1px solid var(--home-rule-strong);
+  color: var(--home-ink);
+  box-shadow: none;
+}
+.home-pilot .home-composer textarea::placeholder {
+  color: var(--home-ink-muted);
+}
+
+/* Primary CTA: acid yellow. The stop button stays neutral. */
+.home-pilot .home-send {
+  background: var(--home-accent);
+  color: var(--home-accent-ink);
+  border: 1px solid color-mix(in oklab, var(--home-accent), black 15%);
+  font-weight: 600;
+}
+.home-pilot .home-send:hover {
+  background: color-mix(in oklab, var(--home-accent), white 8%);
+}
+.home-pilot .home-send:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.home-pilot .home-stop {
+  background: var(--home-card);
+  border: 1px solid var(--home-rule-strong);
+  color: var(--home-ink);
+}
+
+/* Action cards inside agent bubbles inherit the card surface. */
+.home-pilot [data-testid^="action-card-"] {
+  background: var(--home-card) !important;
+  border-color: var(--home-rule-strong) !important;
+}

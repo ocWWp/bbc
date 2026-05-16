@@ -142,7 +142,8 @@ export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProp
   const empty = turns.length === 0;
 
   return (
-    <div className="container page" data-testid="chat-home">
+    <div className="home-pilot" data-testid="chat-home">
+    <div className="container page">
       <header className="page-head">
         <div className="page-head-left">
           <div className="page-crumb">
@@ -190,7 +191,7 @@ export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProp
         <div ref={scrollAnchorRef} className="scroll-mb-40" />
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-background/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="home-composer fixed inset-x-0 bottom-0 z-10 border-t border-border bg-background/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="mx-auto flex w-full max-w-3xl items-end gap-2">
           <textarea
             className="min-h-[44px] max-h-[160px] flex-1 resize-none rounded-xl border border-border bg-card px-4 py-2.5 text-sm leading-relaxed shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -210,7 +211,7 @@ export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProp
             <button
               type="button"
               onClick={cancel}
-              className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium hover:bg-muted"
+              className="home-stop rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium hover:bg-muted"
               data-testid="composer-cancel"
             >
               Stop
@@ -220,13 +221,14 @@ export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProp
               type="button"
               onClick={() => void send()}
               disabled={!draft.trim()}
-              className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              className="home-send rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               data-testid="composer-send"
             >
               Send
             </button>
           )}
         </div>
+      </div>
       </div>
     </div>
   );
