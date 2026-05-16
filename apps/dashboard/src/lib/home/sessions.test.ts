@@ -193,7 +193,6 @@ vi.mock("@/lib/supabase/server", () => ({
 
 import {
   appendTurn,
-  archiveSession,
   createSession,
   deriveTitle,
   finalizeTurn,
@@ -292,14 +291,6 @@ describe("finalizeTurn", () => {
   it("supports aborted status (user cancel)", async () => {
     await finalizeTurn("t1", { text: "partial" }, "aborted");
     expect((stub._state.lastUpdatePatch as Row).status).toBe("aborted");
-  });
-});
-
-describe("archiveSession", () => {
-  it("sets archived_at on the session", async () => {
-    await archiveSession("s1");
-    expect(stub._state.lastUpdateTable).toBe("home_sessions");
-    expect((stub._state.lastUpdatePatch as Row).archived_at).toBeTypeOf("string");
   });
 });
 

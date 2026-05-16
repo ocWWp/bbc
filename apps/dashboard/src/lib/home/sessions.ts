@@ -30,6 +30,11 @@ export type HomeTurn = {
  * "Active" = archived_at IS NULL. There's at most one active session per
  * (tenant_id, user_id) by convention; if multiple exist, we return the most
  * recent and archive the older ones in a follow-up cleanup (not on read).
+ *
+ * @deprecated PR-C splits this into explicit `getMostRecentSession` +
+ * `createSession`. Still used by the turn route's no-sessionId branch
+ * (migrating that requires PR-C M8-M12 sessionId routing work). Remove
+ * once the turn route lands the per-session POST body.
  */
 export async function getOrCreateActiveSession(
   tenantId: string,
@@ -60,15 +65,6 @@ export async function getOrCreateActiveSession(
     throw new Error(`home_sessions insert failed: ${insErr?.message ?? "no row"}`);
   }
   return inserted as HomeSession;
-}
-
-export async function archiveSession(sessionId: string): Promise<void> {
-  const supabase = await getSupabaseServerClient();
-  const { error } = await supabase
-    .from("home_sessions")
-    .update({ archived_at: new Date().toISOString() })
-    .eq("id", sessionId);
-  if (error) throw new Error(`home_sessions archive failed: ${error.message}`);
 }
 
 export async function appendTurn(
@@ -119,6 +115,12 @@ export async function finalizeTurn(
   if (error) throw new Error(`home_turns finalize failed: ${error.message}`);
 }
 
+/**
+ * @deprecated PR-C M4 replaced this with `getSessionWithTurns`, which takes
+ * an explicit sessionId so the rail can navigate between sessions. Still
+ * used by the turn route (PR-C M8-M12 work) and `app/home/page.tsx`
+ * (PR-C M23 work). Remove once both land.
+ */
 export async function getActiveSessionWithTurns(
   tenantId: string,
   userId: string,
