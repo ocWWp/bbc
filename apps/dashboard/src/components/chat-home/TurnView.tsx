@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, type ReactNode } from "react";
+import { Fragment, useMemo, type ReactNode } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 
@@ -26,6 +26,12 @@ export type TurnViewModel = {
 
 export function TurnView({ turn }: { turn: TurnViewModel }) {
   const isUser = turn.role === "user";
+  // Memoize the prose parse to avoid re-splitting the full accumulated
+  // text on every text-delta. User turns skip the parse entirely.
+  const renderedProse = useMemo(
+    () => (isUser ? turn.text : renderProse(turn.text, turn.citations)),
+    [isUser, turn.text, turn.citations],
+  );
   // F4: Linear-style turn identity. Users get a right-aligned pill so
   // their input is unambiguously "what I said." The assistant runs
   // flush-left as prose — no bubble, no border — so the answer reads
@@ -68,10 +74,9 @@ export function TurnView({ turn }: { turn: TurnViewModel }) {
             }
           >
             {/* Assistant text can contain `[mem:UUID]` citation markers.
-                Replace each with a compact inline pill that links to the
-                memory row and shows the title (or a short-id fallback).
-                User input never contains them — skip the parse for cheap. */}
-            {isUser ? turn.text : renderProse(turn.text, turn.citations)}
+                Memoized into renderedProse above so streaming text-delta
+                cadence doesn't re-split the full message each tick. */}
+            {renderedProse}
             {turn.streaming ? (
               <span
                 aria-hidden
