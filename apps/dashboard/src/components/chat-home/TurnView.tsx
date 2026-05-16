@@ -1,5 +1,7 @@
 "use client";
 
+import { motion } from "framer-motion";
+
 import { ActionCard } from "./ActionCard";
 import { CitationChip } from "./CitationChip";
 
@@ -22,7 +24,15 @@ export function TurnView({ turn }: { turn: TurnViewModel }) {
   // as the page's primary content rather than a chat callout. Role label
   // surfaces on hover for screen-readers / explicit identification.
   return (
-    <div
+    <motion.div
+      // Light enter-only motion. The streaming text already gives a
+      // continuous cadence of change; the turn container fades up once
+      // and then sits. MotionConfig at the ChatHome level honors
+      // prefers-reduced-motion so screen-reader-tuned setups get a
+      // duration:0 path automatically.
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22, ease: "easeOut" }}
       className={`group flex w-full ${isUser ? "justify-end" : "justify-start"}`}
       data-testid={`turn-${turn.role}-${turn.id}`}
       data-status={turn.status}
@@ -75,7 +85,7 @@ export function TurnView({ turn }: { turn: TurnViewModel }) {
           </div>
         ) : null}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
