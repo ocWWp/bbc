@@ -201,6 +201,48 @@ describe("POST /api/home/turn — pre-stream branches", () => {
     expect(res.status).toBe(400);
   });
 
+  it("returns 400 for malformed sessionId", async () => {
+    requireActorMock.mockResolvedValue({
+      ok: true,
+      actor: {
+        user_id: "u1",
+        tenant_id: "t1",
+        provider: "github",
+        identifier: "alice",
+        actor: "human:github:alice",
+        tenant_slug: "acme",
+        role: "admin",
+        templateSlug: null,
+      },
+    });
+    const res = await POST(
+      makeReq({ userText: "hi", sessionId: "not-a-uuid" }) as never,
+    );
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toBe("invalid_session_id");
+  });
+
+  it("accepts empty-string sessionId as absent", async () => {
+    requireActorMock.mockResolvedValue({
+      ok: true,
+      actor: {
+        user_id: "u1",
+        tenant_id: "t1",
+        provider: "github",
+        identifier: "alice",
+        actor: "human:github:alice",
+        tenant_slug: "acme",
+        role: "admin",
+        templateSlug: null,
+      },
+    });
+    const res = await POST(
+      makeReq({ userText: "hi", sessionId: "" }) as never,
+    );
+    expect(res.status).toBe(200);
+  });
+
   it("opens an SSE response on the happy path", async () => {
     requireActorMock.mockResolvedValue({
       ok: true,

@@ -51,7 +51,9 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 // ---- POST handler --------------------------------------------------------
 
-type PostBody = { userText?: string };
+type PostBody = { userText?: string; sessionId?: string };
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const SSE_HEADERS = {
   "Content-Type": "text/event-stream; charset=utf-8",
@@ -95,6 +97,19 @@ async function postImpl(req: NextRequest) {
   const userText = (body.userText ?? "").trim();
   if (!userText) {
     return new Response("bad request: userText required", { status: 400 });
+  }
+
+  // sessionId is optional. Empty string is treated as absent. Any non-empty
+  // value MUST be a syntactically valid UUID — RLS at the DB layer would
+  // reject malformed ids too, but a 400 here gives the client a clearer
+  // failure mode than a generic 410.
+  const rawSessionId = body.sessionId;
+  const sessionId =
+    typeof rawSessionId === "string" && rawSessionId.length > 0
+      ? rawSessionId
+      : null;
+  if (sessionId !== null && !UUID_RE.test(sessionId)) {
+    return Response.json({ error: "invalid_session_id" }, { status: 400 });
   }
 
   // Resolve session + recent turns BEFORE opening the stream so the auth +
