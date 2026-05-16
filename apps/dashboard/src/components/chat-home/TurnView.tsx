@@ -55,8 +55,8 @@ export function TurnView({ turn }: { turn: TurnViewModel }) {
       <div
         className={
           isUser
-            ? "max-w-[min(720px,90%)] rounded-2xl bg-primary px-4 py-3 text-primary-foreground"
-            : "max-w-[min(720px,92%)] px-1"
+            ? "max-w-[min(720px,90%)]"
+            : "max-w-[min(720px,82%)]"
         }
       >
         {turn.status === "aborted" && !isUser ? (
@@ -139,11 +139,20 @@ function renderProse(text: string, citations: CitationRef[]): ReactNode {
 }
 
 function InterruptedBanner({ kind }: { kind: "aborted" | "failed" }) {
+  // Inline lede, not a colored block. The dot carries the status; the
+  // text reads as part of the turn's first line. Works on the white
+  // home-pilot agent card without shouting.
   return (
-    <div className="mb-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-xs text-amber-700 dark:text-amber-300">
-      {kind === "aborted"
-        ? "This turn was interrupted."
-        : "Something went wrong on this turn."}
+    <div className="mb-1.5 flex items-center gap-2 text-xs text-muted-foreground">
+      <span
+        aria-hidden
+        className="inline-block size-1.5 rounded-full bg-amber-500/70"
+      />
+      <span>
+        {kind === "aborted"
+          ? "This turn was interrupted."
+          : "Something went wrong on this turn."}
+      </span>
     </div>
   );
 }
