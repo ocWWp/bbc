@@ -2,6 +2,8 @@ import "server-only";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
+import { ROLE_SHAPES } from "@/lib/studio/role-shapes";
+import { STUDIO_ROLES, type StudioRole } from "@/lib/studio/template-id";
 
 /**
  * Tool executors for the /home chat tool_use loop. Each executor takes the
@@ -131,17 +133,204 @@ export async function executeMemoryFetch(
   return { ok: true, result };
 }
 
+// ----------------------------------------------------------------------------
+// route_match — deterministic lookup that maps a navigation phrase to a known
+// route. No LLM call, no DB; just an alias table over the routes we actually
+// ship. Per [[feedback-no-placeholders]], unknown phrases return a null route
+// rather than hallucinating one — the LLM is told to say "I'm not sure where
+// that lives" in that case.
+// ----------------------------------------------------------------------------
+
+const routeMatchInputSchema = z.object({
+  query: z.string().min(1).max(200),
+});
+
+type RouteEntry = {
+  route: string;
+  label: string;
+  aliases: readonly string[];
+};
+
+const KNOWN_ROUTES: readonly RouteEntry[] = Object.freeze([
+  { route: "/home", label: "Home", aliases: ["home", "ask bbc", "chat"] },
+  { route: "/memory", label: "Memory", aliases: ["memory", "memories", "memory list", "all memories"] },
+  { route: "/memory/new", label: "New memory", aliases: ["new memory", "create memory", "add memory"] },
+  { route: "/brain", label: "Brain", aliases: ["brain", "voice", "decisions", "glossary", "the brain"] },
+  { route: "/queue", label: "Queue", aliases: ["queue", "proposals", "queued proposals", "pending proposals", "review queue"] },
+  { route: "/inbox", label: "Inbox", aliases: ["inbox"] },
+  { route: "/sources", label: "Sources", aliases: ["sources", "ingest sources", "connectors"] },
+  { route: "/library", label: "Library", aliases: ["library", "skills library"] },
+  { route: "/marketplace", label: "Marketplace", aliases: ["marketplace"] },
+  { route: "/settings", label: "Settings", aliases: ["settings"] },
+  { route: "/settings/keys", label: "API keys (BYOK)", aliases: ["api keys", "byok keys", "anthropic key", "openai key", "provider keys", "llm keys", "keys"] },
+  { route: "/settings/api-keys", label: "Outbound API keys", aliases: ["outbound api keys", "service api keys", "mcp keys"] },
+  { route: "/settings/team", label: "Team", aliases: ["team", "invite", "invites", "members", "people in workspace"] },
+  { route: "/settings/observers", label: "Observers", aliases: ["observers", "watches", "signals", "observer signals", "watch list"] },
+  { route: "/settings/tools", label: "Tools", aliases: ["tools", "tool settings"] },
+  { route: "/settings/skills", label: "Skills", aliases: ["skills", "installed skills"] },
+  { route: "/settings/bindings", label: "Bindings", aliases: ["bindings", "tool bindings"] },
+  { route: "/settings/log", label: "Audit log", aliases: ["audit log", "activity log", "log", "audit"] },
+  { route: "/studio", label: "Studio", aliases: ["studio", "studios", "all studios"] },
+  { route: "/studio/marketing", label: "Marketing Studio", aliases: ["marketing studio", "marketing"] },
+  { route: "/studio/engineering", label: "Engineering Studio", aliases: ["engineering studio", "engineering", "eng studio"] },
+  { route: "/studio/founder", label: "Founder Studio", aliases: ["founder studio", "founder"] },
+  { route: "/studio/designer", label: "Designer Studio", aliases: ["designer studio", "designer", "design studio"] },
+  { route: "/studio/support", label: "Support Studio", aliases: ["support studio", "support"] },
+  { route: "/studio/finance", label: "Finance Studio", aliases: ["finance studio", "finance"] },
+  { route: "/studio/legal", label: "Legal Studio", aliases: ["legal studio", "legal"] },
+  { route: "/studio/hr", label: "People Studio", aliases: ["people studio", "hr studio", "hr", "people"] },
+]);
+
+/** Score how well `q` (lowercased) matches `phrase` (lowercased). */
+function aliasScore(q: string, phrase: string): number {
+  if (q === phrase) return 100;
+  if (q.includes(phrase)) {
+    // Reward longer phrase matches more — "marketing studio" beats "studio".
+    return 40 + Math.min(40, phrase.length);
+  }
+  if (phrase.includes(q) && q.length >= 4) return 35;
+  return 0;
+}
+
+export type RouteMatchResult = {
+  route: string;
+  label: string;
+} | {
+  route: null;
+  hint: string;
+};
+
+export function matchRoute(rawQuery: string): RouteMatchResult {
+  const q = rawQuery.trim().toLowerCase();
+  if (!q) return { route: null, hint: "empty query" };
+  let best: { entry: RouteEntry; score: number } | null = null;
+  for (const entry of KNOWN_ROUTES) {
+    for (const alias of entry.aliases) {
+      const s = aliasScore(q, alias.toLowerCase());
+      if (s > 0 && (!best || s > best.score)) {
+        best = { entry, score: s };
+      }
+    }
+  }
+  if (!best || best.score < 30) {
+    return { route: null, hint: `no known route matches "${rawQuery}"` };
+  }
+  return { route: best.entry.route, label: best.entry.label };
+}
+
+export async function executeRouteMatch(
+  rawInput: unknown,
+): Promise<ToolExecutionResult> {
+  const parsed = routeMatchInputSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: `bad route_match input: ${parsed.error.issues[0]?.message ?? "unknown"}`,
+    };
+  }
+  return { ok: true, result: matchRoute(parsed.data.query) };
+}
+
+// ----------------------------------------------------------------------------
+// studio_compose — validates role + template against the curated menu in
+// ROLE_SHAPES and returns a deep link the user can click to land on the
+// matching Studio. PR-B does not invoke runWorkflow inline: the Studio owns
+// the heavyweight action (auth, rate limits, 4096-token generation, writeback
+// emitters, pending_review canvas). /home's job is to route precisely.
+//
+// `inputs` is accepted by the schema but not yet consumed — Studio-side
+// prefill from query params is v1.7-M-future. Today the user clicks through
+// to the Studio, sees the named template highlighted in chat, types the task,
+// and clicks Run.
+// ----------------------------------------------------------------------------
+
+const studioComposeInputSchema = z.object({
+  role: z.string().min(1).max(40),
+  template: z.string().min(1).max(80),
+  inputs: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type StudioComposeResult = {
+  url: string;
+  role: StudioRole;
+  roleLabel: string;
+  templateSlug: string;
+  templateLabel: string;
+  hint?: string;
+};
+
+export type StudioMenuRole = {
+  role: StudioRole;
+  roleLabel: string;
+  templates: Array<{ slug: string; label: string; id: string }>;
+};
+
+/** Curated menu exposed to the LLM so it can only call studio_compose with valid pairs. */
+export function listStudioMenu(): readonly StudioMenuRole[] {
+  return STUDIO_ROLES.map((role) => ({
+    role,
+    roleLabel: ROLE_SHAPES[role].label,
+    templates: ROLE_SHAPES[role].defaultChips.map((c) => ({
+      slug: c.templateSlug,
+      label: c.label,
+      id: c.id,
+    })),
+  }));
+}
+
+export async function executeStudioCompose(
+  rawInput: unknown,
+): Promise<ToolExecutionResult> {
+  const parsed = studioComposeInputSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: `bad studio_compose input: ${parsed.error.issues[0]?.message ?? "unknown"}`,
+    };
+  }
+  const { role: rawRole, template: rawTemplate } = parsed.data;
+  if (!(STUDIO_ROLES as readonly string[]).includes(rawRole)) {
+    return {
+      ok: false,
+      error: `unknown studio role: "${rawRole}" — valid roles: ${STUDIO_ROLES.join(", ")}`,
+    };
+  }
+  const role = rawRole as StudioRole;
+  const shape = ROLE_SHAPES[role];
+  // Accept either the chip id ("tweet") or the full templateSlug ("marketing:tweet-thread").
+  const chip = shape.defaultChips.find(
+    (c) => c.templateSlug === rawTemplate || c.id === rawTemplate,
+  );
+  if (!chip) {
+    const available = shape.defaultChips
+      .map((c) => `${c.id} (${c.templateSlug})`)
+      .join(", ");
+    return {
+      ok: false,
+      error: `no "${rawTemplate}" template in ${shape.label}. Available: ${available}`,
+    };
+  }
+  const result: StudioComposeResult = {
+    url: `/studio/${role}`,
+    role,
+    roleLabel: shape.label,
+    templateSlug: chip.templateSlug,
+    templateLabel: chip.label,
+  };
+  return { ok: true, result };
+}
+
 export type HomeToolExecutor = (
   name: string,
   input: unknown,
 ) => Promise<ToolExecutionResult>;
 
 /**
- * Build a tool executor bound to (supabase, tenantId). PR-A ships memory_*
- * tools only; route_match and studio_compose return "not implemented" until
- * PR-B lands. The LLM-facing tools registry (toolsForIntent) does NOT
- * advertise unimplemented tools to the model, so this is just a defensive
- * fallback.
+ * Build a tool executor bound to (supabase, tenantId). PR-B ships
+ * route_match + studio_compose as deterministic helpers — no LLM, no DB
+ * mutations — so /home can honestly answer navigate and draft intents.
+ * observer_* tools still return "not implemented" and are filtered out of
+ * the LLM-facing tool list by SHIPPED_TOOL_NAMES in real-invoke.ts.
  */
 export function makeHomeToolExecutor(
   supabase: SupabaseClient<Database>,
@@ -153,6 +342,10 @@ export function makeHomeToolExecutor(
         return executeMemorySearch(supabase, tenantId, input);
       case "memory_fetch":
         return executeMemoryFetch(supabase, tenantId, input);
+      case "route_match":
+        return executeRouteMatch(input);
+      case "studio_compose":
+        return executeStudioCompose(input);
       default:
         return { ok: false, error: `tool not implemented in this build: ${name}` };
     }

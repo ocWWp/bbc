@@ -3,7 +3,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import type { InvokeLlmFn, LlmToolCall, LlmResult } from "@/lib/agent/home-turn";
 import type { AgentContext, ConversationalIntent } from "@/lib/agent/types";
 import { TOOLS, toolsForIntent } from "@/lib/agent/tools";
-import type { HomeToolExecutor } from "./tool-impls";
+import { listStudioMenu, type HomeToolExecutor } from "./tool-impls";
 
 const RUN_MODEL = "claude-sonnet-4-6";
 const MAX_TOKENS = 2048;
@@ -64,14 +64,23 @@ function buildSystemPrompt(
       break;
     case "navigate":
       sections.push(
-        `The user wants to navigate somewhere in the app. Reply with one short sentence describing where to go. (Route resolution tool lands in the next milestone.)`,
+        `The user wants to navigate somewhere in the app. Call the route_match tool with the navigation phrase (e.g. "queue", "marketing studio", "api keys"). If route_match returns a non-null route, reply with one short sentence naming the destination — the UI will render a clickable card from the tool result. If it returns route:null, say plainly that you don't know where that lives.`,
       );
       break;
-    case "draft":
+    case "draft": {
+      const menu = listStudioMenu()
+        .map(
+          (r) =>
+            `- ${r.roleLabel} (role=${r.role}): ${r.templates
+              .map((t) => `${t.id} → ${t.label}`)
+              .join("; ")}`,
+        )
+        .join("\n");
       sections.push(
-        `The user wants you to draft content. (Studio handoff tool lands in the next milestone — for now, point them at the matching Studio under /studio/...)`,
+        `The user wants you to draft content. Studios own the heavyweight drafting flow; your job is to route precisely. Call the studio_compose tool with the best-fit role + template id. After it returns, reply with one short sentence naming the Studio + template — the UI will render a clickable card from the tool result. Available menu:\n${menu}`,
       );
       break;
+    }
     case "meta":
       sections.push(
         `The user is asking about the system, settings, billing, or quotas. Answer plainly. Watch/observer setup is not fully shipped yet — say so if they ask.`,
@@ -92,8 +101,14 @@ function buildSystemPrompt(
 // advertises for an intent but which aren't yet in this set get filtered
 // out before the LLM sees them — otherwise the model would call a tool
 // that returns "not implemented" and produce a confusing reply. PR-B
-// will add route_match + studio_compose here.
-const SHIPPED_TOOL_NAMES = new Set<string>(["memory_search", "memory_fetch"]);
+// landed route_match + studio_compose; observer_propose +
+// observation_emit are still stubbed and remain filtered.
+const SHIPPED_TOOL_NAMES = new Set<string>([
+  "memory_search",
+  "memory_fetch",
+  "route_match",
+  "studio_compose",
+]);
 
 function anthropicToolsForIntent(
   intent: ConversationalIntent,

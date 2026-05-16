@@ -10,6 +10,7 @@ import { enableSignal } from "@/app/settings/observers/actions";
 // JSON blob so we don't accidentally bury a tool output.
 export type ActionCardKind =
   | "route_match"
+  | "studio_compose"
   | "draft_started"
   | "watch_proposed"
   | "memory_lookup"
@@ -35,6 +36,8 @@ function renderBody(kind: ActionCardKind, payload: unknown) {
   switch (kind) {
     case "route_match":
       return <RouteMatchBody payload={payload} />;
+    case "studio_compose":
+      return <StudioComposeBody payload={payload} />;
     case "draft_started":
       return <DraftStartedBody payload={payload} />;
     case "watch_proposed":
@@ -50,7 +53,16 @@ function renderBody(kind: ActionCardKind, payload: unknown) {
 
 function RouteMatchBody({ payload }: { payload: unknown }) {
   const p = asObj(payload);
-  const route = typeof p.route === "string" ? p.route : "/";
+  const route = typeof p.route === "string" ? p.route : null;
+  if (!route) {
+    const hint = typeof p.hint === "string" ? p.hint : "No matching route.";
+    return (
+      <div>
+        <div className="text-xs uppercase tracking-wide text-muted-foreground">No match</div>
+        <div className="text-sm text-muted-foreground">{hint}</div>
+      </div>
+    );
+  }
   const label = typeof p.label === "string" ? p.label : route;
   return (
     <div className="flex items-center justify-between gap-3">
@@ -64,6 +76,39 @@ function RouteMatchBody({ payload }: { payload: unknown }) {
         className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted"
       >
         Go
+      </Link>
+    </div>
+  );
+}
+
+function StudioComposeBody({ payload }: { payload: unknown }) {
+  const p = asObj(payload);
+  const url = typeof p.url === "string" ? p.url : null;
+  const roleLabel = typeof p.roleLabel === "string" ? p.roleLabel : "Studio";
+  const templateLabel =
+    typeof p.templateLabel === "string" ? p.templateLabel : "Template";
+  if (!url) {
+    return (
+      <div>
+        <div className="text-xs uppercase tracking-wide text-muted-foreground">Draft</div>
+        <div className="text-sm text-muted-foreground">
+          Couldn't match that to a Studio template.
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <div className="text-xs uppercase tracking-wide text-muted-foreground">Compose in</div>
+        <div className="font-medium">{roleLabel}</div>
+        <div className="text-xs text-muted-foreground">{templateLabel}</div>
+      </div>
+      <Link
+        href={url}
+        className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted"
+      >
+        Open
       </Link>
     </div>
   );
