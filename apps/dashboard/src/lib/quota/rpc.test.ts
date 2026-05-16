@@ -50,21 +50,18 @@ describe("makeReserveQuota", () => {
     expect(result).toEqual({ ok: false, reason: "tokens_exceeded" });
   });
 
-  it("wraps RPC errors as ok:false with rpc_error reason", async () => {
+  it("throws on RPC errors rather than masking as quota exhaustion", async () => {
     const client = fakeClient(() => new Error("connection lost"));
     const reserve = makeReserveQuota(client);
 
-    const result = await reserve({
-      tenantId: "t",
-      actorId: null,
-      estimatedTokens: 1,
-      kind: "observer_run",
-    });
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.reason).toMatch(/rpc_error: connection lost/);
-    }
+    await expect(
+      reserve({
+        tenantId: "t",
+        actorId: null,
+        estimatedTokens: 1,
+        kind: "observer_run",
+      }),
+    ).rejects.toThrow(/connection lost/);
   });
 
   it("handles malformed RPC responses defensively", async () => {
@@ -99,14 +96,12 @@ describe("makeReconcileQuota", () => {
     });
   });
 
-  it("returns ok:false on RPC error", async () => {
+  it("throws on RPC error", async () => {
     const client = fakeClient(() => new Error("dropped"));
     const reconcile = makeReconcileQuota(client);
-    const result = await reconcile({
-      reservation_id: "res-1",
-      actual_tokens: 100,
-    });
-    expect(result).toEqual({ ok: false });
+    await expect(
+      reconcile({ reservation_id: "res-1", actual_tokens: 100 }),
+    ).rejects.toThrow(/dropped/);
   });
 
   it("idempotent re-reconcile still returns ok:true", async () => {
