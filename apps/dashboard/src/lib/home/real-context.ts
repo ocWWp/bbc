@@ -168,3 +168,19 @@ export function makeBuildContextFromRetrieval(
 export function retrievedMemoryIdsOf(retrieval: HomeRetrieval): string[] {
   return retrieval.rows.map((r) => r.id);
 }
+
+/**
+ * Build the id → title map used to populate the optional `title` field
+ * on citation SSE events. Rows without a title fall back to the empty
+ * string here; the orchestrator treats that as "no title" and emits null.
+ */
+export function memoryTitlesOf(
+  retrieval: HomeRetrieval,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const r of retrieval.rows) {
+    const t = (r.title ?? "").trim();
+    if (t) out[r.id] = t;
+  }
+  return out;
+}

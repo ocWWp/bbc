@@ -318,8 +318,12 @@ function handleSseFrame(
         }
         case "citation": {
           const id = typeof parsed.memoryId === "string" ? parsed.memoryId : "";
-          if (!id || t.citations.includes(id)) return t;
-          return { ...t, citations: [...t.citations, id] };
+          if (!id || t.citations.some((c) => c.id === id)) return t;
+          const title =
+            typeof parsed.title === "string" && parsed.title.trim().length > 0
+              ? parsed.title.trim()
+              : null;
+          return { ...t, citations: [...t.citations, { id, title }] };
         }
         case "turn-end": {
           const status = typeof parsed.status === "string" ? parsed.status : "completed";

@@ -31,20 +31,28 @@ describe("turnToVm", () => {
     expect(vm.text).toBe("half-typed");
   });
 
-  it("extracts toolCalls and citations from content_jsonb", () => {
+  it("extracts toolCalls and parses citation refs from content_jsonb", () => {
     const vm = turnToVm(
       baseRow({
         content_jsonb: {
           text: "Open dashboard.",
           toolCalls: [{ name: "route_match", payload: { route: "/dash" } }],
-          citations: ["mem-1", "mem-2"],
+          // Mixed shapes accepted: pre-F5 rows persist as string[], F5+
+          // rows persist as Array<{id, title?}>. Both should hydrate.
+          citations: [
+            "mem-1",
+            { id: "mem-2", title: "Voice and tone decision" },
+          ],
         },
       }),
     );
     expect(vm.toolCalls).toEqual([
       { name: "route_match", payload: { route: "/dash" } },
     ]);
-    expect(vm.citations).toEqual(["mem-1", "mem-2"]);
+    expect(vm.citations).toEqual([
+      { id: "mem-1", title: null },
+      { id: "mem-2", title: "Voice and tone decision" },
+    ]);
   });
 
   it("defaults text to empty string when content is malformed", () => {

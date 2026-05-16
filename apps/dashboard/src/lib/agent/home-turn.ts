@@ -45,6 +45,13 @@ export type LlmResult = {
    * stripped because the static allowlist was set before homeTurn ran.
    */
   extraGroundedIds?: readonly string[];
+  /**
+   * Optional. Titles for memory IDs the LLM saw via tool calls — keyed
+   * by id. Merged with the static `memoryTitles` dep before emitting
+   * citation events. Without this, a tool-discovered row's chip would
+   * show its raw uuid even when the search result included a title.
+   */
+  extraGroundedTitles?: Readonly<Record<string, string>>;
 };
 
 export type BuildContextFn = (input: {
@@ -104,6 +111,13 @@ export type HomeTurnDeps = {
   invokeLlm: InvokeLlmFn;
   /** Memory IDs the LLM is permitted to cite this turn. */
   retrievedMemoryIds: readonly string[];
+  /**
+   * Titles for the retrieved memory IDs, keyed by id. Used to populate
+   * the optional `title` on citation SSE events so chips render with the
+   * row title instead of a uuid prefix. Tool-discovered rows can supply
+   * titles too via LlmResult.extraGroundedTitles.
+   */
+  memoryTitles?: Readonly<Record<string, string>>;
 };
 
 export type SseEvent =
@@ -120,7 +134,7 @@ export type SseEvent =
     }
   | {
       event: "citation";
-      data: { memoryId: string };
+      data: { memoryId: string; title?: string | null };
     }
   | {
       event: "turn-end";
@@ -246,10 +260,17 @@ export async function homeTurn(
       });
     }
 
+    // Merge static + tool-discovered title maps. Tool-discovered titles
+    // win on conflict because they reflect a fresh memory_fetch read.
+    const titleMap: Record<string, string> = {
+      ...(deps.memoryTitles ?? {}),
+      ...(llm.extraGroundedTitles ?? {}),
+    };
     for (const id of grounded.citations) {
+      const title = titleMap[id];
       emit({
         event: "citation",
-        data: { memoryId: id },
+        data: { memoryId: id, title: title ?? null },
       });
     }
 

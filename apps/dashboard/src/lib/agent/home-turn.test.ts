@@ -185,6 +185,64 @@ describe("homeTurn", () => {
     const citations = events.filter((e) => e.event === "citation");
     expect(citations).toHaveLength(1);
     expect(citations[0].data.memoryId).toBe("m0042");
+    // No memoryTitles dep + no extraGroundedTitles → title null on the event.
+    expect(citations[0].data.title).toBe(null);
+  });
+
+  it("includes title on citation events when memoryTitles dep is set (F5)", async () => {
+    const events: any[] = [];
+    const deps = {
+      ...happyDeps(),
+      invokeLlm: vi.fn().mockResolvedValue({
+        text: "Voice is plain [mem:m0042].",
+        toolCalls: [],
+        tokens: 100,
+      }),
+      retrievedMemoryIds: ["m0042"],
+      memoryTitles: { m0042: "Voice and tone decision" },
+    };
+    await homeTurn(
+      {
+        tenantId: "t1",
+        actorId: "u1",
+        role: "admin",
+        userInput: "explain voice",
+        recent: [],
+      },
+      deps,
+      (e) => events.push(e),
+    );
+    const c = events.find((e) => e.event === "citation");
+    expect(c.data.title).toBe("Voice and tone decision");
+  });
+
+  it("prefers tool-discovered title (extraGroundedTitles) over static map (F5)", async () => {
+    const events: any[] = [];
+    const deps = {
+      ...happyDeps(),
+      invokeLlm: vi.fn().mockResolvedValue({
+        text: "See [mem:m0099].",
+        toolCalls: [],
+        tokens: 100,
+        extraGroundedIds: ["m0099"],
+        extraGroundedTitles: { m0099: "Fresh from memory_fetch" },
+      }),
+      retrievedMemoryIds: [],
+      memoryTitles: { m0099: "Stale static title" },
+    };
+    await homeTurn(
+      {
+        tenantId: "t1",
+        actorId: "u1",
+        role: "admin",
+        userInput: "x",
+        recent: [],
+      },
+      deps,
+      (e) => events.push(e),
+    );
+    const c = events.find((e) => e.event === "citation");
+    expect(c.data.title).toBe("Fresh from memory_fetch");
   });
 
   it("forwards live text deltas via onTextDelta to SSE text-delta events", async () => {

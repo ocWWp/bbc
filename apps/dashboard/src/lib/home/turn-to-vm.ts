@@ -3,7 +3,7 @@
 // page so it can be unit-tested without bringing the route's
 // auth/data-fetching machinery along.
 
-import type { TurnViewModel } from "@/components/chat-home/TurnView";
+import type { CitationRef, TurnViewModel } from "@/components/chat-home/TurnView";
 import type { HomeTurn } from "./sessions";
 
 export function turnToVm(t: HomeTurn): TurnViewModel {
@@ -19,8 +19,24 @@ export function turnToVm(t: HomeTurn): TurnViewModel {
       name: typeof c.name === "string" ? c.name : "unknown",
       payload: c.payload,
     }));
-  const citations = Array.isArray(content.citations)
-    ? (content.citations as unknown[]).filter((x): x is string => typeof x === "string")
+  // Back-compat: pre-F5 rows persist citations as string[] (just ids);
+  // F5+ rows persist as Array<{id, title?}>. Accept either shape; rows
+  // that arrived as bare strings get title=null and the chip falls back
+  // to the short-uuid label.
+  const citations: CitationRef[] = Array.isArray(content.citations)
+    ? (content.citations as unknown[])
+        .map((x): CitationRef | null => {
+          if (typeof x === "string") return { id: x, title: null };
+          if (x && typeof x === "object") {
+            const obj = x as Record<string, unknown>;
+            const id = typeof obj.id === "string" ? obj.id : null;
+            if (!id) return null;
+            const title = typeof obj.title === "string" ? obj.title : null;
+            return { id, title };
+          }
+          return null;
+        })
+        .filter((c): c is CitationRef => c !== null)
     : [];
   // A persisted turn with status='in_progress' is necessarily stale —
   // the SSE stream that would have advanced it died (browser closed,
