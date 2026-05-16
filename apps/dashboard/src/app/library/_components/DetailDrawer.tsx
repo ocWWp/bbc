@@ -147,12 +147,14 @@ export function DetailDrawer({ item, installingId, onClose, onInstall, installEn
 
           <p className="lede">
             {item.desc}{" "}
-            {isSkill(item) &&
+            {installEnabled && isSkill(item) &&
               "When a studio runs this skill, BBC pulls the read-set from memory, asks for the first-use inputs once, and files outputs back to /queue for review. Every claim is cited."}
-            {isConnector(item) &&
+            {installEnabled && isConnector(item) &&
               "BBC opens the OAuth flow inside Settings, syncs the first batch, and files proposals to /queue rather than writing memory directly. You review before anything lands."}
-            {isProvider(item) &&
+            {installEnabled && isProvider(item) &&
               "Providers are vendor adapters. Once connected, individual studios can be bound to this provider in /settings/bindings."}
+            {!installEnabled &&
+              "Browse-only for now. Install and connect flows land in a later milestone — installed/connected badges still reflect real state from /settings/keys + tenant_connectors."}
           </p>
 
           <div className="lib-section">
@@ -329,17 +331,21 @@ export function DetailDrawer({ item, installingId, onClose, onInstall, installEn
         <div className="lib-drawer-foot">
           <div className="left">
             {installed ? (
-              <>
-                currently installed · last used <strong>2h ago</strong>
-              </>
+              isProvider(item) ? (
+                <>currently connected</>
+              ) : (
+                <>currently installed</>
+              )
             ) : isProvider(item) ? (
-              <>
-                requires <strong>{item.env}</strong> in /settings/keys
-              </>
+              installEnabled ? (
+                <>requires <strong>{item.env}</strong> in /settings/keys</>
+              ) : (
+                <>catalog only — connect lands in a later milestone</>
+              )
+            ) : installEnabled ? (
+              <>installing files this to <strong>/library/{kindWord}/{item.id}</strong></>
             ) : (
-              <>
-                installing files this to <strong>/library/{kindWord}/{item.id}</strong>
-              </>
+              <>catalog only — install lands in a later milestone</>
             )}
           </div>
           {installEnabled && (
