@@ -144,14 +144,17 @@ export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProp
   return (
     <div className="home-pilot" data-testid="chat-home">
     <div className="container page">
+      {/*
+        Chat-app feel per F15: the page-title was redundant with the
+        breadcrumb and shouted the same line in every state. The crumb
+        carries enough page-identity for a conversational surface; the
+        composer + greeting do the rest.
+      */}
       <header className="page-head">
         <div className="page-head-left">
           <div className="page-crumb">
             <span className="current">home</span>
           </div>
-          <h1 className="page-title">
-            ask <span className="serif">— your second brain</span>
-          </h1>
         </div>
       </header>
 

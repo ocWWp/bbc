@@ -16,18 +16,24 @@ export type TurnViewModel = {
 
 export function TurnView({ turn }: { turn: TurnViewModel }) {
   const isUser = turn.role === "user";
+  // F4: Linear-style turn identity. Users get a right-aligned pill so
+  // their input is unambiguously "what I said." The assistant runs
+  // flush-left as prose — no bubble, no border — so the answer reads
+  // as the page's primary content rather than a chat callout. Role label
+  // surfaces on hover for screen-readers / explicit identification.
   return (
     <div
-      className={`flex w-full ${isUser ? "justify-end" : "justify-start"}`}
+      className={`group flex w-full ${isUser ? "justify-end" : "justify-start"}`}
       data-testid={`turn-${turn.role}-${turn.id}`}
       data-status={turn.status}
+      title={isUser ? "You" : "Assistant"}
     >
       <div
-        className={`max-w-[min(720px,90%)] rounded-2xl px-4 py-3 ${
+        className={
           isUser
-            ? "bg-primary text-primary-foreground"
-            : "bg-card text-card-foreground border border-border"
-        }`}
+            ? "max-w-[min(720px,90%)] rounded-2xl bg-primary px-4 py-3 text-primary-foreground"
+            : "max-w-[min(720px,92%)] px-1"
+        }
       >
         {turn.status === "aborted" && !isUser ? (
           <InterruptedBanner kind="aborted" />
@@ -36,7 +42,13 @@ export function TurnView({ turn }: { turn: TurnViewModel }) {
         ) : null}
 
         {turn.text || turn.streaming ? (
-          <p className="whitespace-pre-wrap text-sm leading-relaxed">
+          <p
+            className={
+              isUser
+                ? "whitespace-pre-wrap text-sm leading-relaxed"
+                : "whitespace-pre-wrap text-base leading-relaxed text-foreground"
+            }
+          >
             {turn.text}
             {turn.streaming ? (
               <span
