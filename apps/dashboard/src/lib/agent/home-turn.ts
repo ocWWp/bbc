@@ -123,7 +123,7 @@ export type Emit = (e: SseEvent) => void;
 const ESTIMATED_TOKENS_PER_TURN = 1500;
 
 const BUDGET_EXHAUSTED_COPY =
-  "Your tenant has used its tokens for today. Try again tomorrow — or raise the limit in settings.";
+  "Your tenant has used its tokens for today. Try again tomorrow — or raise the limit at /settings/quotas.";
 
 // ────────────────────────────────────────────────────────────────────
 // Orchestrator

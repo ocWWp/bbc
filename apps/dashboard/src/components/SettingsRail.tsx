@@ -22,6 +22,7 @@ const GROUPS: ReadonlyArray<{
       { key: "team", label: "Team", href: "/settings/team" },
       { key: "api-keys", label: "BBC API keys", href: "/settings/api-keys" },
       { key: "keys", label: "Provider keys", href: "/settings/keys" },
+      { key: "quotas", label: "Quotas", href: "/settings/quotas" },
     ],
   },
   {
