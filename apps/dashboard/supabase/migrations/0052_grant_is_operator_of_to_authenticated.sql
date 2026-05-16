@@ -1,0 +1,13 @@
+-- Restore EXECUTE on is_operator_of() for the `authenticated` role.
+--
+-- Migration 0038 (rbac_operator_migrate) revoked execute on this function from
+-- public, anon, and authenticated. A grant-back to `authenticated` (mirroring
+-- 0009 for is_member_of) was never shipped, so every RLS policy that invokes
+-- is_operator_of (observer_signals_operator_write, memory_files_operator_*,
+-- recommendations_operator_update) throws "permission denied for function
+-- is_operator_of" for ordinary signed-in users.
+--
+-- The function is SECURITY DEFINER and owned by postgres, so granting EXECUTE
+-- is safe: it can only read tenant_members and only returns whether the caller
+-- is an admin/operator in the given tenant.
+grant execute on function public.is_operator_of(uuid) to authenticated;

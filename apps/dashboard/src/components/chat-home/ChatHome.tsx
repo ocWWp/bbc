@@ -71,7 +71,13 @@ export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProp
         signal: abort.signal,
       });
       if (!res.ok || !res.body) {
-        markFailed(setTurns, tempAgentId, `Request failed (${res.status})`);
+        const bodyText = await res.text().catch(() => "");
+        const detail = bodyText.trim().slice(0, 300);
+        markFailed(
+          setTurns,
+          tempAgentId,
+          detail ? `Request failed (${res.status}): ${detail}` : `Request failed (${res.status})`,
+        );
         return;
       }
       const reader = res.body.getReader();

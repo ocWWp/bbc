@@ -24,10 +24,17 @@ import { POSTHOG_METRIC_CATALOG } from "@/lib/integrations/posthog";
 import { makeReserveQuota, makeReconcileQuota } from "@/lib/quota/rpc";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
-// SSE Route Handler. Edge runtime so streaming works on Cloudflare Workers
-// (the v1.6 spike confirmed Route Handlers stream; M1.2 closes the gate
-// once cf:deploy is verified). Node runtime would buffer the response.
-export const runtime = "edge";
+// SSE Route Handler. Default (Node) runtime under OpenNext on Cloudflare.
+//
+// Originally shipped as `export const runtime = "edge"` — the v1.6 spike
+// confirmed SSE streams from edge. In prod that crashed the route module at
+// request time with `TypeError: Cannot read properties of undefined (reading
+// 'default')` from inside Next 16's edge runtime adapter — POST never ran,
+// every request returned the generic OpenNext "Internal Server Error" body.
+// Disabling edge runtime makes the route load + serve. v1.7 follow-up:
+// re-enable edge once we identify the import that fails to bundle, or
+// confirm OpenNext's Node runtime flushes SSE incrementally for real LLM
+// streaming (stub responses are small enough that buffering is invisible).
 
 // ---- Stub deps -----------------------------------------------------------
 //
@@ -147,6 +154,16 @@ function encodeSse(event: SseEvent): string {
 }
 
 export async function POST(req: NextRequest) {
+  try {
+    return await postImpl(req);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[home/turn] fatal:", msg, err);
+    return new Response(`home_turn fatal: ${msg}`, { status: 500 });
+  }
+}
+
+async function postImpl(req: NextRequest) {
   const actorRes = await requireActor();
   if (!actorRes.ok) {
     return new Response("unauthorized", { status: 401 });
@@ -166,26 +183,37 @@ export async function POST(req: NextRequest) {
 
   // Resolve session + recent turns BEFORE opening the stream so the auth +
   // RLS round-trips happen synchronously and any failure surfaces as a
-  // plain HTTP error (not a half-opened SSE).
-  const session = await getOrCreateActiveSession(actor.tenant_id, actor.user_id);
-  const existing = await getActiveSessionWithTurns(actor.tenant_id, actor.user_id, 20);
-  const recent: ConversationTurn[] = (existing?.turns ?? [])
-    .filter((t) => t.role === "user" || t.role === "agent")
-    .map((t) => ({
-      role: t.role,
-      text: extractText(t.content_jsonb),
-    }));
+  // plain HTTP error (not a half-opened SSE). Wrap so the body reveals the
+  // real cause instead of an opaque 500 — the chat UI surfaces res.status
+  // and the body text in the failed-turn banner.
+  let session: Awaited<ReturnType<typeof getOrCreateActiveSession>>;
+  let recent: ConversationTurn[];
+  let assistant: Awaited<ReturnType<typeof appendTurn>>;
+  try {
+    session = await getOrCreateActiveSession(actor.tenant_id, actor.user_id);
+    const existing = await getActiveSessionWithTurns(actor.tenant_id, actor.user_id, 20);
+    recent = (existing?.turns ?? [])
+      .filter((t) => t.role === "user" || t.role === "agent")
+      .map((t) => ({
+        role: t.role,
+        text: extractText(t.content_jsonb),
+      }));
 
-  // Persist the user turn immediately. The assistant turn is created in
-  // status='in_progress' so a page refresh mid-stream can render an
-  // 'interrupted' banner instead of a partial-looking message.
-  await appendTurn(session.id, "user", { text: userText });
-  const assistant = await appendTurn(
-    session.id,
-    "agent",
-    { text: "", toolCalls: [], citations: [] },
-    "in_progress",
-  );
+    // Persist the user turn immediately. The assistant turn is created in
+    // status='in_progress' so a page refresh mid-stream can render an
+    // 'interrupted' banner instead of a partial-looking message.
+    await appendTurn(session.id, "user", { text: userText });
+    assistant = await appendTurn(
+      session.id,
+      "agent",
+      { text: "", toolCalls: [], citations: [] },
+      "in_progress",
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[home/turn] pre-stream failure:", msg, err);
+    return new Response(`home_turn setup failed: ${msg}`, { status: 500 });
+  }
 
   const encoder = new TextEncoder();
   const collected = {
