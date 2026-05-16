@@ -256,6 +256,43 @@ describe("homeTurn", () => {
     expect(replaces[0].data.text).not.toContain("m9999");
   });
 
+  it("emits text-replace to overwrite preamble streamed during tool_use iterations", async () => {
+    // Mirrors real-invoke behavior: a tool_use iteration streams
+    // "Let me look that up..." live, then the final iteration streams
+    // the actual answer. LlmResult.text only carries the final
+    // iteration's text, so the wider streamed body must be replaced
+    // with the grounded final to avoid leaving preamble in the UI.
+    const events: any[] = [];
+    const deps = {
+      ...happyDeps(),
+      invokeLlm: vi.fn(async (input: { onTextDelta?: (d: string) => void }) => {
+        input.onTextDelta?.("Let me look that up... ");
+        input.onTextDelta?.("Open the admin dashboard at /dashboard.");
+        return {
+          text: "Open the admin dashboard at /dashboard.",
+          toolCalls: [],
+          tokens: 320,
+        };
+      }),
+      classify: vi.fn().mockResolvedValue("navigate"),
+    };
+    await homeTurn(
+      {
+        tenantId: "t1",
+        actorId: "u1",
+        role: "admin",
+        userInput: "where is admin dashboard?",
+        recent: [],
+      },
+      deps,
+      (e) => events.push(e),
+    );
+    const replaces = events.filter((e) => e.event === "text-replace");
+    expect(replaces).toHaveLength(1);
+    expect(replaces[0].data.text).toBe("Open the admin dashboard at /dashboard.");
+    expect(replaces[0].data.text).not.toContain("Let me look that up");
+  });
+
   it("emits turn-end with status=failed when invokeLlm throws", async () => {
     const events: any[] = [];
     const deps = {

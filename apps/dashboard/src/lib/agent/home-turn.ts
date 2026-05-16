@@ -195,16 +195,20 @@ export async function homeTurn(
 
     // 5) Invoke LLM. Pipe text deltas live to SSE as the model streams.
     // The user sees text appear incrementally instead of waiting 4-12s
-    // for the full completion. We track whether anything streamed so we
-    // know if a post-stream emit is needed below.
-    let streamedAny = false;
+    // for the full completion. We accumulate every streamed delta so
+    // step 7 can compare what the UI received against the grounded
+    // final text — this matters because tool_use iterations can stream
+    // preamble prose ("Let me look that up...") that LlmResult.text
+    // does not carry, so the grounded comparison must be made against
+    // the wider stream, not just the final iteration.
+    let streamedText = "";
     const llm = await deps.invokeLlm({
       ctx,
       intent,
       toolNames,
       onTextDelta: (delta) => {
         if (delta.length === 0) return;
-        streamedAny = true;
+        streamedText += delta;
         emit({ event: "text-delta", data: { delta } });
       },
     });
@@ -219,15 +223,16 @@ export async function homeTurn(
       : deps.retrievedMemoryIds;
     const grounded = verifyGrounding(llm.text, groundedIds);
 
-    // 7) Emit. If we streamed deltas live and grounding didn't modify
-    // the text, nothing more to emit — the UI already has the answer.
-    // If grounding modified the text (stripped ungrounded sentences or
-    // appended fallback), emit text-replace so the UI swaps in the
-    // corrected text. If nothing streamed (no callback path, or empty
-    // stream), emit one text-delta with the full grounded text — same
-    // contract as before streaming existed.
-    if (streamedAny) {
-      if (grounded.text !== llm.text) {
+    // 7) Emit. If we streamed deltas live and the UI's accumulated text
+    // already matches the grounded final text, nothing more to emit.
+    // Otherwise emit text-replace so the UI swaps the streamed body for
+    // the grounded one — this covers both grounding strips and the
+    // preamble-from-tool-iterations case where streamed text is wider
+    // than the grounded final answer. If nothing streamed (no callback
+    // path, e.g. test mocks), fall back to one text-delta carrying the
+    // grounded text — same contract as before streaming existed.
+    if (streamedText.length > 0) {
+      if (streamedText !== grounded.text) {
         emit({ event: "text-replace", data: { text: grounded.text } });
       }
     } else if (grounded.text.length > 0) {
