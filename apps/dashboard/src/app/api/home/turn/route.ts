@@ -238,6 +238,15 @@ async function postImpl(req: NextRequest) {
         }
       };
 
+      // Cast helper for the finalize content payload. Centralizes the
+      // unknown-as-Json bridge so the three call sites read uniformly.
+      const toJsonContent = () =>
+        ({
+          text: collected.text,
+          toolCalls: collected.toolCalls,
+          citations: collected.citations,
+        }) as unknown as import("@/lib/supabase/database.types").Json;
+
       // Emit session-created as the very first event so the client can
       // update its URL (?session=<id>) before any text streams in. Skipped
       // for existing sessions — the client already knows its sessionId.
@@ -272,38 +281,16 @@ async function postImpl(req: NextRequest) {
         writeSse(e);
       };
 
-      // Wire abort: when the client disconnects, mark the assistant turn
-      // 'aborted' and close the controller. homeTurn itself does not yet
-      // accept an AbortSignal; cancelling the in-flight LLM call is a
-      // follow-up once real Anthropic streaming lands (M3+). The DB
-      // record reflects intent regardless.
-      const onAbort = async () => {
-        try {
-          await finalizeTurn(
-            assistant.id,
-            {
-              text: collected.text,
-              toolCalls: collected.toolCalls,
-              citations: collected.citations,
-            } as unknown as import("@/lib/supabase/database.types").Json,
-            "aborted",
-          );
-        } finally {
-          try {
-            controller.close();
-          } catch {
-            /* already closed */
-          }
-        }
-      };
-      req.signal.addEventListener("abort", onAbort, { once: true });
-
-      const supabase = await getSupabaseServerClient();
+      // Hoist supabase so the abort handler and lastActivityAt reader can
+      // both reach it. Filled in once the first await inside try resolves.
+      let supabase: Awaited<ReturnType<typeof getSupabaseServerClient>> | null =
+        null;
 
       // Reads home_sessions.last_activity_at for the current session so we
       // can include it in the final turn-end event. Best-effort — a failed
       // read just omits the field (client falls back to local time).
       const readLastActivityAt = async (): Promise<string | undefined> => {
+        if (!supabase) return undefined;
         try {
           const { data } = await supabase
             .from("home_sessions")
@@ -318,65 +305,57 @@ async function postImpl(req: NextRequest) {
         }
       };
 
-      const clientRes = await getAnthropicClient(supabase, actor.tenant_id);
-      if (!clientRes.ok) {
-        emit({ event: "text-delta", data: { delta: clientRes.error } });
-        // Mark failed via the same intercept path; the tail block below
-        // will emit the enriched turn-end and finalize.
-        collected.status = "failed";
-        collected.errorMsg = clientRes.error;
+      // Wire abort: when the client disconnects, mark the assistant turn
+      // 'aborted' and close the controller. homeTurn itself does not yet
+      // accept an AbortSignal; cancelling the in-flight LLM call is a
+      // follow-up once real Anthropic streaming lands (M3+). The DB
+      // record reflects intent regardless.
+      const onAbort = async () => {
         try {
-          await finalizeTurn(
-            assistant.id,
-            {
-              text: collected.text,
-              toolCalls: collected.toolCalls,
-              citations: collected.citations,
-            } as unknown as import("@/lib/supabase/database.types").Json,
-            "failed",
-          );
-        } catch (finErr) {
-          void finErr;
+          await finalizeTurn(assistant.id, toJsonContent(), "aborted");
+        } finally {
+          try {
+            controller.close();
+          } catch {
+            /* already closed */
+          }
         }
-        const lastActivityAt = await readLastActivityAt();
-        writeSse({
-          event: "turn-end",
-          data: {
-            status: "failed",
-            error: clientRes.error,
-            ...(lastActivityAt ? { lastActivityAt } : {}),
-          },
-        });
-        try {
-          controller.close();
-        } catch {
-          /* already closed */
-        }
-        return;
-      }
-      const anthropicClient = clientRes.client;
-
-      const retrieval = await retrieveHomeContext(
-        supabase,
-        actor.tenant_id,
-        userText,
-      );
-
-      const classifierLlm = makeRealClassify(anthropicClient);
-      const executor = makeHomeToolExecutor(supabase, actor.tenant_id);
-
-      const deps: HomeTurnDeps = {
-        reserveQuota: makeReserveQuota(supabase),
-        reconcileQuota: makeReconcileQuota(supabase),
-        buildContext: makeBuildContextFromRetrieval(retrieval),
-        classify: (input) =>
-          classifyIntent(input.text, input.recent, classifierLlm),
-        invokeLlm: makeRealInvokeLlm(anthropicClient, executor),
-        retrievedMemoryIds: retrievedMemoryIdsOf(retrieval),
-        memoryTitles: memoryTitlesOf(retrieval),
       };
+      req.signal.addEventListener("abort", onAbort, { once: true });
 
       try {
+        supabase = await getSupabaseServerClient();
+
+        const clientRes = await getAnthropicClient(supabase, actor.tenant_id);
+        if (!clientRes.ok) {
+          // Emit the user-visible chat copy here, then throw so the
+          // unified outer catch handles finalize + enriched turn-end +
+          // listener removal. Avoids duplicating the terminal-event path.
+          emit({ event: "text-delta", data: { delta: clientRes.error } });
+          throw new Error(`anthropic_client_failed: ${clientRes.error}`);
+        }
+        const anthropicClient = clientRes.client;
+
+        const retrieved = await retrieveHomeContext(
+          supabase,
+          actor.tenant_id,
+          userText,
+        );
+
+        const classifierLlm = makeRealClassify(anthropicClient);
+        const executor = makeHomeToolExecutor(supabase, actor.tenant_id);
+
+        const deps: HomeTurnDeps = {
+          reserveQuota: makeReserveQuota(supabase),
+          reconcileQuota: makeReconcileQuota(supabase),
+          buildContext: makeBuildContextFromRetrieval(retrieved),
+          classify: (input) =>
+            classifyIntent(input.text, input.recent, classifierLlm),
+          invokeLlm: makeRealInvokeLlm(anthropicClient, executor),
+          retrievedMemoryIds: retrievedMemoryIdsOf(retrieved),
+          memoryTitles: memoryTitlesOf(retrieved),
+        };
+
         await homeTurn(
           {
             tenantId: actor.tenant_id,
@@ -389,24 +368,28 @@ async function postImpl(req: NextRequest) {
           emit,
         );
       } catch (err) {
+        // Any throw between getSupabaseServerClient and homeTurn lands
+        // here. The anthropic-failure path also throws into this catch
+        // after emitting the user-visible text-delta. Mark failed and
+        // fall through to finally for finalize + enriched turn-end.
         collected.status = "failed";
-        collected.errorMsg = err instanceof Error ? err.message : String(err);
+        collected.errorMsg =
+          err instanceof Error ? err.message : String(err);
       } finally {
+        // Listener cleanup is unconditional so we never leak a stale
+        // onAbort that would overwrite a 'failed' or 'completed' status
+        // with 'aborted' after the response logically finished.
         req.signal.removeEventListener("abort", onAbort);
         // Don't double-finalize if abort already wrote 'aborted'.
         if (!req.signal.aborted) {
           try {
             await finalizeTurn(
               assistant.id,
-              {
-                text: collected.text,
-                toolCalls: collected.toolCalls,
-                citations: collected.citations,
-              } as unknown as import("@/lib/supabase/database.types").Json,
+              toJsonContent(),
               collected.status === "completed" ? "completed" : collected.status,
             );
           } catch (finErr) {
-            void finErr;
+            console.error("[home/turn] finalize-on-end failed:", finErr);
           }
           // Emit the enriched turn-end AFTER finalize so the client knows
           // the assistant row is durable when it sees turn-end. The

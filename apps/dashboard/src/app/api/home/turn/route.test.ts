@@ -144,6 +144,8 @@ vi.mock("@/lib/home/tool-impls", () => ({
 }));
 
 import { POST } from "./route";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getAnthropicClient } from "@/lib/secrets/anthropic-client";
 
 function makeReq(body: unknown): Request {
   return new Request("http://localhost/api/home/turn", {
@@ -151,6 +153,53 @@ function makeReq(body: unknown): Request {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
+}
+
+// Builds a Request whose signal tracks add/removeEventListener calls so a
+// test can assert the route cleans up its onAbort listener on every path.
+// AbortSignal extends EventTarget which doesn't expose listenerCount, so we
+// instrument req.signal directly (Request copies — not aliases — the signal
+// you pass in, so spies must be installed on the resulting object).
+// balance() returns added - removed for 'abort'; 0 means the route removed
+// every listener it added.
+function makeReqWithSignalSpy(body: unknown): {
+  req: Request;
+  balance: () => number;
+  abort: () => void;
+} {
+  const ctrl = new AbortController();
+  const req = new Request("http://localhost/api/home/turn", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+    signal: ctrl.signal,
+  });
+  let added = 0;
+  let removed = 0;
+  const sig = req.signal;
+  const origAdd = sig.addEventListener.bind(sig);
+  const origRemove = sig.removeEventListener.bind(sig);
+  sig.addEventListener = ((
+    type: string,
+    listener: EventListenerOrEventListenerObject,
+    options?: AddEventListenerOptions | boolean,
+  ) => {
+    if (type === "abort") added += 1;
+    return origAdd(type, listener, options);
+  }) as typeof sig.addEventListener;
+  sig.removeEventListener = ((
+    type: string,
+    listener: EventListenerOrEventListenerObject,
+    options?: EventListenerOptions | boolean,
+  ) => {
+    if (type === "abort") removed += 1;
+    return origRemove(type, listener, options);
+  }) as typeof sig.removeEventListener;
+  return {
+    req,
+    balance: () => added - removed,
+    abort: () => ctrl.abort(),
+  };
 }
 
 async function drainStream(res: Response): Promise<string> {
@@ -548,5 +597,138 @@ describe("POST /api/home/turn — pre-stream branches", () => {
     const combined = await drainStream(res);
     expect(combined).toContain("event: turn-end");
     expect(combined).toMatch(/"status":"completed"/);
+  });
+
+  // ---- Error-path correctness: M8-M12 followup ---------------------------
+  //
+  // Three regressions the M8-M12 review flagged: the original route bound
+  // onAbort *before* the supabase/anthropic/retrieval awaits, so a throw on
+  // any of those paths left the listener attached AND emitted a duplicated
+  // terminal-event path for anthropic-failure specifically. The unified
+  // try/finally in route.ts fixes both — these tests pin the invariant.
+
+  it("finalizes failed + cleans abort listener when getSupabaseServerClient throws", async () => {
+    requireActorMock.mockResolvedValue({ ok: true, actor: adminActor() });
+    // Force the first await inside try { ... } to throw. This is the
+    // worst case: supabase isn't even defined yet, but onAbort is already
+    // attached. The unified catch should still mark failed + finalize +
+    // emit a single turn-end + the finally should remove the listener.
+    vi.mocked(getSupabaseServerClient).mockRejectedValueOnce(
+      new Error("supabase boom"),
+    );
+    const spy = makeReqWithSignalSpy({ userText: "hi" });
+    const res = await POST(spy.req as never);
+    expect(res.status).toBe(200);
+    const body = await drainStream(res);
+
+    // Exactly one turn-end, status='failed', error surfaced.
+    const turnEnds = body.match(/event: turn-end/g) ?? [];
+    expect(turnEnds.length).toBe(1);
+    expect(body).toMatch(/"status":"failed"/);
+    expect(body).toMatch(/"error":"supabase boom"/);
+
+    // finalizeTurn must have been called with status='failed'.
+    expect(sessionMocks.finalizeTurn).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(Object),
+      "failed",
+    );
+
+    // Listener cleanup: added == removed (balance zero) means no leak.
+    expect(spy.balance()).toBe(0);
+  });
+
+  it("emits the chat-style failure text-delta + one failed turn-end + cleans listener when getAnthropicClient fails", async () => {
+    requireActorMock.mockResolvedValue({ ok: true, actor: adminActor() });
+    vi.mocked(getAnthropicClient).mockResolvedValueOnce({
+      ok: false,
+      error: "no anthropic key configured for this tenant",
+    } as never);
+    const spy = makeReqWithSignalSpy({ userText: "hi" });
+    const res = await POST(spy.req as never);
+    expect(res.status).toBe(200);
+    const body = await drainStream(res);
+
+    // The user-visible chat copy was emitted as a text-delta before the
+    // route threw into the unified catch.
+    expect(body).toContain("event: text-delta");
+    expect(body).toMatch(/no anthropic key configured for this tenant/);
+
+    // Exactly one turn-end. The pre-fix code emitted two on this path
+    // (the inline early-return + a never-fired tail block); we now emit
+    // one via the unified finally.
+    const turnEnds = body.match(/event: turn-end/g) ?? [];
+    expect(turnEnds.length).toBe(1);
+    expect(body).toMatch(/"status":"failed"/);
+
+    expect(sessionMocks.finalizeTurn).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(Object),
+      "failed",
+    );
+
+    expect(spy.balance()).toBe(0);
+  });
+
+  it("finalizes aborted + emits one turn-end + cleans listener when client aborts mid-turn", async () => {
+    requireActorMock.mockResolvedValue({ ok: true, actor: adminActor() });
+    const spy = makeReqWithSignalSpy({ userText: "hi" });
+
+    // Block the context-fetch step on a pending promise so the abort
+    // signal can land *after* onAbort is wired but *before* the
+    // happy-path finally executes. Without this gate, the stream's
+    // start() runs through synchronously under undici and abort fires
+    // too late to test the abort-mid-turn invariant.
+    let releaseFetch: () => void = () => {};
+    const fetchGate = new Promise<{ workspaceName: string; rows: never[] }>(
+      (resolve) => {
+        releaseFetch = () => resolve({ workspaceName: "test", rows: [] });
+      },
+    );
+    const realContextMod = await import("@/lib/home/real-context");
+    vi.mocked(realContextMod.retrieveHomeContext).mockImplementationOnce(
+      () => fetchGate as never,
+    );
+
+    const pending = POST(spy.req as never);
+    // Yield so the stream's start() callback gets to addEventListener
+    // and reaches the context-fetch await.
+    await new Promise((r) => setTimeout(r, 5));
+    spy.abort();
+    // Now release the context-fetch so the route can unwind through
+    // its finally block. The {once:true} onAbort already ran by this
+    // point; the finally call to removeEventListener is a no-op but
+    // still counted by our spy.
+    releaseFetch();
+
+    const res = await pending;
+    expect(res.status).toBe(200);
+    const body = await drainStream(res);
+    // drainStream returns when controller.close() fires (from onAbort);
+    // the rest of start()'s body — including its finally block — is
+    // still pending on the microtask queue. Yield a few times so the
+    // finally's removeEventListener actually runs before we assert.
+    for (let i = 0; i < 5; i++) {
+      await new Promise((r) => setTimeout(r, 5));
+    }
+
+    // The happy-path turn-end is skipped because req.signal.aborted is
+    // true. The abort handler doesn't emit a turn-end either. Assert
+    // at most one turn-end and that no 'completed' status was written.
+    const turnEnds = body.match(/event: turn-end/g) ?? [];
+    expect(turnEnds.length).toBeLessThanOrEqual(1);
+    expect(body).not.toMatch(/"status":"completed"/);
+
+    // finalizeTurn must have been called with status='aborted'. The
+    // 'completed' path is skipped because req.signal.aborted is true.
+    expect(sessionMocks.finalizeTurn).toHaveBeenCalled();
+    const calls = sessionMocks.finalizeTurn.mock.calls;
+    const statuses = calls.map((c: unknown[]) => c[2]);
+    expect(statuses).toContain("aborted");
+    expect(statuses).not.toContain("completed");
+
+    // Listener cleanup: route's finally calls removeEventListener
+    // unconditionally; balance returns to zero.
+    expect(spy.balance()).toBe(0);
   });
 });
