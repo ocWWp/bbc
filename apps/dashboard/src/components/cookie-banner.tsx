@@ -27,7 +27,11 @@ export function CookieBanner() {
     <div
       role="dialog"
       aria-label="Cookie preferences"
-      className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-2xl rounded-lg border border-border bg-card p-4 shadow-lg"
+      // Top-anchored toast positioned below the app nav (~56px tall).
+      // Bottom placement covered the /home composer (z-50 banner over z-10
+      // composer); top lets the banner stay visible without blocking the
+      // composer OR the nav.
+      className="fixed inset-x-4 top-16 z-50 mx-auto max-w-2xl rounded-lg border border-border bg-card p-4 shadow-lg"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-foreground">

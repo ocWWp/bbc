@@ -138,7 +138,7 @@ export default async function MemoryIndex({ searchParams }: { searchParams: Sear
               <span>id</span>
               <span>title</span>
               <span className="fields-h">fields</span>
-              <span className="date-h">updated · by</span>
+              <span className="date-h">updated</span>
               <span style={{ justifySelf: "end" }}>status</span>
             </div>
             {items.length === 0 ? (
