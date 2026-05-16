@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { MotionConfig, motion } from "framer-motion";
 
 import { TurnView, type TurnViewModel } from "./TurnView";
@@ -32,11 +33,16 @@ export function ChatHome({
   watching = [],
   sessionId = null,
 }: ChatHomeProps) {
+  const router = useRouter();
   const [turns, setTurns] = useState<TurnViewModel[]>(initialTurns);
   const [draft, setDraft] = useState("");
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const scrollAnchorRef = useRef<HTMLDivElement | null>(null);
+  // Buffer for the session id from the SSE `session-created` event. The
+  // route emits it as the first frame of a new chat; we don't navigate
+  // until `turn-end` so the URL change can't tear down a live stream.
+  const pendingSessionIdRef = useRef<string | null>(null);
   // Don't fight the user — only auto-scroll if they're already pinned near
   // the bottom. Updated on every wheel/touch via the scroll listener below.
   const stickToBottomRef = useRef(true);
@@ -124,7 +130,7 @@ export function ChatHome({
         while (idx !== -1) {
           const raw = buffer.slice(0, idx);
           buffer = buffer.slice(idx + 2);
-          handleSseFrame(raw, tempAgentId, setTurns);
+          handleSseFrame(raw, tempAgentId, setTurns, pendingSessionIdRef);
           idx = buffer.indexOf("\n\n");
         }
       }
@@ -145,8 +151,19 @@ export function ChatHome({
             : { ...t, streaming: t.id === tempAgentId ? false : t.streaming },
         ),
       );
+      // If the server announced a new session id mid-stream, flush the
+      // URL change now (after turn-end has finished updating local state).
+      // Doing it here — rather than inline in the SSE switch — keeps the
+      // router.replace off the streaming hot path and ensures exactly-once
+      // by reading + clearing the buffered ref atomically.
+      const pendingId = pendingSessionIdRef.current;
+      if (pendingId) {
+        pendingSessionIdRef.current = null;
+        router.replace(`?${new URLSearchParams({ session: pendingId }).toString()}`);
+        router.refresh();
+      }
     }
-  }, [draft, streaming, sessionId]);
+  }, [draft, streaming, sessionId, router]);
 
   const cancel = useCallback(() => {
     abortRef.current?.abort();
@@ -292,6 +309,7 @@ function handleSseFrame(
   raw: string,
   agentTurnId: string,
   setTurns: React.Dispatch<React.SetStateAction<TurnViewModel[]>>,
+  pendingSessionIdRef: React.MutableRefObject<string | null>,
 ) {
   // Parse the `event:` and `data:` lines out of one frame.
   let event = "";
@@ -305,6 +323,14 @@ function handleSseFrame(
   try {
     parsed = data ? (JSON.parse(data) as Record<string, unknown>) : {};
   } catch {
+    return;
+  }
+
+  // `session-created` is the first frame for a new chat — buffer the id
+  // and defer the URL change to `turn-end` so we don't race the stream.
+  if (event === "session-created") {
+    const id = typeof parsed.sessionId === "string" ? parsed.sessionId : "";
+    if (id) pendingSessionIdRef.current = id;
     return;
   }
 

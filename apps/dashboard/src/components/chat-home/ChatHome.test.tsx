@@ -2,11 +2,24 @@
 
 import { describe, expect, it, afterEach, vi, beforeEach } from "vitest";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
+
+// Mock next/navigation so the deferred-navigate path in M19 is observable
+// from the test. Hoisted by vi.mock so it precedes ChatHome's import.
+const mockReplace = vi.fn();
+const mockRefresh = vi.fn();
+const mockPush = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: mockReplace, refresh: mockRefresh, push: mockPush }),
+}));
+
 import { ChatHome } from "./ChatHome";
 import type { TurnViewModel } from "./TurnView";
 
 beforeEach(() => {
   Element.prototype.scrollIntoView = vi.fn();
+  mockReplace.mockReset();
+  mockRefresh.mockReset();
+  mockPush.mockReset();
 });
 
 afterEach(() => {
@@ -140,6 +153,73 @@ describe("ChatHome — composer", () => {
     await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
     const body = JSON.parse(String(fetchSpy.mock.calls[0]![1]?.body));
     expect(body.sessionId).toBeNull();
+  });
+
+  it("buffers session-created and defers navigate until turn-end (PR-C M19)", async () => {
+    const encoder = new TextEncoder();
+    // Two-event stream: session-created, then turn-end. Both queued at once
+    // so we can interrogate router.replace between events via the test's
+    // own settle ordering.
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(
+            `event: session-created\ndata: ${JSON.stringify({ sessionId: "new-sess-1", title: "Greeting" })}\n\n`,
+          ),
+        );
+        controller.enqueue(
+          encoder.encode(
+            `event: turn-end\ndata: ${JSON.stringify({ status: "completed" })}\n\n`,
+          ),
+        );
+        controller.close();
+      },
+    });
+    vi.spyOn(global, "fetch").mockResolvedValue(
+      new Response(stream, {
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+      }),
+    );
+    render(<ChatHome greeting={GREETING} initialTurns={[]} sessionId={null} />);
+    fireEvent.change(screen.getByTestId("composer-input"), { target: { value: "hi" } });
+    fireEvent.click(screen.getByTestId("composer-send"));
+    // After both events drain + the finally block runs, the URL flip fires
+    // exactly once with the buffered id.
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledTimes(1));
+    expect(mockReplace).toHaveBeenCalledWith("?session=new-sess-1");
+    expect(mockRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not call router.replace for an existing-session turn (PR-C M19)", async () => {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(
+            `event: turn-end\ndata: ${JSON.stringify({ status: "completed" })}\n\n`,
+          ),
+        );
+        controller.close();
+      },
+    });
+    vi.spyOn(global, "fetch").mockResolvedValue(
+      new Response(stream, {
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+      }),
+    );
+    render(<ChatHome greeting={GREETING} initialTurns={[]} sessionId="abc-123" />);
+    fireEvent.change(screen.getByTestId("composer-input"), { target: { value: "hi" } });
+    fireEvent.click(screen.getByTestId("composer-send"));
+    // Wait for the turn to settle so the finally block runs.
+    await waitFor(() =>
+      expect(
+        (screen.getByTestId("composer-input") as HTMLTextAreaElement).disabled,
+      ).toBe(false),
+    );
+    expect(mockReplace).not.toHaveBeenCalled();
+    expect(mockRefresh).not.toHaveBeenCalled();
   });
 
   it("posts the chip prompt verbatim when send fires in the same tick (F6 race)", async () => {
