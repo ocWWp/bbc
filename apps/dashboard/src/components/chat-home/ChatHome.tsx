@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MotionConfig, motion } from "framer-motion";
+import { toast } from "sonner";
 
 import { TurnView, type TurnViewModel } from "./TurnView";
 
@@ -106,6 +107,19 @@ export function ChatHome({
         body: JSON.stringify({ userText: text, sessionId }),
         signal: abort.signal,
       });
+      // 410 Gone → the session was deleted between page load and submit
+      // (another tab, another device, or this tab's own delete). Clear
+      // the optimistic user+agent turns we just pushed, surface a toast,
+      // and bounce back to /home so the rail re-renders without the row.
+      if (res.status === 410) {
+        await res.text().catch(() => "");
+        setTurns((prev) =>
+          prev.filter((t) => t.id !== tempUserId && t.id !== tempAgentId),
+        );
+        toast.error("This chat was deleted");
+        router.push("/home");
+        return;
+      }
       if (!res.ok || !res.body) {
         const bodyText = await res.text().catch(() => "");
         const detail = bodyText.trim().slice(0, 300);

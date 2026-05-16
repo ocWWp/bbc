@@ -3,13 +3,20 @@
 import { describe, expect, it, afterEach, vi, beforeEach } from "vitest";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 
-// Mock next/navigation so the deferred-navigate path in M19 is observable
-// from the test. Hoisted by vi.mock so it precedes ChatHome's import.
-const mockReplace = vi.fn();
-const mockRefresh = vi.fn();
-const mockPush = vi.fn();
+// Mock next/navigation + sonner. Use vi.hoisted so the spies are
+// initialized before vi.mock's factory runs (vi.mock is hoisted to
+// the top of the file, ahead of any normal `const`).
+const { mockReplace, mockRefresh, mockPush, mockToastError } = vi.hoisted(() => ({
+  mockReplace: vi.fn(),
+  mockRefresh: vi.fn(),
+  mockPush: vi.fn(),
+  mockToastError: vi.fn(),
+}));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: mockReplace, refresh: mockRefresh, push: mockPush }),
+}));
+vi.mock("sonner", () => ({
+  toast: { error: mockToastError },
 }));
 
 import { ChatHome } from "./ChatHome";
@@ -20,6 +27,7 @@ beforeEach(() => {
   mockReplace.mockReset();
   mockRefresh.mockReset();
   mockPush.mockReset();
+  mockToastError.mockReset();
 });
 
 afterEach(() => {
@@ -250,5 +258,53 @@ describe("ChatHome — composer", () => {
     const callArgs = fetchSpy.mock.calls[0]!;
     const body = JSON.parse(String(callArgs[1]?.body));
     expect(body.userText).toMatch(/api keys/i);
+  });
+
+  it("on 410 clears optimistic turns, toasts, and pushes /home (PR-C M20)", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ error: "session_not_found" }), {
+        status: 410,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    render(<ChatHome greeting={GREETING} initialTurns={[]} sessionId="dead-sess" />);
+    fireEvent.change(screen.getByTestId("composer-input"), { target: { value: "hi" } });
+    fireEvent.click(screen.getByTestId("composer-send"));
+    // Optimistic user bubble shows up first…
+    await waitFor(() => expect(screen.getByText("hi")).toBeDefined());
+    // …then gets cleared once the 410 lands.
+    await waitFor(() => expect(screen.queryByText("hi")).toBeNull());
+    expect(mockToastError).toHaveBeenCalledWith("This chat was deleted");
+    expect(mockPush).toHaveBeenCalledWith("/home");
+  });
+
+  it("does not toast or redirect on a normal 200 stream (PR-C M20)", async () => {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(
+            `event: turn-end\ndata: ${JSON.stringify({ status: "completed" })}\n\n`,
+          ),
+        );
+        controller.close();
+      },
+    });
+    vi.spyOn(global, "fetch").mockResolvedValue(
+      new Response(stream, {
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+      }),
+    );
+    render(<ChatHome greeting={GREETING} initialTurns={[]} sessionId="abc-123" />);
+    fireEvent.change(screen.getByTestId("composer-input"), { target: { value: "hi" } });
+    fireEvent.click(screen.getByTestId("composer-send"));
+    await waitFor(() =>
+      expect(
+        (screen.getByTestId("composer-input") as HTMLTextAreaElement).disabled,
+      ).toBe(false),
+    );
+    expect(mockToastError).not.toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
   });
 });
