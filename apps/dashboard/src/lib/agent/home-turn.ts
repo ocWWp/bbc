@@ -73,6 +73,16 @@ export type InvokeLlmFn = (input: {
   ctx: AgentContext;
   intent: ConversationalIntent;
   toolNames: readonly string[];
+  /**
+   * Optional. Called with each incremental text chunk as the LLM streams.
+   * When provided, the implementation SHOULD use a streaming completion so
+   * the user sees text appear live instead of waiting 4-12s for the whole
+   * response. When omitted (e.g. in tests), implementations may fall back
+   * to non-streaming. Implementations MUST still return the full
+   * accumulated text in `LlmResult.text` regardless of whether they
+   * streamed — grounding verification runs on that.
+   */
+  onTextDelta?: (delta: string) => void;
 }) => Promise<LlmResult>;
 
 export type HomeTurnDeps = {
@@ -98,6 +108,12 @@ export type HomeTurnDeps = {
 
 export type SseEvent =
   | { event: "text-delta"; data: { delta: string } }
+  /**
+   * Replaces the current turn's text wholesale. Emitted after streaming
+   * completes when grounding verification stripped or appended content.
+   * The UI swaps the streamed text for the corrected text.
+   */
+  | { event: "text-replace"; data: { text: string } }
   | {
       event: "action-card";
       data: { kind: string; payload: unknown };
@@ -177,8 +193,21 @@ export async function homeTurn(
     const tools = toolsForIntent(intent);
     const toolNames = tools.map((t) => t.name);
 
-    // 5) Invoke LLM.
-    const llm = await deps.invokeLlm({ ctx, intent, toolNames });
+    // 5) Invoke LLM. Pipe text deltas live to SSE as the model streams.
+    // The user sees text appear incrementally instead of waiting 4-12s
+    // for the full completion. We track whether anything streamed so we
+    // know if a post-stream emit is needed below.
+    let streamedAny = false;
+    const llm = await deps.invokeLlm({
+      ctx,
+      intent,
+      toolNames,
+      onTextDelta: (delta) => {
+        if (delta.length === 0) return;
+        streamedAny = true;
+        emit({ event: "text-delta", data: { delta } });
+      },
+    });
     actualTokens = llm.tokens;
 
     // 6) Verify grounding. Strips ungrounded sentences, appends fallback.
@@ -190,13 +219,19 @@ export async function homeTurn(
       : deps.retrievedMemoryIds;
     const grounded = verifyGrounding(llm.text, groundedIds);
 
-    // 7) Emit. text-delta first (so the user sees text), then tool result
-    // cards, then citation chips, then turn-end.
-    if (grounded.text.length > 0) {
-      emit({
-        event: "text-delta",
-        data: { delta: grounded.text },
-      });
+    // 7) Emit. If we streamed deltas live and grounding didn't modify
+    // the text, nothing more to emit — the UI already has the answer.
+    // If grounding modified the text (stripped ungrounded sentences or
+    // appended fallback), emit text-replace so the UI swaps in the
+    // corrected text. If nothing streamed (no callback path, or empty
+    // stream), emit one text-delta with the full grounded text — same
+    // contract as before streaming existed.
+    if (streamedAny) {
+      if (grounded.text !== llm.text) {
+        emit({ event: "text-replace", data: { text: grounded.text } });
+      }
+    } else if (grounded.text.length > 0) {
+      emit({ event: "text-delta", data: { delta: grounded.text } });
     }
 
     for (const call of llm.toolCalls) {

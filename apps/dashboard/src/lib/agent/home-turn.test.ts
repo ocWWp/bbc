@@ -187,6 +187,75 @@ describe("homeTurn", () => {
     expect(citations[0].data.memoryId).toBe("m0042");
   });
 
+  it("forwards live text deltas via onTextDelta to SSE text-delta events", async () => {
+    const events: any[] = [];
+    const deps = {
+      ...happyDeps(),
+      // Mock streams two chunks via the onTextDelta callback, then
+      // returns the full text (matching the contract real-invoke honors).
+      invokeLlm: vi.fn(async (input: { onTextDelta?: (d: string) => void }) => {
+        input.onTextDelta?.("Open the admin ");
+        input.onTextDelta?.("dashboard at /dashboard.");
+        return {
+          text: "Open the admin dashboard at /dashboard.",
+          toolCalls: [],
+          tokens: 320,
+        };
+      }),
+      classify: vi.fn().mockResolvedValue("navigate"),
+    };
+    await homeTurn(
+      {
+        tenantId: "t1",
+        actorId: "u1",
+        role: "admin",
+        userInput: "where is admin dashboard?",
+        recent: [],
+      },
+      deps,
+      (e) => events.push(e),
+    );
+    const textDeltas = events.filter((e) => e.event === "text-delta");
+    expect(textDeltas).toHaveLength(2);
+    expect(textDeltas[0].data.delta).toBe("Open the admin ");
+    expect(textDeltas[1].data.delta).toBe("dashboard at /dashboard.");
+    // Grounding was a no-op (no citations in text), so no text-replace.
+    const replaces = events.filter((e) => e.event === "text-replace");
+    expect(replaces).toHaveLength(0);
+  });
+
+  it("emits text-replace after streaming when grounding strips ungrounded claims", async () => {
+    const events: any[] = [];
+    const deps = {
+      ...happyDeps(),
+      invokeLlm: vi.fn(async (input: { onTextDelta?: (d: string) => void }) => {
+        const raw = "Churn rose 12% [mem:m9999].";
+        input.onTextDelta?.(raw);
+        return { text: raw, toolCalls: [], tokens: 200 };
+      }),
+      retrievedMemoryIds: [] as string[],
+    };
+    await homeTurn(
+      {
+        tenantId: "t1",
+        actorId: "u1",
+        role: "admin",
+        userInput: "what's going on",
+        recent: [],
+      },
+      deps,
+      (e) => events.push(e),
+    );
+    // First we streamed the raw text...
+    const textDeltas = events.filter((e) => e.event === "text-delta");
+    expect(textDeltas).toHaveLength(1);
+    expect(textDeltas[0].data.delta).toContain("m9999");
+    // ...then grounding stripped it and emitted text-replace.
+    const replaces = events.filter((e) => e.event === "text-replace");
+    expect(replaces).toHaveLength(1);
+    expect(replaces[0].data.text).not.toContain("m9999");
+  });
+
   it("emits turn-end with status=failed when invokeLlm throws", async () => {
     const events: any[] = [];
     const deps = {

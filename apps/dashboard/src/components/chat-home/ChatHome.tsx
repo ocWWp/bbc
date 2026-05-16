@@ -267,6 +267,10 @@ function handleSseFrame(
           const delta = typeof parsed.delta === "string" ? parsed.delta : "";
           return { ...t, text: t.text + delta };
         }
+        case "text-replace": {
+          const text = typeof parsed.text === "string" ? parsed.text : t.text;
+          return { ...t, text };
+        }
         case "action-card": {
           const kind = typeof parsed.kind === "string" ? parsed.kind : "unknown";
           return {

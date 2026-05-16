@@ -141,6 +141,7 @@ async function postImpl(req: NextRequest) {
         // Mirror SSE state into a local buffer so we can finalize the
         // assistant turn with the full content after the stream closes.
         if (e.event === "text-delta") collected.text += e.data.delta;
+        if (e.event === "text-replace") collected.text = e.data.text;
         if (e.event === "action-card") {
           collected.toolCalls.push({ name: e.data.kind, payload: e.data.payload });
         }

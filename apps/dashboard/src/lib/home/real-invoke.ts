@@ -133,7 +133,7 @@ export function makeRealInvokeLlm(
   client: Anthropic,
   executor: HomeToolExecutor,
 ): InvokeLlmFn {
-  return async ({ ctx, intent }): Promise<LlmResult> => {
+  return async ({ ctx, intent, onTextDelta }): Promise<LlmResult> => {
     void TOOLS; // ensure registry import is not tree-shaken
     const system = buildSystemPrompt(ctx, intent);
     const userInput =
@@ -149,13 +149,23 @@ export function makeRealInvokeLlm(
     let totalTokens = 0;
 
     for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
-      const resp: Anthropic.Messages.Message = await client.messages.create({
+      // Stream each iteration. Text deltas (when the model is producing
+      // user-facing prose) get forwarded to the orchestrator's callback
+      // immediately so the UI sees them as they arrive. Tool-use
+      // iterations typically emit little/no text before the tool call,
+      // so live-streaming them costs nothing and gives the user signal
+      // that something is happening behind the scenes.
+      const stream = client.messages.stream({
         model: RUN_MODEL,
         max_tokens: MAX_TOKENS,
         system,
         tools: tools.length > 0 ? tools : undefined,
         messages: messages as Anthropic.Messages.MessageParam[],
       });
+      if (onTextDelta) {
+        stream.on("text", (delta) => onTextDelta(delta));
+      }
+      const resp: Anthropic.Messages.Message = await stream.finalMessage();
       totalTokens += (resp.usage?.input_tokens ?? 0) + (resp.usage?.output_tokens ?? 0);
 
       if (resp.stop_reason !== "tool_use") {
