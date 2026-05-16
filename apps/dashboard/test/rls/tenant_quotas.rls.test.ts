@@ -243,6 +243,47 @@ describe("reserve_quota — concurrent reservations cannot overspend", () => {
   });
 });
 
+describe("reserve_quota — tenant-membership guard (codex M5.2)", () => {
+  it("rejects calls against a tenant the user is not a member of", async () => {
+    // A signed in as tenant A, calls reserve_quota with tenant B's id.
+    const res = await setup.a.authedClient.rpc("reserve_quota", {
+      p_tenant_id: setup.b.tenantId,
+      p_actor_id: setup.a.userId,
+      p_estimated_tokens: 1,
+      p_kind: "home_turn",
+    });
+    expect(res.error).not.toBeNull();
+    expect(res.error?.message).toMatch(/forbidden|not a member/i);
+  });
+});
+
+describe("reconcile_quota — tenant-membership guard (codex M5.2)", () => {
+  it("rejects reconcile of a reservation belonging to a different tenant", async () => {
+    // Make a real reservation for tenant B via service-role bypass.
+    const { data: bRes, error: bResErr } = await serviceClient
+      .from("tenant_quota_reservations")
+      .insert({
+        tenant_id: setup.b.tenantId,
+        actor_id: setup.b.userId,
+        kind: "home_turn",
+        estimated_tokens: 100,
+      })
+      .select("id")
+      .single();
+    expect(bResErr).toBeNull();
+    const reservationId = (bRes as { id: string }).id;
+
+    // A (member of tenant A) tries to reconcile B's reservation.
+    const res = await setup.a.authedClient.rpc("reconcile_quota", {
+      p_reservation_id: reservationId,
+      p_actual_tokens: 50,
+    });
+    // Returned as not_found to avoid leaking existence cross-tenant.
+    expect(res.error).not.toBeNull();
+    expect(res.error?.message).toMatch(/not_found/i);
+  });
+});
+
 describe("reserve_quota — input validation", () => {
   it("rejects unknown kind", async () => {
     const res = await setup.a.authedClient.rpc("reserve_quota", {
