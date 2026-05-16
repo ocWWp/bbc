@@ -192,6 +192,17 @@ function aliasScore(q: string, phrase: string): number {
   return 0;
 }
 
+/**
+ * Bonus that prefers more specific routes when alias scores tie. Without
+ * this, "team settings" scores `settings` (8 chars) higher than `team`
+ * (4 chars) and routes to `/settings` instead of `/settings/team`. Depth
+ * is (slash count − 1), so /settings = 1 and /settings/team = 2.
+ */
+function routeDepthBonus(route: string): number {
+  const segments = (route.match(/\//g) ?? []).length;
+  return Math.max(0, segments - 1) * 5;
+}
+
 export type RouteMatchResult = {
   route: string;
   label: string;
@@ -205,11 +216,12 @@ export function matchRoute(rawQuery: string): RouteMatchResult {
   if (!q) return { route: null, hint: "empty query" };
   let best: { entry: RouteEntry; score: number } | null = null;
   for (const entry of KNOWN_ROUTES) {
+    const bonus = routeDepthBonus(entry.route);
     for (const alias of entry.aliases) {
-      const s = aliasScore(q, alias.toLowerCase());
-      if (s > 0 && (!best || s > best.score)) {
-        best = { entry, score: s };
-      }
+      const raw = aliasScore(q, alias.toLowerCase());
+      if (raw === 0) continue;
+      const s = raw + bonus;
+      if (!best || s > best.score) best = { entry, score: s };
     }
   }
   if (!best || best.score < 30) {

@@ -31,6 +31,26 @@ describe("matchRoute", () => {
     expect(r).toEqual({ route: "/settings/keys", label: "API keys (BYOK)" });
   });
 
+  // Regression: "team settings" used to route to /settings because the
+  // longer `settings` alias outscored the shorter `team` alias. The
+  // route-depth bonus now favors the more specific subroute (codex
+  // PR-B review P2).
+  it("prefers the more specific subroute when both parent and child aliases match", () => {
+    expect(matchRoute("team settings")).toEqual({
+      route: "/settings/team",
+      label: "Team",
+    });
+    expect(matchRoute("api keys settings")).toEqual({
+      route: "/settings/keys",
+      label: "API keys (BYOK)",
+    });
+  });
+
+  it("still routes a bare 'settings' to /settings", () => {
+    const r = matchRoute("settings");
+    expect(r).toEqual({ route: "/settings", label: "Settings" });
+  });
+
   it("returns null with a hint when no alias matches", () => {
     const r = matchRoute("the meeting transcripts page");
     expect("route" in r && r.route).toBeNull();
