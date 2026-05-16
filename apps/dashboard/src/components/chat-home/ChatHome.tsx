@@ -18,9 +18,20 @@ export type ChatHomeProps = {
   initialTurns: TurnViewModel[];
   /** Enabled observer signals for this tenant. Empty → no strip rendered. */
   watching?: WatchingChip[];
+  /**
+   * Active session id from the URL `?session=` param, or `null` when we're
+   * on the bare /home greeting. Threaded into the POST body so the server
+   * knows whether to start a new session or append to an existing one.
+   */
+  sessionId?: string | null;
 };
 
-export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProps) {
+export function ChatHome({
+  greeting,
+  initialTurns,
+  watching = [],
+  sessionId = null,
+}: ChatHomeProps) {
   const [turns, setTurns] = useState<TurnViewModel[]>(initialTurns);
   const [draft, setDraft] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -86,7 +97,7 @@ export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProp
       const res = await fetch("/api/home/turn", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ userText: text }),
+        body: JSON.stringify({ userText: text, sessionId }),
         signal: abort.signal,
       });
       if (!res.ok || !res.body) {
@@ -135,7 +146,7 @@ export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProp
         ),
       );
     }
-  }, [draft, streaming]);
+  }, [draft, streaming, sessionId]);
 
   const cancel = useCallback(() => {
     abortRef.current?.abort();
