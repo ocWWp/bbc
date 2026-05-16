@@ -3,14 +3,22 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { TurnView, type TurnViewModel } from "./TurnView";
 
+export type WatchingChip = {
+  id: string;
+  /** Short label — metric id or human label. */
+  label: string;
+};
+
 export type ChatHomeProps = {
   /** Server-rendered cold-start greeting. Shown when there are no turns. */
   greeting: string;
   /** Turns hydrated from the active session on page load. */
   initialTurns: TurnViewModel[];
+  /** Enabled observer signals for this tenant. Empty → no strip rendered. */
+  watching?: WatchingChip[];
 };
 
-export function ChatHome({ greeting, initialTurns }: ChatHomeProps) {
+export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProps) {
   const [turns, setTurns] = useState<TurnViewModel[]>(initialTurns);
   const [draft, setDraft] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -122,6 +130,28 @@ export function ChatHome({ greeting, initialTurns }: ChatHomeProps) {
           </h1>
         </div>
       </header>
+
+      {watching.length > 0 && (
+        <div
+          className="mx-auto mb-4 flex w-full max-w-3xl flex-wrap items-center gap-2"
+          data-testid="watching-strip"
+        >
+          <span className="text-xs uppercase tracking-wide text-muted-foreground">
+            Watching
+          </span>
+          {watching.map((w) => (
+            <button
+              key={w.id}
+              type="button"
+              className="rounded-full border border-border bg-card px-3 py-1 text-xs hover:bg-muted"
+              data-testid={`watching-chip-${w.id}`}
+              onClick={() => setDraft(`tell me about my ${w.label} watch`)}
+            >
+              {w.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 pb-32">
         {empty ? (

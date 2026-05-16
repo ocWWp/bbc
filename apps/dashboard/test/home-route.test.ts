@@ -19,6 +19,26 @@ vi.mock("@/lib/home/read-queue-summary", () => ({
   readQueueSummary: vi.fn(async () => ({ pendingCount: 0, topPending: [] })),
 }));
 
+vi.mock("@/lib/supabase/server", () => ({
+  // Used by the /home page to read the enabled-signals watching strip.
+  // Tests don't care about the data — return empty rows.
+  getSupabaseServerClient: vi.fn(async () => ({
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          eq: () => ({
+            is: () => ({
+              order: () => ({
+                limit: async () => ({ data: [], error: null }),
+              }),
+            }),
+          }),
+        }),
+      }),
+    }),
+  })),
+}));
+
 vi.mock("next/navigation", () => ({
   redirect: vi.fn((url: string) => {
     const err = new Error(`NEXT_REDIRECT:${url}`);

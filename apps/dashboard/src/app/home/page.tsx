@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import { requireActor } from "@/lib/auth/require-user";
-import { ChatHome } from "@/components/chat-home/ChatHome";
+import { ChatHome, type WatchingChip } from "@/components/chat-home/ChatHome";
 import type { TurnViewModel } from "@/components/chat-home/TurnView";
 import { getActiveSessionWithTurns, type HomeTurn } from "@/lib/home/sessions";
 import { readQueueSummary } from "@/lib/home/read-queue-summary";
 import { homeGreeting } from "@/lib/home/greeting";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -23,15 +24,34 @@ export default async function HomePage() {
     redirect(`/studio/${slug}`);
   }
 
-  const [active, queue] = await Promise.all([
+  const supabase = await getSupabaseServerClient();
+  const [active, queue, watchingRes] = await Promise.all([
     getActiveSessionWithTurns(a.actor.tenant_id, a.actor.user_id, 50),
     readQueueSummary(a.actor.tenant_id),
+    supabase
+      .from("observer_signals")
+      .select("id, config_jsonb, signal_type")
+      .eq("tenant_id", a.actor.tenant_id)
+      .eq("enabled", true)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: true })
+      .limit(12),
   ]);
 
-  // Template greeting only shown on empty state. signals + observations
-  // are placeholders until M3 wires the observer reads.
+  const watching: WatchingChip[] = ((watchingRes?.data ?? []) as Array<{
+    id: string;
+    signal_type: string;
+    config_jsonb: Record<string, unknown> | null;
+  }>).map((row) => ({
+    id: row.id,
+    label:
+      typeof row.config_jsonb?.metric === "string"
+        ? (row.config_jsonb.metric as string)
+        : row.signal_type,
+  }));
+
   const greeting = homeGreeting({
-    activeSignalCount: 0,
+    activeSignalCount: watching.length,
     recentObservationCount: 0,
     pendingQueueCount: queue.pendingCount,
     workspaceName: a.actor.tenant_slug,
@@ -39,7 +59,13 @@ export default async function HomePage() {
 
   const initialTurns: TurnViewModel[] = (active?.turns ?? []).map(turnToVm);
 
-  return <ChatHome greeting={greeting} initialTurns={initialTurns} />;
+  return (
+    <ChatHome
+      greeting={greeting}
+      initialTurns={initialTurns}
+      watching={watching}
+    />
+  );
 }
 
 function turnToVm(t: HomeTurn): TurnViewModel {
