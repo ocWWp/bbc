@@ -23,7 +23,7 @@ export function SessionRail({ sessions, currentSessionId }: SessionRailProps) {
     <aside
       role="navigation"
       aria-label="Chat history"
-      className="session-rail flex h-full flex-col gap-3 p-4"
+      className="session-rail flex h-full flex-col gap-3 py-4 px-3"
       data-testid="session-rail"
     >
       <h2 className="sr-only">Chat history</h2>

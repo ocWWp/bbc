@@ -96,6 +96,22 @@ describe("SessionRailShell", () => {
     expect(onDelete).toHaveBeenCalledWith("abc");
   });
 
+  it("closes drawer on Escape key", () => {
+    render(
+      <SessionRailShell rail={<Rail />} onDelete={vi.fn()}>
+        <div>chat</div>
+      </SessionRailShell>,
+    );
+    fireEvent.click(screen.getByTestId("session-rail-toggle"));
+    expect(screen.getByTestId("session-rail-drawer")).toBeDefined();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(
+      screen.getByTestId("session-rail-toggle").getAttribute("aria-expanded"),
+    ).toBe("false");
+  });
+
   it("auto-closes the drawer when ?session= changes", () => {
     const { rerender } = render(
       <SessionRailShell rail={<Rail />} onDelete={vi.fn()}>

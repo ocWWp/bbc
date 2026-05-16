@@ -47,6 +47,19 @@ export function SessionRailShell({
     setOpen(false);
   }, [pathname, sessionParam]);
 
+  // ESC closes the drawer when it's open. Only mount the listener
+  // while open so we don't intercept Escape on the chat surface.
+  useEffect(() => {
+    if (!open) return;
+    const handler = (evt: KeyboardEvent) => {
+      if (evt.key === "Escape") {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [open]);
+
   return (
     <SessionRailContext.Provider value={{ onDelete }}>
       <div
