@@ -1726,6 +1726,137 @@ EOF
 
 ---
 
+## Design Spec (added by /plan-design-review)
+
+All visual tokens come from `apps/dashboard/src/app/globals.css` `:root.home-pilot` block. **Do not introduce new colors.** If a state needs a token that doesn't exist yet, add it to `globals.css` first, then use it.
+
+### Tokens used
+
+| Purpose | Token | Light value |
+|---|---|---|
+| Page bg behind rail + chat | `--home-bg` | `#faf7f2` |
+| Card surface (current row, hover row, new-chat button on hover) | `--home-card` | `#ffffff` |
+| Primary ink | `--home-ink` | `#15140f` |
+| Muted ink (kebab icon, last-activity timestamps if shown) | `--home-ink-muted` | `#6b6657` |
+| Soft rule (rail/chat divider, row hover border) | `--home-rule` | `#e5dfd1` |
+| Strong rule (current-row border) | `--home-rule-strong` | `#d2cab5` |
+| Accent (new-chat button fill, current-row left bar) | `--home-accent` | `#e0ff54` |
+| Accent ink (text on acid yellow) | `--home-accent-ink` | `#15140f` |
+
+Dark theme uses the existing `.dark` overrides — no new tokens needed.
+
+### `SessionRailShell` — desktop layout
+
+- `display: grid; grid-template-columns: 260px 1fr;` at `md:` breakpoint (`min-width: 768px`).
+- Rail column has `background: var(--home-bg)`, `border-right: 1px solid var(--home-rule)`.
+- Chat column inherits the dotted-grid bg (already established in PR-B).
+- Below `md:` breakpoint: `grid-template-columns: 1fr` — rail hides, hamburger toggle shows.
+
+### `SessionRailShell` — mobile drawer
+
+- Drawer width `min(85vw, 320px)`, slides in from `translateX(-100%)` to `translateX(0)`. framer-motion `<motion.aside>` with `initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }}`, `transition={{ type: "spring", stiffness: 320, damping: 30 }}`.
+- Backdrop scrim: full-viewport, `background: rgba(21, 20, 15, 0.40)`, fade `0 → 1` in 150ms. Clicking the scrim closes the drawer.
+- Toggle button: positioned `top: 12px; left: 12px;` of the chat column on mobile. 40px square (touch target ≥ 44px effective via padding), `aria-label="Open chat history"`, renders a Lucide `<PanelLeft size={18} />`. Visible only when drawer is closed.
+- Drawer auto-closes when a session row is tapped or `+ new chat` is tapped. `useEffect` on `pathname` change closes the drawer.
+
+### `SessionRail` (server component)
+
+- `padding: 16px 12px`.
+- Top: an sr-only `<h2>Chat history</h2>` (a11y landmark). No visible heading — the `+ new chat` button is the de facto label.
+- `+ new chat` button (rendered as a `<Link href="/home">`):
+  - Full-width within rail padding, `height: 36px`, `border-radius: 8px`.
+  - Default: `background: var(--home-accent); color: var(--home-accent-ink); border: 1px solid var(--home-rule-strong);`
+  - Hover: `background: color-mix(in oklab, var(--home-accent) 92%, black);`
+  - Focus-visible: `outline: 2px solid var(--home-ink); outline-offset: 2px;`
+  - Active (pressed): `transform: scale(0.985);` via framer-motion `whileTap` (consistent with PR-B button-tap).
+  - Content: Lucide `<Plus size={14} />` + label "New chat", `gap: 6px`, font Geist `14px/500`.
+- Gap below button: `12px`.
+- Optional subtle group label "Recent" in `font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--home-ink-muted); margin-bottom: 6px;` — skip for v1 if the empty state already provides context; add only if the list grows confusing without it. **Decision: skip.** Rail is short enough that a label is chrome, not signal.
+
+### `SessionList` (client wrapper)
+
+- `<AnimatePresence initial={false}>` wraps the array of `<SessionRow>`. `initial={false}` so existing rows don't re-animate on initial mount.
+- Vertical gap between rows: `2px`. The card-on-hover border provides the visual separation.
+
+### `SessionRow` (client)
+
+- Container: `position: relative; padding: 8px 12px; border-radius: 6px; transition: background 120ms, border-color 120ms;`
+- Default state: `background: transparent; border: 1px solid transparent;`
+- Hover: `background: var(--home-card); border: 1px solid var(--home-rule);` — pulls the row out of the rail bg as a crisp card.
+- Current (selected) state (`data-current="true"`): `background: var(--home-card); border: 1px solid var(--home-rule-strong); box-shadow: inset 2px 0 0 var(--home-accent);` — left acid-yellow bar inside the border. No extra outer border.
+- Focus-visible: `outline: 2px solid var(--home-ink); outline-offset: 1px;`.
+- Title text: Geist `13.5px/1.35`, color `var(--home-ink)`, single-line ellipsis (`white-space: nowrap; overflow: hidden; text-overflow: ellipsis;`).
+- Kebab button:
+  - 24×24px square, `border-radius: 4px`, transparent default.
+  - Lucide `<MoreHorizontal size={14} />` in `var(--home-ink-muted)`.
+  - **Desktop**: `opacity: 0` by default, `opacity: 1` on `.group:hover` of the row, focus-visible, or when popover is open. 100ms fade.
+  - **Touch** (no hover): `@media (hover: none) { opacity: 1; }` — always visible.
+  - Hover: `background: color-mix(in oklab, var(--home-ink) 8%, transparent);`
+  - `aria-label="More actions for {title}"`.
+- Popover (rendered when kebab pressed):
+  - Positioned absolute, `right: 8px; top: 32px; z-index: 20;`.
+  - `background: var(--home-card); border: 1px solid var(--home-rule-strong); border-radius: 6px; box-shadow: 0 6px 24px rgba(21,20,15,0.08); padding: 4px; min-width: 140px;`
+  - Two buttons: "Delete" (`color: #b3261e;` on light, plus a subtle hover `background: color-mix(in oklab, #b3261e 8%, transparent);`) and "Cancel" (`color: var(--home-ink-muted);`).
+  - Each button: `width: 100%; text-align: left; padding: 6px 8px; border-radius: 4px; font-size: 13px;`.
+  - Closes on outside-click (use a controlled `open` state + a click-outside hook).
+  - Keyboard: `Escape` closes; arrow keys move focus between the two buttons; `Enter` activates.
+- Motion: `motion.div` with `initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.15 }}`. Consistent with PR-B turn-enter cadence.
+
+### Empty rail state (no sessions yet)
+
+- Below the `+ new chat` button, render:
+  - `padding: 24px 8px; text-align: left; color: var(--home-ink-muted); font-size: 13px; line-height: 1.45;`
+  - Copy: `"No chats yet. Start one to see it here."`
+  - **No illustration.** The dotted grid + acid-yellow button is the warmth.
+
+### Loading state (server component, so it's a streaming boundary)
+
+- The rail itself is a server component rendered inside the page's RSC tree. No client loading spinner.
+- During SSE turn streaming, the rail does NOT re-fetch — it shows stale order until `turn-end` triggers `router.refresh()`. This is acceptable for v1.
+
+### Mobile drawer specifics (Mobbin Claude/Tiimo pattern)
+
+- The whole drawer slides over the chat — chat-peek is the residual ~15vw visible at the right edge under the scrim.
+- Header chrome inside the drawer: padding `16px 12px`, contains the same `+ new chat` button.
+- The list area below the header scrolls independently (the drawer is `height: 100vh; display: flex; flex-direction: column;` with the list as `flex: 1; overflow-y: auto;`).
+- Swipe-to-close: native browser back-swipe is sufficient for v1. **No custom gesture handling** (consistent with the "drop framer-motion drag" scope decision).
+
+### Accessibility
+
+- Rail container has `role="navigation" aria-label="Chat history"`.
+- `+ new chat` is a `<Link>`, naturally focusable, with visible focus ring.
+- Each row is a `<Link>` containing the title; tabbing through hits each row in order.
+- Kebab is a `<button>`, focusable; popover is `role="menu"`, items are `role="menuitem"`.
+- All interactive controls meet 44×44px effective touch target (kebab is 24px visible but has 10px padding around making the touch zone 44px).
+- Color contrast: `--home-ink #15140f on --home-bg #faf7f2` = 14.3:1 (AAA); muted text passes AA.
+- `prefers-reduced-motion: reduce` honored via the existing MotionConfig wrapper in `ChatHome` parent.
+
+### Responsive breakpoints
+
+| Viewport | Layout |
+|---|---|
+| `>= 768px` (md) | Inline 260px rail + chat. Rail always visible. |
+| `< 768px` | Chat full-bleed. Rail behind hamburger toggle as overlay drawer. |
+
+No tablet-specific intermediate; the rail is either fully present or fully off-canvas.
+
+### Lucide icons used (already a dep)
+
+- `Plus` (new chat button)
+- `MoreHorizontal` (kebab)
+- `PanelLeft` (mobile toggle)
+- `Trash2` (optional: inside the delete popover button for clarity — decide during build, not blocking)
+
+### What this design does NOT do (deferred)
+
+- No search bar in the rail
+- No date grouping (flat reverse-chron)
+- No multi-select or bulk delete
+- No drag-to-reorder
+- No pinned sessions
+- No share-this-chat link
+- No swipe-left to delete on mobile (kebab works on touch too)
+
 ## Followups (out of scope)
 
 - Search/filter the rail when session count grows
