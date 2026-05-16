@@ -202,7 +202,6 @@ import {
   deriveTitle,
   finalizeTurn,
   getMostRecentSession,
-  getOrCreateActiveSession,
   getSessionWithTurns,
   listSessions,
   softDeleteSession,
@@ -211,51 +210,6 @@ import {
 
 beforeEach(() => {
   stub = makeSupabaseStub();
-});
-
-describe("getOrCreateActiveSession", () => {
-  it("returns the existing active session when one exists", async () => {
-    stub = makeSupabaseStub({
-      sessions: [
-        {
-          id: "s1",
-          tenant_id: "t1",
-          user_id: "u1",
-          archived_at: null,
-          started_at: "2026-05-15T00:00:00Z",
-          last_activity_at: "2026-05-15T00:00:00Z",
-        },
-      ],
-    });
-    const out = await getOrCreateActiveSession("t1", "u1");
-    expect(out.id).toBe("s1");
-    expect(stub._state.lastInsertTable).toBe(""); // no insert
-  });
-
-  it("inserts a new session when none active", async () => {
-    const out = await getOrCreateActiveSession("t1", "u1");
-    expect(out.tenant_id).toBe("t1");
-    expect(out.user_id).toBe("u1");
-    expect(stub._state.lastInsertTable).toBe("home_sessions");
-  });
-
-  it("does not reuse archived sessions", async () => {
-    stub = makeSupabaseStub({
-      sessions: [
-        {
-          id: "old",
-          tenant_id: "t1",
-          user_id: "u1",
-          archived_at: "2026-05-14T00:00:00Z",
-          started_at: "2026-05-14T00:00:00Z",
-          last_activity_at: "2026-05-14T00:00:00Z",
-        },
-      ],
-    });
-    const out = await getOrCreateActiveSession("t1", "u1");
-    expect(out.id).not.toBe("old");
-    expect(stub._state.lastInsertTable).toBe("home_sessions");
-  });
 });
 
 describe("appendTurn", () => {

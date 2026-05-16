@@ -25,48 +25,6 @@ export type HomeTurn = {
   finalized_at: string | null;
 };
 
-/**
- * Returns the user's active /home session, creating one if none exists.
- * "Active" = archived_at IS NULL. There's at most one active session per
- * (tenant_id, user_id) by convention; if multiple exist, we return the most
- * recent and archive the older ones in a follow-up cleanup (not on read).
- *
- * @deprecated PR-C splits this into explicit `getMostRecentSession` +
- * `createSession`. Still used by the turn route's no-sessionId branch
- * (migrating that requires PR-C M8-M12 sessionId routing work). Remove
- * once the turn route lands the per-session POST body.
- */
-export async function getOrCreateActiveSession(
-  tenantId: string,
-  userId: string,
-): Promise<HomeSession> {
-  const supabase = await getSupabaseServerClient();
-
-  const { data: existing, error: readErr } = await supabase
-    .from("home_sessions")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .eq("user_id", userId)
-    .is("archived_at", null)
-    .order("last_activity_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (readErr) throw new Error(`home_sessions read failed: ${readErr.message}`);
-  if (existing) return existing as HomeSession;
-
-  const { data: inserted, error: insErr } = await supabase
-    .from("home_sessions")
-    .insert({ tenant_id: tenantId, user_id: userId })
-    .select("*")
-    .single();
-
-  if (insErr || !inserted) {
-    throw new Error(`home_sessions insert failed: ${insErr?.message ?? "no row"}`);
-  }
-  return inserted as HomeSession;
-}
-
 export async function appendTurn(
   sessionId: string,
   role: TurnRole,
@@ -113,43 +71,6 @@ export async function finalizeTurn(
     })
     .eq("id", turnId);
   if (error) throw new Error(`home_turns finalize failed: ${error.message}`);
-}
-
-/**
- * @deprecated PR-C M4 replaced this with `getSessionWithTurns`, which takes
- * an explicit sessionId so the rail can navigate between sessions. Still
- * used by the turn route (PR-C M8-M12 work) and `app/home/page.tsx`
- * (PR-C M23 work). Remove once both land.
- */
-export async function getActiveSessionWithTurns(
-  tenantId: string,
-  userId: string,
-  limit = 50,
-): Promise<{ session: HomeSession; turns: HomeTurn[] } | null> {
-  const supabase = await getSupabaseServerClient();
-  const { data: session, error: sErr } = await supabase
-    .from("home_sessions")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .eq("user_id", userId)
-    .is("archived_at", null)
-    .order("last_activity_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (sErr) throw new Error(`home_sessions read failed: ${sErr.message}`);
-  if (!session) return null;
-
-  const { data: turns, error: tErr } = await supabase
-    .from("home_turns")
-    .select("*")
-    .eq("session_id", session.id)
-    .order("created_at", { ascending: true })
-    .limit(limit);
-
-  if (tErr) throw new Error(`home_turns read failed: ${tErr.message}`);
-  const all = (turns ?? []) as HomeTurn[];
-  return { session: session as HomeSession, turns: all.filter(isNotStubTurn) };
 }
 
 // v1.6 shipped a stub /home backend that wrote canned assistant responses
@@ -255,10 +176,10 @@ export async function listSessions(
  * Reads a session by id, strictly gated on (tenant_id, user_id, not-archived).
  * Returns null when not found, foreign-tenant, or archived — no error.
  *
- * Replaces `getActiveSessionWithTurns` (PR-C M4): the rail picks an explicit
- * sessionId from the URL, so the read needs to be by-id rather than "the most
- * recent active one". Applies the same `isNotStubTurn` filter to returned
- * turns to hide v1.6 stub replies that still live in some tenants' history.
+ * The rail picks an explicit sessionId from the URL, so the read is by-id
+ * rather than "the most recent active one". Applies the `isNotStubTurn`
+ * filter to returned turns to hide v1.6 stub replies that still live in
+ * some tenants' history.
  */
 export async function getSessionWithTurns(
   sessionId: string,
@@ -294,9 +215,9 @@ export async function getSessionWithTurns(
  * Returns the user's most recent non-archived session, or null if none.
  *
  * Read-only counterpart to `createSession` — callers decide whether to
- * create a new session or land on the most recent one. This replaces the
- * "find-or-create" behaviour of `getOrCreateActiveSession`; the chat
- * history rail (PR-C) wants explicit per-session navigation.
+ * create a new session or land on the most recent one. The chat history
+ * rail (PR-C) wants explicit per-session navigation, so there is no
+ * "find-or-create" combined entry point.
  */
 export async function getMostRecentSession(
   tenantId: string,
