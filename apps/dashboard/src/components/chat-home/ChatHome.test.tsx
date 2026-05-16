@@ -278,6 +278,34 @@ describe("ChatHome — composer", () => {
     expect(mockPush).toHaveBeenCalledWith("/home");
   });
 
+  it("aborts the in-flight controller on unmount (PR-C M21)", async () => {
+    // Build a stream that never closes — the read loop stays open until
+    // unmount triggers the AbortController.
+    const stream = new ReadableStream<Uint8Array>({
+      start() {
+        // No enqueue, no close — read() will park indefinitely.
+      },
+    });
+    vi.spyOn(global, "fetch").mockResolvedValue(
+      new Response(stream, {
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+      }),
+    );
+    const abortSpy = vi.spyOn(AbortController.prototype, "abort");
+
+    const { unmount } = render(
+      <ChatHome greeting={GREETING} initialTurns={[]} sessionId={null} />,
+    );
+    fireEvent.change(screen.getByTestId("composer-input"), { target: { value: "hi" } });
+    fireEvent.click(screen.getByTestId("composer-send"));
+    // Wait for the optimistic user bubble — confirms send() ran far enough
+    // to attach the AbortController to abortRef.
+    await waitFor(() => expect(screen.getByText("hi")).toBeDefined());
+    unmount();
+    expect(abortSpy).toHaveBeenCalled();
+  });
+
   it("does not toast or redirect on a normal 200 stream (PR-C M20)", async () => {
     const encoder = new TextEncoder();
     const stream = new ReadableStream<Uint8Array>({

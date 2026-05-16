@@ -58,6 +58,15 @@ export function ChatHome({
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Abort any in-flight stream when the component unmounts. Without this,
+  // a navigation away during streaming leaks the fetch + reader and keeps
+  // the SSE socket open until the server tears it down.
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
+
   useEffect(() => {
     if (!stickToBottomRef.current) return;
     // "auto" beats "smooth" during streaming — smooth queues animations that
