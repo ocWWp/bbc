@@ -95,8 +95,14 @@ vi.mock("@/lib/supabase/server", () => ({
 import {
   appendTurn,
   archiveSession,
+  createSession,
+  deriveTitle,
   finalizeTurn,
+  getMostRecentSession,
   getOrCreateActiveSession,
+  getSessionWithTurns,
+  listSessions,
+  softDeleteSession,
 } from "./sessions";
 
 beforeEach(() => {
@@ -250,5 +256,39 @@ describe("isNotStubTurn (v1.6 cleanup filter)", () => {
         finalized_at: null,
       } as never),
     ).toBe(true);
+  });
+});
+
+describe("deriveTitle", () => {
+  it("returns '(empty)' for empty string", () => {
+    expect(deriveTitle("")).toBe("(empty)");
+  });
+  it("returns '(empty)' for whitespace-only", () => {
+    expect(deriveTitle("   \n\t  ")).toBe("(empty)");
+  });
+  it("collapses newlines to spaces", () => {
+    expect(deriveTitle("hello\nworld")).toBe("hello world");
+  });
+  it("collapses tabs and repeated spaces to a single space", () => {
+    expect(deriveTitle("hello\t \tworld   foo")).toBe("hello world foo");
+  });
+  it("returns short input as-is", () => {
+    expect(deriveTitle("draft thank you")).toBe("draft thank you");
+  });
+  it("truncates at word boundary near 40 chars", () => {
+    const long = "draft a thank you note to oscartry about the meeting we had yesterday";
+    const out = deriveTitle(long);
+    expect(out.length).toBeLessThanOrEqual(43); // 40 + "..." cap
+    expect(out.endsWith("...")).toBe(true);
+    expect(out.startsWith("draft a thank you note")).toBe(true);
+  });
+  it("force-truncates unbreakable strings at 40 chars + ellipsis", () => {
+    const unbreakable = "a".repeat(60);
+    const out = deriveTitle(unbreakable);
+    expect(out).toBe("a".repeat(40) + "...");
+  });
+  it("returns exactly-40-char input as-is (no ellipsis)", () => {
+    const exact = "a".repeat(40);
+    expect(deriveTitle(exact)).toBe(exact);
   });
 });

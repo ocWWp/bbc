@@ -185,3 +185,21 @@ export function isNotStubTurn(turn: HomeTurn): boolean {
   if (!text) return true;
   return !STUB_PATTERNS.some((re) => re.test(text));
 }
+
+/**
+ * Derive a short, human-readable session title from the first user message.
+ * Used by the rail (PR-C) and the title-on-first-turn write path. Pure —
+ * no DB. Collapses whitespace, trims, caps at ~40 chars, prefers word
+ * boundaries, falls back to `(empty)` for blank input.
+ */
+export function deriveTitle(text: string): string {
+  const collapsed = text.replace(/\s+/g, " ").trim();
+  if (collapsed.length === 0) return "(empty)";
+  if (collapsed.length <= 40) return collapsed;
+  const slice = collapsed.slice(0, 40);
+  const lastSpace = slice.lastIndexOf(" ");
+  if (lastSpace >= 20) {
+    return slice.slice(0, lastSpace) + "...";
+  }
+  return slice + "...";
+}
