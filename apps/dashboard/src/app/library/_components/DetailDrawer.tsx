@@ -223,7 +223,7 @@ export function DetailDrawer({ item, installingId, onClose, onInstall, installEn
             </div>
           )}
 
-          {isConnector(item) && item.unverified_oauth && (
+          {installEnabled && isConnector(item) && item.unverified_oauth && (
             <div className="lib-section lib-warning" role="note">
               <div className="lab">
                 <span>unverified app · expect a Google warning</span>

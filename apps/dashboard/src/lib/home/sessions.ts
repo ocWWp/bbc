@@ -162,6 +162,12 @@ const STUB_PATTERNS: ReadonlyArray<RegExp> = [
   /^hey! what(?:'s up — what)? are you working on\?$/,
   /^what's up\?$/,
   /^Tell me a little more — what are you trying to do\?$/,
+  // v1.6 stub navigate/draft/watch/meta canned responses (see git history of
+  // apps/dashboard/src/app/api/home/turn/route.ts).
+  /^You can open that from the left nav\. Want me to take you there\?$/,
+  /^Drafting now — give me one second\.$/,
+  /^I'll watch for it and surface anything that shows up\.$/,
+  /^That's a settings\/memory question — opening the right place\.$/,
 ];
 
 function turnTextBlob(turn: HomeTurn): string {
