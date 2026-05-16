@@ -62,6 +62,52 @@ vi.mock("@/lib/supabase/server", () => ({
   })),
 }));
 
+// Real-dep factories: each has its own unit test file. Here we mock them
+// so the route test focuses on pre-stream branches and stream lifecycle.
+vi.mock("@/lib/secrets/anthropic-client", () => ({
+  getAnthropicClient: vi.fn(async () => ({
+    ok: true,
+    client: {},
+    costAttribution: "tenant_byok",
+  })),
+}));
+vi.mock("@/lib/home/real-context", () => ({
+  retrieveHomeContext: vi.fn(async () => ({ workspaceName: "test", rows: [] })),
+  makeBuildContextFromRetrieval: vi.fn(
+    () =>
+      async (input: {
+        tenantId: string;
+        actorId: string | null;
+        role: string;
+        userInput: string;
+        recent: Array<{ role: "user" | "agent"; text: string }>;
+      }) => ({
+        tenantId: input.tenantId,
+        actorId: input.actorId,
+        role: input.role,
+        rolePack: { voice: "", vendors: [], decisions: [], glossary: {} },
+        buffer: {
+          kind: "conversation" as const,
+          turns: input.recent,
+          userInput: input.userInput,
+        },
+        alwaysOn: { memoryIndexExcerpt: "", workspaceName: "test" },
+      }),
+  ),
+  retrievedMemoryIdsOf: vi.fn(() => []),
+}));
+vi.mock("@/lib/home/real-classify", () => ({
+  makeRealClassify: vi.fn(() => async () => ({ intent: "unclear" })),
+}));
+vi.mock("@/lib/home/real-invoke", () => ({
+  makeRealInvokeLlm: vi.fn(
+    () => async () => ({ text: "stub reply", toolCalls: [], tokens: 100 }),
+  ),
+}));
+vi.mock("@/lib/home/tool-impls", () => ({
+  makeHomeToolExecutor: vi.fn(() => async () => ({ ok: true, result: {} })),
+}));
+
 import { POST } from "./route";
 
 function makeReq(body: unknown): Request {
