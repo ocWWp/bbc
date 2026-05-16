@@ -84,10 +84,19 @@ function turnToVm(t: HomeTurn): TurnViewModel {
   const citations = Array.isArray(content.citations)
     ? (content.citations as unknown[]).filter((x): x is string => typeof x === "string")
     : [];
+  // A persisted turn with status='in_progress' is necessarily stale —
+  // the SSE stream that would have advanced it died (browser closed,
+  // server restart, network drop). Migration 0045 introduced this status
+  // exactly so a mid-stream refresh shows "interrupted" rather than a
+  // mute partial-text bubble. Surface that intent at the UI boundary by
+  // mapping in_progress → aborted on hydration. Live turns produced
+  // locally inside ChatHome never pass through this function.
+  const status: TurnViewModel["status"] =
+    t.status === "in_progress" ? "aborted" : t.status;
   return {
     id: t.id,
     role: t.role,
-    status: t.status,
+    status,
     text: typeof content.text === "string" ? content.text : "",
     toolCalls,
     citations,
