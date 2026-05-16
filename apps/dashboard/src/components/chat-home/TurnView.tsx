@@ -56,7 +56,7 @@ export function TurnView({ turn }: { turn: TurnViewModel }) {
             className={
               isUser
                 ? "whitespace-pre-wrap text-sm leading-relaxed"
-                : "whitespace-pre-wrap text-base leading-relaxed text-foreground"
+                : "whitespace-pre-wrap text-sm leading-relaxed text-foreground"
             }
           >
             {turn.text}
