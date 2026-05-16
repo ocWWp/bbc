@@ -15,6 +15,7 @@ import { requireActor, requireRole } from "@/lib/auth/require-user";
 import {
   appendTurn,
   createSession,
+  deriveTitle,
   finalizeTurn,
   getSessionWithTurns,
   softDeleteSession,
@@ -222,9 +223,31 @@ async function postImpl(req: NextRequest) {
     status: "completed" as "completed" | "aborted" | "failed",
     errorMsg: undefined as string | undefined,
   };
+  // Pre-compute the derived title for the session-created event so we emit
+  // exactly the same string that was just written to the DB (deriveTitle is
+  // pure, so this matches the updateSessionTitle write above).
+  const newSessionTitle = isNewSession ? deriveTitle(userText) : "";
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      const writeSse = (e: SseEvent) => {
+        try {
+          controller.enqueue(encoder.encode(encodeSse(e)));
+        } catch {
+          // controller already closed — abort path raced ahead.
+        }
+      };
+
+      // Emit session-created as the very first event so the client can
+      // update its URL (?session=<id>) before any text streams in. Skipped
+      // for existing sessions — the client already knows its sessionId.
+      if (isNewSession) {
+        writeSse({
+          event: "session-created",
+          data: { sessionId: session.id, title: newSessionTitle },
+        });
+      }
+
       const emit: Emit = (e) => {
         // Mirror SSE state into a local buffer so we can finalize the
         // assistant turn with the full content after the stream closes.
@@ -237,14 +260,16 @@ async function postImpl(req: NextRequest) {
           collected.citations.push({ id: e.data.memoryId, title: e.data.title ?? null });
         }
         if (e.event === "turn-end") {
+          // Intercept turn-end: capture status/error but do NOT forward to
+          // the stream. The route emits a single enriched turn-end after
+          // homeTurn resolves so we can include the post-finalize
+          // last_activity_at in one place rather than four (homeTurn happy,
+          // quota failure, route catch, anthropic-failure).
           collected.status = e.data.status;
           collected.errorMsg = e.data.error;
+          return;
         }
-        try {
-          controller.enqueue(encoder.encode(encodeSse(e)));
-        } catch {
-          // controller already closed — abort path raced ahead.
-        }
+        writeSse(e);
       };
 
       // Wire abort: when the client disconnects, mark the assistant turn
@@ -275,10 +300,31 @@ async function postImpl(req: NextRequest) {
 
       const supabase = await getSupabaseServerClient();
 
+      // Reads home_sessions.last_activity_at for the current session so we
+      // can include it in the final turn-end event. Best-effort — a failed
+      // read just omits the field (client falls back to local time).
+      const readLastActivityAt = async (): Promise<string | undefined> => {
+        try {
+          const { data } = await supabase
+            .from("home_sessions")
+            .select("last_activity_at")
+            .eq("id", session.id)
+            .maybeSingle();
+          const v = (data as { last_activity_at?: string } | null)
+            ?.last_activity_at;
+          return typeof v === "string" ? v : undefined;
+        } catch {
+          return undefined;
+        }
+      };
+
       const clientRes = await getAnthropicClient(supabase, actor.tenant_id);
       if (!clientRes.ok) {
         emit({ event: "text-delta", data: { delta: clientRes.error } });
-        emit({ event: "turn-end", data: { status: "failed", error: clientRes.error } });
+        // Mark failed via the same intercept path; the tail block below
+        // will emit the enriched turn-end and finalize.
+        collected.status = "failed";
+        collected.errorMsg = clientRes.error;
         try {
           await finalizeTurn(
             assistant.id,
@@ -292,6 +338,15 @@ async function postImpl(req: NextRequest) {
         } catch (finErr) {
           void finErr;
         }
+        const lastActivityAt = await readLastActivityAt();
+        writeSse({
+          event: "turn-end",
+          data: {
+            status: "failed",
+            error: clientRes.error,
+            ...(lastActivityAt ? { lastActivityAt } : {}),
+          },
+        });
         try {
           controller.close();
         } catch {
@@ -336,18 +391,6 @@ async function postImpl(req: NextRequest) {
       } catch (err) {
         collected.status = "failed";
         collected.errorMsg = err instanceof Error ? err.message : String(err);
-        try {
-          controller.enqueue(
-            encoder.encode(
-              encodeSse({
-                event: "turn-end",
-                data: { status: "failed", error: collected.errorMsg },
-              }),
-            ),
-          );
-        } catch {
-          /* already closed */
-        }
       } finally {
         req.signal.removeEventListener("abort", onAbort);
         // Don't double-finalize if abort already wrote 'aborted'.
@@ -365,6 +408,19 @@ async function postImpl(req: NextRequest) {
           } catch (finErr) {
             void finErr;
           }
+          // Emit the enriched turn-end AFTER finalize so the client knows
+          // the assistant row is durable when it sees turn-end. The
+          // lastActivityAt read is best-effort — the client falls back to
+          // local time if it's missing.
+          const lastActivityAt = await readLastActivityAt();
+          writeSse({
+            event: "turn-end",
+            data: {
+              status: collected.status,
+              ...(collected.errorMsg ? { error: collected.errorMsg } : {}),
+              ...(lastActivityAt ? { lastActivityAt } : {}),
+            },
+          });
         }
         try {
           controller.close();

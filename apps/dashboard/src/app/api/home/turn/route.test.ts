@@ -48,6 +48,17 @@ vi.mock("@/lib/home/sessions", () => ({
   finalizeTurn: sessionMocks.finalizeTurn,
   softDeleteSession: sessionMocks.softDeleteSession,
   updateSessionTitle: sessionMocks.updateSessionTitle,
+  // deriveTitle is a pure helper — use the real impl so the route emits
+  // the same title string that was just written to the DB.
+  deriveTitle: (text: string) => {
+    const collapsed = text.replace(/\s+/g, " ").trim();
+    if (collapsed.length === 0) return "(empty)";
+    if (collapsed.length <= 40) return collapsed;
+    const slice = collapsed.slice(0, 40);
+    const lastSpace = slice.lastIndexOf(" ");
+    if (lastSpace >= 20) return slice.slice(0, lastSpace) + "...";
+    return slice + "...";
+  },
 }));
 
 // Quota RPC happy-path stub. Real wiring is exercised in the RLS test;
@@ -62,6 +73,25 @@ vi.mock("@/lib/supabase/server", () => ({
         return { data: { ok: true }, error: null };
       }
       return { data: null, error: { message: `unmocked rpc: ${fn}` } };
+    }),
+    // The route reads home_sessions.last_activity_at after homeTurn so it
+    // can enrich the final turn-end. Return a fixed timestamp so tests
+    // can assert it lands in the event.
+    from: vi.fn((table: string) => {
+      const builder = {
+        select: vi.fn(() => builder),
+        eq: vi.fn(() => builder),
+        maybeSingle: vi.fn(async () => {
+          if (table === "home_sessions") {
+            return {
+              data: { last_activity_at: "2026-05-15T01:23:45Z" },
+              error: null,
+            };
+          }
+          return { data: null, error: null };
+        }),
+      };
+      return builder;
     }),
   })),
 }));
@@ -121,6 +151,20 @@ function makeReq(body: unknown): Request {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
+}
+
+async function drainStream(res: Response): Promise<string> {
+  if (!res.body) return "";
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let out = "";
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    out += decoder.decode(value, { stream: true });
+  }
+  return out;
 }
 
 const VALID_UUID = "11111111-2222-3333-4444-555555555555";
@@ -428,6 +472,60 @@ describe("POST /api/home/turn — pre-stream branches", () => {
     expect(sessionMocks.softDeleteSession).not.toHaveBeenCalled();
   });
 
+  it("emits session-created as the FIRST SSE event on a new session", async () => {
+    requireActorMock.mockResolvedValue({ ok: true, actor: adminActor() });
+    const res = await POST(makeReq({ userText: "draft thank you" }) as never);
+    expect(res.status).toBe(200);
+    const body = await drainStream(res);
+    // First event must be session-created.
+    const firstEventLine = body
+      .split("\n")
+      .find((l) => l.startsWith("event: "));
+    expect(firstEventLine).toBe("event: session-created");
+    // Payload carries the new sessionId + the derived title.
+    expect(body).toMatch(/event: session-created\ndata: \{[^}]*"sessionId":"new-session-1"/);
+    expect(body).toMatch(/event: session-created\ndata: \{[^}]*"title":"draft thank you"/);
+  });
+
+  it("does NOT emit session-created for existing sessions", async () => {
+    requireActorMock.mockResolvedValue({ ok: true, actor: adminActor() });
+    sessionMocks.getSessionWithTurns.mockResolvedValueOnce({
+      session: {
+        id: VALID_UUID,
+        tenant_id: "t1",
+        user_id: "u1",
+        started_at: "2026-05-15T00:00:00Z",
+        last_activity_at: "2026-05-15T00:00:00Z",
+        archived_at: null,
+      },
+      turns: [],
+    });
+    const res = await POST(
+      makeReq({ userText: "follow up", sessionId: VALID_UUID }) as never,
+    );
+    expect(res.status).toBe(200);
+    const body = await drainStream(res);
+    expect(body).not.toContain("event: session-created");
+  });
+
+  it("does NOT emit session-created when user-turn insert fails", async () => {
+    requireActorMock.mockResolvedValue({ ok: true, actor: adminActor() });
+    sessionMocks.appendTurn.mockRejectedValueOnce(new Error("db down"));
+    const res = await POST(makeReq({ userText: "hi" }) as never);
+    expect(res.status).toBe(500);
+    // No SSE body to read — but assert the response is JSON, not text/event-stream.
+    expect(res.headers.get("content-type")).not.toMatch(/text\/event-stream/);
+  });
+
+  it("emits turn-end with lastActivityAt at end of stream", async () => {
+    requireActorMock.mockResolvedValue({ ok: true, actor: adminActor() });
+    const res = await POST(makeReq({ userText: "hi" }) as never);
+    expect(res.status).toBe(200);
+    const body = await drainStream(res);
+    expect(body).toContain("event: turn-end");
+    expect(body).toMatch(/"lastActivityAt":"2026-05-15T01:23:45Z"/);
+  });
+
   it("opens an SSE response on the happy path", async () => {
     requireActorMock.mockResolvedValue({
       ok: true,
@@ -447,14 +545,7 @@ describe("POST /api/home/turn — pre-stream branches", () => {
     expect(res.headers.get("content-type")).toMatch(/text\/event-stream/);
 
     // Drain the stream and assert turn-end is the last event.
-    const reader = res.body!.getReader();
-    const decoder = new TextDecoder();
-    let combined = "";
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      combined += decoder.decode(value, { stream: true });
-    }
+    const combined = await drainStream(res);
     expect(combined).toContain("event: turn-end");
     expect(combined).toMatch(/"status":"completed"/);
   });
