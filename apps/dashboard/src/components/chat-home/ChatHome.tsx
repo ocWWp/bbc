@@ -24,9 +24,26 @@ export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProp
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const scrollAnchorRef = useRef<HTMLDivElement | null>(null);
+  // Don't fight the user — only auto-scroll if they're already pinned near
+  // the bottom. Updated on every wheel/touch via the scroll listener below.
+  const stickToBottomRef = useRef(true);
 
   useEffect(() => {
-    scrollAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    function onScroll() {
+      // 80px slack — counts as "at bottom" if within an input-bar height.
+      stickToBottomRef.current =
+        window.innerHeight + window.scrollY >= document.body.scrollHeight - 80;
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (!stickToBottomRef.current) return;
+    // "auto" beats "smooth" during streaming — smooth queues animations that
+    // stutter on each text-delta. The anchor's scrollMarginBottom lifts the
+    // viewport above the fixed composer bar (~76px + breathing room).
+    scrollAnchorRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
   }, [turns]);
 
   const send = useCallback(async () => {
@@ -170,7 +187,7 @@ export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProp
         ) : (
           turns.map((t) => <TurnView key={t.id} turn={t} />)
         )}
-        <div ref={scrollAnchorRef} />
+        <div ref={scrollAnchorRef} className="scroll-mb-40" />
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-background/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
