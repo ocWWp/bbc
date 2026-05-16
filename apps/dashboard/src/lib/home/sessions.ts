@@ -187,6 +187,53 @@ export function isNotStubTurn(turn: HomeTurn): boolean {
 }
 
 /**
+ * Returns the user's most recent non-archived session, or null if none.
+ *
+ * Read-only counterpart to `createSession` — callers decide whether to
+ * create a new session or land on the most recent one. This replaces the
+ * "find-or-create" behaviour of `getOrCreateActiveSession`; the chat
+ * history rail (PR-C) wants explicit per-session navigation.
+ */
+export async function getMostRecentSession(
+  tenantId: string,
+  userId: string,
+): Promise<HomeSession | null> {
+  const supabase = await getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("home_sessions")
+    .select("*")
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId)
+    .is("archived_at", null)
+    .order("last_activity_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`getMostRecentSession failed: ${error.message}`);
+  return (data as HomeSession | null) ?? null;
+}
+
+/**
+ * Creates a fresh /home session for the given (tenant, user). Caller is
+ * responsible for deciding when a new session should exist (e.g. "+ New
+ * chat" click or no current sessionId on first message).
+ */
+export async function createSession(
+  tenantId: string,
+  userId: string,
+): Promise<HomeSession> {
+  const supabase = await getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("home_sessions")
+    .insert({ tenant_id: tenantId, user_id: userId })
+    .select("*")
+    .single();
+  if (error || !data) {
+    throw new Error(`createSession failed: ${error?.message ?? "no row"}`);
+  }
+  return data as HomeSession;
+}
+
+/**
  * Derive a short, human-readable session title from the first user message.
  * Used by the rail (PR-C) and the title-on-first-turn write path. Pure —
  * no DB. Collapses whitespace, trims, caps at ~40 chars, prefers word
