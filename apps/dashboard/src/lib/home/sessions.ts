@@ -187,6 +187,44 @@ export function isNotStubTurn(turn: HomeTurn): boolean {
 }
 
 /**
+ * Lite shape returned by `listSessions`. Used by the chat-history rail —
+ * we deliberately don't ship full HomeSession rows because the rail only
+ * renders the id, the title, and the recency timestamp.
+ */
+export type SessionRailItem = {
+  id: string;
+  title: string;
+  last_activity_at: string;
+};
+
+/**
+ * Returns every non-archived session for (tenant, user) in reverse-chron
+ * order, with a `(empty)` fallback for null titles. Cheap rail-side query:
+ * uses the `home_sessions_user_recent` index and only selects three columns.
+ * The COALESCE happens in TS — supabase-js `.select()` doesn't accept raw
+ * SQL expressions.
+ */
+export async function listSessions(
+  tenantId: string,
+  userId: string,
+): Promise<SessionRailItem[]> {
+  const supabase = await getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("home_sessions")
+    .select("id, title, last_activity_at")
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId)
+    .is("archived_at", null)
+    .order("last_activity_at", { ascending: false });
+  if (error) throw new Error(`listSessions failed: ${error.message}`);
+  return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+    id: r.id as string,
+    title: (r.title as string | null) ?? "(empty)",
+    last_activity_at: r.last_activity_at as string,
+  }));
+}
+
+/**
  * Reads a session by id, strictly gated on (tenant_id, user_id, not-archived).
  * Returns null when not found, foreign-tenant, or archived — no error.
  *

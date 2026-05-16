@@ -522,6 +522,104 @@ describe("getSessionWithTurns", () => {
   });
 });
 
+describe("listSessions", () => {
+  it("returns empty array when user has no sessions", async () => {
+    expect(await listSessions("t1", "u1")).toEqual([]);
+  });
+
+  it("returns reverse-chron by last_activity_at", async () => {
+    stub = makeSupabaseStub({
+      sessions: [
+        {
+          id: "older",
+          tenant_id: "t1",
+          user_id: "u1",
+          archived_at: null,
+          title: "older",
+          last_activity_at: "2026-05-10T00:00:00Z",
+        },
+        {
+          id: "newer",
+          tenant_id: "t1",
+          user_id: "u1",
+          archived_at: null,
+          title: "newer",
+          last_activity_at: "2026-05-15T00:00:00Z",
+        },
+      ],
+    });
+    const out = await listSessions("t1", "u1");
+    expect(out.map((r) => r.id)).toEqual(["newer", "older"]);
+    expect(stub._state.lastSelectOrder).toEqual({
+      col: "last_activity_at",
+      ascending: false,
+    });
+  });
+
+  it("excludes archived sessions", async () => {
+    stub = makeSupabaseStub({
+      sessions: [
+        {
+          id: "active",
+          tenant_id: "t1",
+          user_id: "u1",
+          archived_at: null,
+          title: "alive",
+          last_activity_at: "2026-05-15T00:00:00Z",
+        },
+        {
+          id: "dead",
+          tenant_id: "t1",
+          user_id: "u1",
+          archived_at: "2026-05-14T00:00:00Z",
+          title: "gone",
+          last_activity_at: "2026-05-14T00:00:00Z",
+        },
+      ],
+    });
+    const out = await listSessions("t1", "u1");
+    expect(out.map((r) => r.id)).toEqual(["active"]);
+    expect(stub._state.lastSelectIsNullCol).toBe("archived_at");
+  });
+
+  it("applies '(empty)' fallback when title is null", async () => {
+    stub = makeSupabaseStub({
+      sessions: [
+        {
+          id: "untitled",
+          tenant_id: "t1",
+          user_id: "u1",
+          archived_at: null,
+          title: null,
+          last_activity_at: "2026-05-15T00:00:00Z",
+        },
+      ],
+    });
+    const out = await listSessions("t1", "u1");
+    expect(out[0].title).toBe("(empty)");
+  });
+
+  it("returns only {id, title, last_activity_at} keys", async () => {
+    stub = makeSupabaseStub({
+      sessions: [
+        {
+          id: "s",
+          tenant_id: "t1",
+          user_id: "u1",
+          archived_at: null,
+          title: "hello",
+          last_activity_at: "2026-05-15T00:00:00Z",
+          started_at: "2026-05-15T00:00:00Z",
+        },
+      ],
+    });
+    const out = await listSessions("t1", "u1");
+    expect(Object.keys(out[0]).sort()).toEqual(
+      ["id", "last_activity_at", "title"].sort(),
+    );
+  });
+});
+
 describe("deriveTitle", () => {
   it("returns '(empty)' for empty string", () => {
     expect(deriveTitle("")).toBe("(empty)");
