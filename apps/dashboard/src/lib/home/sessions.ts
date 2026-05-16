@@ -187,6 +187,31 @@ export function isNotStubTurn(turn: HomeTurn): boolean {
 }
 
 /**
+ * Soft-deletes a session by setting `archived_at` to now, gated on
+ * (tenant_id, user_id) plus an `archived_at IS NULL` predicate so the
+ * caller can never archive someone else's row and can never double-archive.
+ * Throws when 0 rows match (foreign tenant, not-found, or already archived).
+ */
+export async function softDeleteSession(
+  sessionId: string,
+  tenantId: string,
+  userId: string,
+): Promise<void> {
+  const supabase = await getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("home_sessions")
+    .update({ archived_at: new Date().toISOString() })
+    .eq("id", sessionId)
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId)
+    .is("archived_at", null)
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(`softDeleteSession failed: ${error.message}`);
+  if (!data) throw new Error(`softDeleteSession: no rows matched`);
+}
+
+/**
  * Lite shape returned by `listSessions`. Used by the chat-history rail —
  * we deliberately don't ship full HomeSession rows because the rail only
  * renders the id, the title, and the recency timestamp.

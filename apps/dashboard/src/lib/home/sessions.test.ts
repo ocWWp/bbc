@@ -620,6 +620,49 @@ describe("listSessions", () => {
   });
 });
 
+describe("softDeleteSession", () => {
+  function sessRow(over: Partial<Row> = {}): Row {
+    return {
+      id: "s1",
+      tenant_id: "t1",
+      user_id: "u1",
+      archived_at: null,
+      last_activity_at: "2026-05-15T00:00:00Z",
+      ...over,
+    };
+  }
+
+  it("sets archived_at on owned non-archived row", async () => {
+    stub = makeSupabaseStub({ sessions: [sessRow()] });
+    await softDeleteSession("s1", "t1", "u1");
+    expect(stub._state.lastUpdateTable).toBe("home_sessions");
+    expect((stub._state.lastUpdatePatch as Row).archived_at).toBeTypeOf("string");
+    expect(stub._state.lastUpdateFilters).toEqual({
+      id: "s1",
+      tenant_id: "t1",
+      user_id: "u1",
+    });
+    expect(stub._state.lastUpdateIsNullCol).toBe("archived_at");
+    expect((stub._state.sessions[0] as Row).archived_at).toBeTypeOf("string");
+  });
+
+  it("throws when 0 rows match (foreign tenant)", async () => {
+    stub = makeSupabaseStub({ sessions: [sessRow()] });
+    await expect(softDeleteSession("s1", "wrong-tenant", "u1")).rejects.toThrow(
+      /no rows matched/,
+    );
+  });
+
+  it("throws when the row is already archived", async () => {
+    stub = makeSupabaseStub({
+      sessions: [sessRow({ archived_at: "2026-05-14T00:00:00Z" })],
+    });
+    await expect(softDeleteSession("s1", "t1", "u1")).rejects.toThrow(
+      /no rows matched/,
+    );
+  });
+});
+
 describe("deriveTitle", () => {
   it("returns '(empty)' for empty string", () => {
     expect(deriveTitle("")).toBe("(empty)");
