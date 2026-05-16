@@ -82,6 +82,7 @@ declare
   c_default_signals  constant int := 10;
   c_orphan_window    constant interval := interval '5 minutes';
 
+  v_user           uuid := auth.uid();
   v_q              public.tenant_quotas%rowtype;
   v_signals_live   int;
   v_reservation_id uuid;
@@ -93,6 +94,16 @@ declare
   v_max_runs       int;
   v_max_signals    int;
 begin
+  -- Auth + tenant-membership guard. Migration 0050 added this on the
+  -- pre-override version of reserve_quota; carry it forward so any
+  -- signed-in user can't burn an arbitrary tenant's budget.
+  if v_user is null then
+    raise exception 'unauthorized: sign in required' using errcode = 'P0002';
+  end if;
+  if not public.is_member_of(p_tenant_id) then
+    raise exception 'forbidden: not a member of tenant' using errcode = 'P0003';
+  end if;
+
   if v_today is null then
     raise exception 'unexpected: current_date null';
   end if;
