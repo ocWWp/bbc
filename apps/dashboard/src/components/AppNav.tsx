@@ -130,6 +130,31 @@ export function AppNav({
 }: AppNavProps) {
   const pathname = usePathname() || "";
   const routes = routesForRole(workspace?.role ?? null, workspace?.templateSlug ?? null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const mobileWrapRef = useRef<HTMLDivElement>(null);
+
+  // Close mobile menu on route change.
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    function onDown(e: MouseEvent) {
+      if (mobileWrapRef.current && !mobileWrapRef.current.contains(e.target as Node)) {
+        setMobileOpen(false);
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setMobileOpen(false);
+    }
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [mobileOpen]);
 
   return (
     <header className="app-nav">
@@ -164,6 +189,53 @@ export function AppNav({
             );
           })}
         </nav>
+
+        <div ref={mobileWrapRef} className="app-nav-burger-wrap">
+          <button
+            type="button"
+            className="app-nav-burger"
+            aria-label="Open menu"
+            aria-expanded={mobileOpen}
+            aria-haspopup="menu"
+            onClick={() => setMobileOpen((o) => !o)}
+            data-testid="app-nav-burger"
+          >
+            {/* 16px stacked rules — matches the 32×32 button slot. */}
+            <svg width="16" height="12" viewBox="0 0 16 12" aria-hidden="true">
+              <rect width="16" height="2" rx="1" fill="currentColor" />
+              <rect y="5" width="16" height="2" rx="1" fill="currentColor" />
+              <rect y="10" width="16" height="2" rx="1" fill="currentColor" />
+            </svg>
+          </button>
+          {mobileOpen && (
+            <div className="app-nav-burger-pop" role="menu" data-testid="app-nav-burger-pop">
+              {workspace && (
+                <div className="app-nav-burger-ws">
+                  <span className="ws-dot" />
+                  <span>{workspace.name}</span>
+                  <span className="mono" style={{ color: "var(--paper-muted)" }}>
+                    / {workspace.role}
+                  </span>
+                </div>
+              )}
+              {routes.map((r) => {
+                const active = r.match(pathname);
+                const showBadge = r.badge === "pending" && pendingCount > 0;
+                return (
+                  <Link
+                    key={r.key}
+                    href={r.href}
+                    className={`app-nav-burger-item ${active ? "is-active" : ""}`}
+                    role="menuitem"
+                  >
+                    {r.label}
+                    {showBadge ? <span className="badge">{pendingCount}</span> : null}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         <div className="app-nav-right">
           <div className="app-search" aria-hidden>
