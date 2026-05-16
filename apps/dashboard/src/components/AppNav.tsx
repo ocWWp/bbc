@@ -159,7 +159,7 @@ export function AppNav({
   return (
     <header className="app-nav">
       <div className="container app-nav-inner">
-        <Link href="/queue" className="brand">
+        <Link href="/home" className="brand">
           <span className="brand-mark">bbc</span>
           <span className="brand-word">big brain company</span>
         </Link>

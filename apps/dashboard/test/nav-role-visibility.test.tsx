@@ -138,4 +138,16 @@ describe("AppNav — role-aware route visibility", () => {
     );
     expect(screen.getByText("3")).toBeDefined();
   });
+
+  it("brand link points at /home (universal back-to-home convention)", () => {
+    render(
+      <AppNav
+        pendingCount={0}
+        user={baseUser}
+        workspace={workspace("admin", "marketing")}
+      />,
+    );
+    const brand = screen.getByText("big brain company").closest("a");
+    expect(brand?.getAttribute("href")).toBe("/home");
+  });
 });
