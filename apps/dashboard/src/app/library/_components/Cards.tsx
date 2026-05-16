@@ -85,11 +85,14 @@ export type LibCardProps = {
   item: LibItem;
   focused?: boolean;
   installingId?: string | null;
+  /** When false, the install/uninstall button is hidden and the card is
+   *  catalog-only. "installed ✓" / "connected ✓" badges still show real state. */
+  installEnabled?: boolean;
   onOpen: (item: LibItem) => void;
   onInstall: (item: LibItem) => void;
 };
 
-export function LibCard({ item, focused, installingId, onOpen, onInstall }: LibCardProps) {
+export function LibCard({ item, focused, installingId, installEnabled = false, onOpen, onInstall }: LibCardProps) {
   const installed = isInstalled(item);
   const installing = installingId === item.id;
   const roleColor = roleColorFor(item);
@@ -207,27 +210,36 @@ export function LibCard({ item, focused, installingId, onOpen, onInstall }: LibC
           )}
           {isProvider(item) && <span>env · {item.env}</span>}
         </div>
-        <button
-          type="button"
-          className={`install ${installed ? "is-installed" : ""} ${installing ? "is-installing" : ""}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            onInstall(item);
-          }}
-          aria-label={`${installed ? "Open" : "Install"} ${item.name}`}
-        >
-          {installing ? (
-            <>
-              <span className="lib-spinner" /> installing…
-            </>
-          ) : installed ? (
-            <>
-              <Icons.check /> {isProvider(item) ? "connected" : "installed"}
-            </>
-          ) : (
-            "install"
-          )}
-        </button>
+        {installEnabled ? (
+          <button
+            type="button"
+            className={`install ${installed ? "is-installed" : ""} ${installing ? "is-installing" : ""}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onInstall(item);
+            }}
+            aria-label={`${installed ? "Open" : "Install"} ${item.name}`}
+          >
+            {installing ? (
+              <>
+                <span className="lib-spinner" /> installing…
+              </>
+            ) : installed ? (
+              <>
+                <Icons.check /> {isProvider(item) ? "connected" : "installed"}
+              </>
+            ) : (
+              "install"
+            )}
+          </button>
+        ) : installed ? (
+          <span
+            className="install is-installed"
+            aria-label={`${item.name} is ${isProvider(item) ? "connected" : "installed"}`}
+          >
+            <Icons.check /> {isProvider(item) ? "connected" : "installed"}
+          </span>
+        ) : null}
       </div>
     </div>
   );
@@ -241,9 +253,11 @@ export type RecCardProps = {
   /** Optional dismiss handler. When omitted (legacy callers, tests), the
    *  dismiss control is hidden so the card behaves as before. */
   onDismiss?: () => void;
+  /** When false, the install CTA is hidden. See LibCard for the rationale. */
+  installEnabled?: boolean;
 };
 
-export function RecCard({ item, why, onOpen, onInstall, onDismiss }: RecCardProps) {
+export function RecCard({ item, why, onOpen, onInstall, onDismiss, installEnabled = false }: RecCardProps) {
   const roleColor = roleColorFor(item);
   const style: RoleColorStyle = { "--role-color": roleColor };
   return (
@@ -281,16 +295,18 @@ export function RecCard({ item, why, onOpen, onInstall, onDismiss }: RecCardProp
         <span className="by mono" style={{ fontSize: 11, color: "var(--paper-muted)" }}>
           by {item.author}
         </span>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={(e) => {
-            e.stopPropagation();
-            onInstall(item);
-          }}
-        >
-          install
-        </button>
+        {installEnabled && (
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={(e) => {
+              e.stopPropagation();
+              onInstall(item);
+            }}
+          >
+            install
+          </button>
+        )}
       </div>
     </div>
   );

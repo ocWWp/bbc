@@ -68,9 +68,12 @@ export type DetailDrawerProps = {
   installingId?: string | null;
   onClose: () => void;
   onInstall: (item: LibItem) => void;
+  /** When false (current v1.7 default), install/uninstall CTAs are hidden.
+   *  The drawer remains a useful catalog detail view. */
+  installEnabled?: boolean;
 };
 
-export function DetailDrawer({ item, installingId, onClose, onInstall }: DetailDrawerProps) {
+export function DetailDrawer({ item, installingId, onClose, onInstall, installEnabled = false }: DetailDrawerProps) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -339,43 +342,47 @@ export function DetailDrawer({ item, installingId, onClose, onInstall }: DetailD
               </>
             )}
           </div>
-          {installed && isSkill(item) && (
-            <button type="button" className="btn btn-ghost">
-              open in studio →
-            </button>
+          {installEnabled && (
+            <>
+              {installed && isSkill(item) && (
+                <button type="button" className="btn btn-ghost">
+                  open in studio →
+                </button>
+              )}
+              {installed && isConnector(item) && (
+                <button type="button" className="btn btn-ghost">
+                  open settings →
+                </button>
+              )}
+              <button
+                type="button"
+                className="btn btn-primary btn-lg"
+                onClick={() => onInstall(item)}
+                aria-label={`${installed ? "Uninstall" : "Install"} ${item.name}`}
+                style={
+                  installed
+                    ? { background: "transparent", color: "var(--ink)", border: "1px solid var(--rule-2)" }
+                    : undefined
+                }
+              >
+                {installing ? (
+                  <>
+                    <span className="lib-spinner" /> installing…
+                  </>
+                ) : installed ? (
+                  isProvider(item) ? (
+                    "disconnect"
+                  ) : (
+                    "uninstall"
+                  )
+                ) : isProvider(item) ? (
+                  "connect"
+                ) : (
+                  "install"
+                )}
+              </button>
+            </>
           )}
-          {installed && isConnector(item) && (
-            <button type="button" className="btn btn-ghost">
-              open settings →
-            </button>
-          )}
-          <button
-            type="button"
-            className="btn btn-primary btn-lg"
-            onClick={() => onInstall(item)}
-            aria-label={`${installed ? "Uninstall" : "Install"} ${item.name}`}
-            style={
-              installed
-                ? { background: "transparent", color: "var(--ink)", border: "1px solid var(--rule-2)" }
-                : undefined
-            }
-          >
-            {installing ? (
-              <>
-                <span className="lib-spinner" /> installing…
-              </>
-            ) : installed ? (
-              isProvider(item) ? (
-                "disconnect"
-              ) : (
-                "uninstall"
-              )
-            ) : isProvider(item) ? (
-              "connect"
-            ) : (
-              "install"
-            )}
-          </button>
         </div>
       </aside>
     </>
