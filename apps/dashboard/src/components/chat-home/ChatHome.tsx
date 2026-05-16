@@ -213,7 +213,13 @@ export function ChatHome({
     // for every motion component nested below — turn enter, action card
     // enter, button press, chip hover. No per-component opt-in needed.
     <MotionConfig reducedMotion="user">
-    <div className="home-pilot" data-testid="chat-home">
+    {/*
+      `.home-pilot` lives on HomeClient's root wrapper so its design tokens
+      reach both the chat-history rail AND this chat surface. The inner
+      `chat-home` testid stays here for tests + scoped CSS that targets the
+      chat subtree specifically (e.g. turn-spacing rules).
+    */}
+    <div data-testid="chat-home">
     <div className="container page">
       {/*
         Chat-app feel per F15: the page-title was redundant with the
@@ -291,7 +297,12 @@ export function ChatHome({
         <div ref={scrollAnchorRef} className="scroll-mb-40" />
       </div>
 
-      <div className="home-composer fixed inset-x-0 bottom-0 z-10 border-t border-border bg-background/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      {/*
+        Composer stays `fixed` for the streaming UX PR-B chose, but on md+
+        we offset its left edge by the 260px session rail so it no longer
+        sits across the rail column (PR-C M26 codex fix).
+      */}
+      <div className="home-composer fixed inset-x-0 md:left-[260px] bottom-0 z-10 border-t border-border bg-background/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="mx-auto flex w-full max-w-3xl items-end gap-2">
           <textarea
             className="min-h-[44px] max-h-[160px] flex-1 resize-none rounded-xl border border-border bg-card px-4 py-2.5 text-sm leading-relaxed shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"

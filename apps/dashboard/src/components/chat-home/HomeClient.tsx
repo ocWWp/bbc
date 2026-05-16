@@ -86,18 +86,24 @@ export function HomeClient({
   );
 
   return (
-    <SessionRailShell
-      rail={<SessionRail sessions={sessions} currentSessionId={sessionId} />}
-      onDelete={handleDelete}
-    >
-      <ChatHome
-        key={sessionId ?? "new"}
-        sessionId={sessionId}
-        greeting={greeting}
-        initialTurns={initialTurns}
-        watching={watching}
-        abortRef={abortRef}
-      />
-    </SessionRailShell>
+    // `.home-pilot` lifted up so the design tokens + scoped CSS (including
+    // the `.session-rail` styles in globals.css) wrap BOTH the rail and the
+    // chat surface. With the rail mounted as a sibling of ChatHome under
+    // SessionRailShell, an inner-only `.home-pilot` left the rail unstyled.
+    <div className="home-pilot" data-testid="home-pilot">
+      <SessionRailShell
+        rail={<SessionRail sessions={sessions} currentSessionId={sessionId} />}
+        onDelete={handleDelete}
+      >
+        <ChatHome
+          key={sessionId ?? "new"}
+          sessionId={sessionId}
+          greeting={greeting}
+          initialTurns={initialTurns}
+          watching={watching}
+          abortRef={abortRef}
+        />
+      </SessionRailShell>
+    </div>
   );
 }
