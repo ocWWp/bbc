@@ -76,4 +76,47 @@ describe("ChatHome — composer", () => {
     // Agent text-delta accumulates and the stream ends → completed status.
     await waitFor(() => expect(screen.getByText("Hello back.")).toBeDefined());
   });
+
+  it("populates the composer when an example prompt chip is clicked (F6)", () => {
+    render(<ChatHome greeting={GREETING} initialTurns={[]} />);
+    const explainChip = screen.getByTestId("example-prompt-explain");
+    fireEvent.click(explainChip);
+    const input = screen.getByTestId("composer-input") as HTMLTextAreaElement;
+    // The chip prompt has been loaded; user can edit before sending.
+    expect(input.value.length).toBeGreaterThan(0);
+    expect(input.value).toMatch(/voice and tone/i);
+    // Send becomes enabled.
+    const send = screen.getByTestId("composer-send") as HTMLButtonElement;
+    expect(send.disabled).toBe(false);
+  });
+
+  it("posts the chip prompt verbatim when send fires in the same tick (F6 race)", async () => {
+    // Codex flagged: click-then-send-in-same-event-loop may post stale
+    // draft. Verify the React state update is visible to send() by the
+    // time the click handler returns.
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(
+            `event: turn-end\ndata: ${JSON.stringify({ status: "completed" })}\n\n`,
+          ),
+        );
+        controller.close();
+      },
+    });
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(
+      new Response(stream, {
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+      }),
+    );
+    render(<ChatHome greeting={GREETING} initialTurns={[]} />);
+    fireEvent.click(screen.getByTestId("example-prompt-navigate"));
+    fireEvent.click(screen.getByTestId("composer-send"));
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
+    const callArgs = fetchSpy.mock.calls[0]!;
+    const body = JSON.parse(String(callArgs[1]?.body));
+    expect(body.userText).toMatch(/api keys/i);
+  });
 });
