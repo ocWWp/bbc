@@ -11,7 +11,7 @@ import {
   type SseEvent,
 } from "@/lib/agent";
 import { classifyIntent } from "@/lib/agent/classify";
-import { requireActor } from "@/lib/auth/require-user";
+import { requireActor, requireRole } from "@/lib/auth/require-user";
 import {
   appendTurn,
   finalizeTurn,
@@ -76,11 +76,15 @@ export async function POST(req: NextRequest) {
 }
 
 async function postImpl(req: NextRequest) {
-  const actorRes = await requireActor();
-  if (!actorRes.ok) {
-    return new Response("unauthorized", { status: 401 });
+  const auth = await requireActor();
+  if (!auth.ok) {
+    return Response.json({ error: "unauth" }, { status: 401 });
   }
-  const actor = actorRes.actor;
+  const roleCheck = requireRole(auth.actor, "admin");
+  if (!roleCheck.ok) {
+    return Response.json({ error: "forbidden" }, { status: 403 });
+  }
+  const actor = auth.actor;
 
   let body: PostBody = {};
   try {

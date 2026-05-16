@@ -10,6 +10,18 @@ const { requireActorMock } = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/auth/require-user", () => ({
   requireActor: requireActorMock,
+  requireRole: (actor: { role: string }, min: string) => {
+    const rank: Record<string, number> = {
+      viewer: 0,
+      member: 1,
+      operator: 2,
+      admin: 3,
+    };
+    if (rank[actor.role] < rank[min]) {
+      return { ok: false, output: `forbidden: requires ${min}` };
+    }
+    return { ok: true };
+  },
 }));
 
 // Stub the session helpers so the route doesn't try to hit Supabase
@@ -130,7 +142,7 @@ describe("POST /api/home/turn — pre-stream branches", () => {
     expect(res.status).toBe(401);
   });
 
-  it("returns 400 when userText is missing or blank", async () => {
+  it("returns 403 when actor is not admin", async () => {
     requireActorMock.mockResolvedValue({
       ok: true,
       actor: {
@@ -141,6 +153,24 @@ describe("POST /api/home/turn — pre-stream branches", () => {
         actor: "human:github:alice",
         tenant_slug: "acme",
         role: "operator",
+        templateSlug: null,
+      },
+    });
+    const res = await POST(makeReq({ userText: "hi" }) as never);
+    expect(res.status).toBe(403);
+  });
+
+  it("returns 400 when userText is missing or blank", async () => {
+    requireActorMock.mockResolvedValue({
+      ok: true,
+      actor: {
+        user_id: "u1",
+        tenant_id: "t1",
+        provider: "github",
+        identifier: "alice",
+        actor: "human:github:alice",
+        tenant_slug: "acme",
+        role: "admin",
         templateSlug: null,
       },
     });
@@ -158,7 +188,7 @@ describe("POST /api/home/turn — pre-stream branches", () => {
         identifier: "alice",
         actor: "human:github:alice",
         tenant_slug: "acme",
-        role: "operator",
+        role: "admin",
         templateSlug: null,
       },
     });
@@ -181,7 +211,7 @@ describe("POST /api/home/turn — pre-stream branches", () => {
         identifier: "alice",
         actor: "human:github:alice",
         tenant_slug: "acme",
-        role: "operator",
+        role: "admin",
         templateSlug: null,
       },
     });
