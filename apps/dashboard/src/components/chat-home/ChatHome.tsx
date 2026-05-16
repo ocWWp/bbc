@@ -179,12 +179,31 @@ export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProp
 
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 pb-32">
         {empty ? (
-          <div
-            className="rounded-2xl border border-dashed border-border bg-muted/20 p-6 text-base leading-relaxed text-muted-foreground"
-            data-testid="empty-greeting"
-          >
-            {greeting}
-          </div>
+          <>
+            <div
+              className="rounded-2xl border border-dashed border-border bg-muted/20 p-6 text-base leading-relaxed text-muted-foreground"
+              data-testid="empty-greeting"
+            >
+              {greeting}
+            </div>
+            <div
+              className="flex flex-wrap gap-2"
+              data-testid="example-prompts"
+            >
+              {EXAMPLE_PROMPTS.map((p) => (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => setDraft(p.prompt)}
+                  className="rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                  data-testid={`example-prompt-${p.intent}`}
+                >
+                  <span className="font-medium text-foreground/80">{p.label}</span>
+                  <span className="ml-1.5 opacity-60">{p.hint}</span>
+                </button>
+              ))}
+            </div>
+          </>
         ) : (
           turns.map((t) => <TurnView key={t.id} turn={t} />)
         )}
@@ -322,3 +341,32 @@ function markAborted(
     ),
   );
 }
+
+// Shown only in the empty/greeting state. Each chip maps to one of the
+// three shipped conversational intents (explain / navigate / draft) so
+// clicking through always lands on a working tool path — never a stub.
+const EXAMPLE_PROMPTS: ReadonlyArray<{
+  intent: "explain" | "navigate" | "draft";
+  label: string;
+  hint: string;
+  prompt: string;
+}> = [
+  {
+    intent: "explain",
+    label: "Explain",
+    hint: "what did we decide about voice?",
+    prompt: "What did we decide about voice and tone?",
+  },
+  {
+    intent: "navigate",
+    label: "Navigate",
+    hint: "where do I manage API keys?",
+    prompt: "Where do I manage API keys?",
+  },
+  {
+    intent: "draft",
+    label: "Draft",
+    hint: "a tweet about this week's progress",
+    prompt: "Draft a tweet about this week's progress.",
+  },
+];
