@@ -26,6 +26,15 @@ export type ChatHomeProps = {
    * knows whether to start a new session or append to an existing one.
    */
   sessionId?: string | null;
+  /**
+   * Optional externally-owned ref to ChatHome's current AbortController.
+   * When provided, ChatHome assigns its in-flight controller to this ref
+   * whenever a fetch starts. The parent (HomeClient, M23) reads from it
+   * to tear down a live stream the moment the user deletes the current
+   * session — ChatHome's own `catch (AbortError)` then marks the
+   * in-progress turn as aborted in local state.
+   */
+  abortRef?: React.MutableRefObject<AbortController | null>;
 };
 
 export function ChatHome({
@@ -33,6 +42,7 @@ export function ChatHome({
   initialTurns,
   watching = [],
   sessionId = null,
+  abortRef: externalAbortRef,
 }: ChatHomeProps) {
   const router = useRouter();
   const [turns, setTurns] = useState<TurnViewModel[]>(initialTurns);
@@ -107,6 +117,9 @@ export function ChatHome({
 
     const abort = new AbortController();
     abortRef.current = abort;
+    // Mirror to the parent-owned ref so a live-delete handler (M23) can
+    // tear the stream down without going through the composer's Stop button.
+    if (externalAbortRef) externalAbortRef.current = abort;
     setStreaming(true);
 
     try {
@@ -165,6 +178,7 @@ export function ChatHome({
       }
     } finally {
       abortRef.current = null;
+      if (externalAbortRef) externalAbortRef.current = null;
       setStreaming(false);
       // After streaming ends, drop the streaming cursor on the agent turn.
       setTurns((prev) =>
@@ -186,7 +200,7 @@ export function ChatHome({
         router.refresh();
       }
     }
-  }, [draft, streaming, sessionId, router]);
+  }, [draft, streaming, sessionId, router, externalAbortRef]);
 
   const cancel = useCallback(() => {
     abortRef.current?.abort();

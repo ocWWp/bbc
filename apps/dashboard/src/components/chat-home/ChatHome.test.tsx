@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { createRef } from "react";
 import { describe, expect, it, afterEach, vi, beforeEach } from "vitest";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 
@@ -304,6 +305,83 @@ describe("ChatHome — composer", () => {
     await waitFor(() => expect(screen.getByText("hi")).toBeDefined());
     unmount();
     expect(abortSpy).toHaveBeenCalled();
+  });
+
+  it("assigns the in-flight controller to the parent abortRef (PR-C M22)", async () => {
+    // Stream that doesn't close — gives us time to inspect the ref.
+    const stream = new ReadableStream<Uint8Array>({ start() {} });
+    vi.spyOn(global, "fetch").mockResolvedValue(
+      new Response(stream, {
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+      }),
+    );
+    const externalRef = createRef<AbortController | null>() as React.MutableRefObject<
+      AbortController | null
+    >;
+    externalRef.current = null;
+    render(
+      <ChatHome
+        greeting={GREETING}
+        initialTurns={[]}
+        sessionId={null}
+        abortRef={externalRef}
+      />,
+    );
+    fireEvent.change(screen.getByTestId("composer-input"), { target: { value: "hi" } });
+    fireEvent.click(screen.getByTestId("composer-send"));
+    await waitFor(() => expect(externalRef.current).not.toBeNull());
+    expect(externalRef.current).toBeInstanceOf(AbortController);
+  });
+
+  it("externally-aborted controller marks the in-progress turn aborted (PR-C M22)", async () => {
+    // Mock fetch that observes the AbortSignal — when the external ref's
+    // controller fires .abort(), the underlying ReadableStream errors and
+    // the reader throws AbortError into ChatHome's catch.
+    vi.spyOn(global, "fetch").mockImplementation(async (_input, init) => {
+      const signal = (init as RequestInit | undefined)?.signal;
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          if (signal) {
+            signal.addEventListener("abort", () => {
+              const err = new Error("aborted");
+              err.name = "AbortError";
+              controller.error(err);
+            });
+          }
+        },
+      });
+      return new Response(stream, {
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+      });
+    });
+    const externalRef = createRef<AbortController | null>() as React.MutableRefObject<
+      AbortController | null
+    >;
+    externalRef.current = null;
+    render(
+      <ChatHome
+        greeting={GREETING}
+        initialTurns={[]}
+        sessionId="abc-123"
+        abortRef={externalRef}
+      />,
+    );
+    fireEvent.change(screen.getByTestId("composer-input"), { target: { value: "hi" } });
+    fireEvent.click(screen.getByTestId("composer-send"));
+    // Wait for the external ref to receive the live controller.
+    await waitFor(() => expect(externalRef.current).not.toBeNull());
+    // External delete-handler simulates tearing down the stream.
+    externalRef.current!.abort();
+    // The composer re-enables once the catch/finally runs.
+    await waitFor(() =>
+      expect(
+        (screen.getByTestId("composer-input") as HTMLTextAreaElement).disabled,
+      ).toBe(false),
+    );
+    // External ref is cleared after the finally block.
+    expect(externalRef.current).toBeNull();
   });
 
   it("does not toast or redirect on a normal 200 stream (PR-C M20)", async () => {
