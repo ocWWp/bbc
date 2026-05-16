@@ -117,9 +117,10 @@ export type ObserverRunDeps = {
     actorId: string | null;
     estimatedTokens: number;
     kind: "home_turn" | "observer_run";
-  }) =>
-    | Promise<{ ok: true; reservationId: string }>
-    | Promise<{ ok: false; reason: string }>;
+  }) => Promise<
+    | { ok: true; reservationId: string }
+    | { ok: false; reason: string }
+  >;
   reconcileQuota: (args: {
     reservation_id: string;
     actual_tokens: number;

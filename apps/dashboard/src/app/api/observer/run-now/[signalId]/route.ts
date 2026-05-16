@@ -11,6 +11,7 @@ import {
   type SignalPollResult,
 } from "@/lib/agent";
 import { requireActor, requireRole } from "@/lib/auth/require-user";
+import { makeReserveQuota, makeReconcileQuota } from "@/lib/quota/rpc";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { detectZScoreAnomaly, isInCooldown } from "@/lib/observer/anomaly";
 import { findMetric, pollMetric } from "@/lib/integrations/posthog";
@@ -112,13 +113,8 @@ export async function POST(
 
   // ---- Build deps for observerRun -----------------------------------
 
-  const noopReserveQuota: ObserverRunDeps["reserveQuota"] = async () => ({
-    ok: true,
-    reservationId: "noop-pre-m4",
-  });
-  const noopReconcileQuota: ObserverRunDeps["reconcileQuota"] = async () => ({
-    ok: true,
-  });
+  const reserveQuotaDep = makeReserveQuota(supabase);
+  const reconcileQuotaDep = makeReconcileQuota(supabase);
 
   const pollSignalDep: ObserverRunDeps["pollSignal"] = async (input) => {
     if (!posthogApiKey) {
@@ -237,8 +233,8 @@ export async function POST(
       baselineEnd,
     },
     {
-      reserveQuota: noopReserveQuota,
-      reconcileQuota: noopReconcileQuota,
+      reserveQuota: reserveQuotaDep,
+      reconcileQuota: reconcileQuotaDep,
       pollSignal: pollSignalDep,
       detectAnomaly: detectAnomalyDep,
       buildContext: stubBuildContext,

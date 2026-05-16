@@ -46,6 +46,22 @@ vi.mock("@/lib/home/sessions", () => ({
   finalizeTurn: vi.fn(async () => {}),
 }));
 
+// Quota RPC happy-path stub. Real wiring is exercised in the RLS test;
+// route tests only need a non-throwing client.
+vi.mock("@/lib/supabase/server", () => ({
+  getSupabaseServerClient: vi.fn(async () => ({
+    rpc: vi.fn(async (fn: string) => {
+      if (fn === "reserve_quota") {
+        return { data: { ok: true, reservation_id: "test-res-1" }, error: null };
+      }
+      if (fn === "reconcile_quota") {
+        return { data: { ok: true }, error: null };
+      }
+      return { data: null, error: { message: `unmocked rpc: ${fn}` } };
+    }),
+  })),
+}));
+
 import { POST } from "./route";
 
 function makeReq(body: unknown): Request {
