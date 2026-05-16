@@ -130,6 +130,7 @@ export function makeRealInvokeLlm(
 
     const tools = anthropicToolsForIntent(intent);
     const toolCalls: LlmToolCall[] = [];
+    const extraIds = new Set<string>();
     let totalTokens = 0;
 
     for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
@@ -147,7 +148,12 @@ export function makeRealInvokeLlm(
           .filter((b): b is Anthropic.Messages.TextBlock => b.type === "text")
           .map((b) => b.text)
           .join("");
-        return { text, toolCalls, tokens: totalTokens };
+        return {
+          text,
+          toolCalls,
+          tokens: totalTokens,
+          extraGroundedIds: Array.from(extraIds),
+        };
       }
 
       // Execute each tool_use block, accumulate tool_result blocks.
@@ -162,6 +168,7 @@ export function makeRealInvokeLlm(
         const exec = await executor(block.name, block.input);
         if (exec.ok) {
           toolCalls.push({ name: block.name, input: block.input, output: exec.result });
+          collectIdsFromToolResult(block.name, exec.result, extraIds);
           toolResults.push({
             type: "tool_result",
             tool_use_id: block.id,
@@ -188,6 +195,35 @@ export function makeRealInvokeLlm(
         "I kept calling tools without finishing — that means I couldn't pull a clean answer from your memory. Try rephrasing the question.",
       toolCalls,
       tokens: totalTokens,
+      extraGroundedIds: Array.from(extraIds),
     };
   };
+}
+
+/**
+ * Pull memory IDs out of a successful tool result so the grounding
+ * allowlist can be extended for the orchestrator's verifyGrounding step.
+ * Shape-specific: matches the result envelopes of executeMemorySearch
+ * (`{ hits: [{id, ...}] }`) and executeMemoryFetch (`{ id, ... }`).
+ */
+function collectIdsFromToolResult(
+  name: string,
+  result: unknown,
+  into: Set<string>,
+): void {
+  if (!result || typeof result !== "object") return;
+  if (name === "memory_search") {
+    const hits = (result as { hits?: unknown }).hits;
+    if (Array.isArray(hits)) {
+      for (const h of hits) {
+        const id = (h as { id?: unknown })?.id;
+        if (typeof id === "string") into.add(id);
+      }
+    }
+    return;
+  }
+  if (name === "memory_fetch") {
+    const id = (result as { id?: unknown }).id;
+    if (typeof id === "string") into.add(id);
+  }
 }

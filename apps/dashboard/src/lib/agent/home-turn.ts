@@ -38,6 +38,13 @@ export type LlmResult = {
   text: string;
   toolCalls: LlmToolCall[];
   tokens: number;
+  /**
+   * Optional. Memory IDs the LLM saw via tool calls during this turn —
+   * merged into the static `retrievedMemoryIds` allowlist before grounding
+   * verification. Without this, a tool-discovered row's citation would be
+   * stripped because the static allowlist was set before homeTurn ran.
+   */
+  extraGroundedIds?: readonly string[];
 };
 
 export type BuildContextFn = (input: {
@@ -175,7 +182,13 @@ export async function homeTurn(
     actualTokens = llm.tokens;
 
     // 6) Verify grounding. Strips ungrounded sentences, appends fallback.
-    const grounded = verifyGrounding(llm.text, deps.retrievedMemoryIds);
+    // Merge tool-discovered IDs into the static allowlist — tools can
+    // surface rows the static retrieval missed (older rows, model-chosen
+    // search terms) and their citations should be honored.
+    const groundedIds = llm.extraGroundedIds && llm.extraGroundedIds.length > 0
+      ? [...deps.retrievedMemoryIds, ...llm.extraGroundedIds]
+      : deps.retrievedMemoryIds;
+    const grounded = verifyGrounding(llm.text, groundedIds);
 
     // 7) Emit. text-delta first (so the user sees text), then tool result
     // cards, then citation chips, then turn-end.

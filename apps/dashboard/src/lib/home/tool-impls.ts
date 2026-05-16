@@ -105,6 +105,7 @@ export async function executeMemoryFetch(
     .from("memory_files")
     .select("id, type, title, content, fields, updated_at")
     .eq("tenant_id", tenantId)
+    .eq("status", "active")
     .eq("id", id)
     .maybeSingle();
   if (error) return { ok: false, error: `memory_fetch failed: ${error.message}` };

@@ -189,6 +189,19 @@ async function postImpl(req: NextRequest) {
         emit({ event: "text-delta", data: { delta: clientRes.error } });
         emit({ event: "turn-end", data: { status: "failed", error: clientRes.error } });
         try {
+          await finalizeTurn(
+            assistant.id,
+            {
+              text: collected.text,
+              toolCalls: collected.toolCalls,
+              citations: collected.citations,
+            } as unknown as import("@/lib/supabase/database.types").Json,
+            "failed",
+          );
+        } catch (finErr) {
+          void finErr;
+        }
+        try {
           controller.close();
         } catch {
           /* already closed */
