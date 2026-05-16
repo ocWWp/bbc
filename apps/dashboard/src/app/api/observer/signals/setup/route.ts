@@ -109,6 +109,26 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error || !data) {
+    // Race against the unique partial index from migration 0051 — two
+    // concurrent setups for the same (tenant, metric) collide. Re-read
+    // and return the winner.
+    if (error?.code === "23505") {
+      const { data: raced } = await supabase
+        .from("observer_signals")
+        .select("id")
+        .eq("tenant_id", actor.tenant_id)
+        .eq("signal_type", "posthog.metric")
+        .is("deleted_at", null)
+        .contains("config_jsonb", { metric: metricId })
+        .limit(1)
+        .maybeSingle();
+      if (raced?.id) {
+        return json(
+          { ok: true, signalId: raced.id as string, metricLabel: metric.label },
+          200,
+        );
+      }
+    }
     return json(
       { ok: false, error: error?.message ?? "could not create signal" },
       500,
