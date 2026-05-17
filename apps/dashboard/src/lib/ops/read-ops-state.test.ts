@@ -42,6 +42,18 @@ type Fixtures = {
   externalAccounts?: ExternalAccountRow[]; // external_accounts
   connectors?: ConnectorRow[]; // tenant_connectors active=true, uninstalled_at null
   dlq?: DlqRow[];              // webhook_dead_letters
+  /** Force a specific table's resolver to return a PostgREST error. The
+   *  fake harness keys errors by table name; route inside a table is the
+   *  same error for every query against that table. Mirrors what the real
+   *  client does on network failure / schema-reload windows. */
+  errors?: Partial<Record<
+    | "queue_items"
+    | "memory_files"
+    | "external_accounts"
+    | "tenant_connectors"
+    | "webhook_dead_letters",
+    { message: string }
+  >>;
 };
 
 function fakeSupabase(fx: Fixtures): SupabaseClient {
@@ -104,6 +116,9 @@ function makeChain(resolve: (s: State) => Promise<unknown>) {
 
 function queueBuilder(fx: Fixtures) {
   return makeChain(async (s) => {
+    if (fx.errors?.queue_items) {
+      return { data: null, error: fx.errors.queue_items, count: null };
+    }
     const status = s.filters["status"];
     if (status === "pending") {
       const rows = (fx.pending ?? []).slice();
@@ -132,6 +147,9 @@ function queueBuilder(fx: Fixtures) {
 
 function memoryBuilder(fx: Fixtures) {
   return makeChain(async (s) => {
+    if (fx.errors?.memory_files) {
+      return { data: null, error: fx.errors.memory_files, count: null };
+    }
     const rows = (fx.memory ?? []).slice();
     // count + head — return just the count
     if (s.selectHead) {
@@ -148,6 +166,9 @@ function memoryBuilder(fx: Fixtures) {
 
 function externalAccountsBuilder(fx: Fixtures) {
   return makeChain(async (s) => {
+    if (fx.errors?.external_accounts) {
+      return { data: null, error: fx.errors.external_accounts, count: null };
+    }
     const rows = (fx.externalAccounts ?? []).slice();
     // last-tested-at lookup
     if (s.order?.col === "last_tested_at") {
@@ -166,6 +187,9 @@ function externalAccountsBuilder(fx: Fixtures) {
 
 function connectorsBuilder(fx: Fixtures) {
   return makeChain(async (s) => {
+    if (fx.errors?.tenant_connectors) {
+      return { data: null, error: fx.errors.tenant_connectors, count: null };
+    }
     const all = (fx.connectors ?? []).slice();
     // Failed connectors path: status in [error, auth_expired]
     const inFilter = s.filters["last_sync_status__in"] as string[] | undefined;
@@ -192,6 +216,9 @@ function connectorsBuilder(fx: Fixtures) {
 
 function dlqBuilder(fx: Fixtures) {
   return makeChain(async () => {
+    if (fx.errors?.webhook_dead_letters) {
+      return { data: null, error: fx.errors.webhook_dead_letters, count: null };
+    }
     const rows = fx.dlq ?? [];
     return { data: null, error: null, count: rows.length };
   });
@@ -218,6 +245,15 @@ describe("readOpsState", () => {
     expect(out.snapshot.memory).toEqual({ files: 0, lastUpdatedAt: null });
     expect(out.snapshot.providers).toEqual({ configured: 0, lastTestedAt: null });
     expect(out.snapshot.ingest).toEqual({ connectors: 0, lastSyncAt: null });
+    expect(out.degraded).toEqual({
+      pendingProposals: false,
+      lastAcceptedAt: false,
+      memory: false,
+      providers: false,
+      ingest: false,
+      failedConnectors: false,
+      dlq: false,
+    });
   });
 
   it("surfaces 3 pending proposals with frontmatter fields, newest-first", async () => {
@@ -252,7 +288,8 @@ describe("readOpsState", () => {
             frontmatter: {
               diff_summary: "newest change",
               target_file: "memory/baz.md",
-              target_layer: "main",
+              // target_layer intentionally omitted — reader must NOT default
+              // to "main" (which has stricter governance per the lock matrix).
               change_kind: "supersede",
             },
             created_at: "2026-05-17T08:00:00Z",
@@ -265,8 +302,12 @@ describe("readOpsState", () => {
     expect(out.attention.pendingProposals[0].proposal_id).toBe("prop-new");
     expect(out.attention.pendingProposals[0].summary).toBe("newest change");
     expect(out.attention.pendingProposals[0].target_file).toBe("memory/baz.md");
-    expect(out.attention.pendingProposals[0].target_layer).toBe("main");
+    // Missing frontmatter.target_layer => empty string, NOT "main".
+    expect(out.attention.pendingProposals[0].target_layer).toBe("");
     expect(out.attention.pendingProposals[0].change_kind).toBe("supersede");
+    // Sibling row whose frontmatter DID set target_layer still passes through.
+    expect(out.attention.pendingProposals[1].target_layer).toBe("manager");
+    expect(out.attention.pendingProposals[2].target_layer).toBe("main");
     expect(out.snapshot.queue.pending).toBe(3);
   });
 
@@ -351,5 +392,27 @@ describe("readOpsState", () => {
     );
     expect(out.snapshot.memory.files).toBe(5);
     expect(out.snapshot.memory.lastUpdatedAt).toBe("2026-05-17T09:30:00Z");
+  });
+
+  it("marks sections as degraded when their queries error", async () => {
+    // Force the memory_files table to error. Both memory queries (count + last
+    // updated) flow through the same builder, so both flip to degraded; every
+    // other section stays clean.
+    const out = await readOpsState(
+      fakeSupabase({ errors: { memory_files: { message: "test" } } }),
+      baseOpts,
+    );
+    expect(out.degraded.memory).toBe(true);
+    // Other sections — including the admin-skipped dlq — must NOT be degraded.
+    expect(out.degraded.pendingProposals).toBe(false);
+    expect(out.degraded.lastAcceptedAt).toBe(false);
+    expect(out.degraded.providers).toBe(false);
+    expect(out.degraded.ingest).toBe(false);
+    expect(out.degraded.failedConnectors).toBe(false);
+    expect(out.degraded.dlq).toBe(false);
+    // The data path still falls back to zero/null defaults; the page uses
+    // the degraded flag to overlay an "unavailable" treatment.
+    expect(out.snapshot.memory.files).toBe(0);
+    expect(out.snapshot.memory.lastUpdatedAt).toBeNull();
   });
 });

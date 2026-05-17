@@ -33,6 +33,19 @@ export type OpsAttention = {
 export type OpsState = {
   attention: OpsAttention;
   snapshot: OpsSnapshot;
+  /** Sections whose underlying queries errored. The page should render an
+   *  "unavailable" treatment for these instead of trusting zero counts /
+   *  empty arrays — a confident "0 pending" rendered because the query
+   *  blew up is the [[feedback-no-placeholders]] failure mode. */
+  degraded: {
+    pendingProposals: boolean;
+    lastAcceptedAt: boolean;
+    memory: boolean;
+    providers: boolean;
+    ingest: boolean;
+    failedConnectors: boolean;
+    dlq: boolean;
+  };
 };
 
 export async function readOpsState(
@@ -140,7 +153,11 @@ export async function readOpsState(
         change_kind: get("change_kind", "edit"),
         summary: get("diff_summary"),
         target_file: get("target_file"),
-        target_layer: get("target_layer", "main"),
+        // Default to "" (not "main") — Main-layer accepts have stricter
+        // governance per CLAUDE.md lock matrix, so we never invent that
+        // label. Page should surface "—" / "unknown" for empty values so
+        // the operator inspects the proposal before clicking accept.
+        target_layer: get("target_layer", ""),
         created_at: r.created_at,
       };
     }
@@ -189,6 +206,20 @@ export async function readOpsState(
         lastSyncAt: (connectorsLastSyncRes.data as { last_sync_at: string } | null)
           ?.last_sync_at ?? null,
       },
+    },
+    degraded: {
+      pendingProposals: pendingRes.error != null,
+      lastAcceptedAt: lastAcceptedRes.error != null,
+      // Both memory queries (count + last-updated) feed the same section;
+      // either error degrades it.
+      memory: memoryCountRes.error != null || memoryLastRes.error != null,
+      providers: extAcctRes.error != null || extAcctLastTestRes.error != null,
+      ingest: connectorsRes.error != null || connectorsLastSyncRes.error != null,
+      failedConnectors: failedConnectorsRes.error != null,
+      // dlq: the non-admin Promise.resolve path is an intentional skip
+      // (error: null), so this stays false unless an admin query actually
+      // errored.
+      dlq: dlqCountRes.error != null,
     },
   };
 }
