@@ -586,4 +586,20 @@ describe("readOpsState", () => {
     expect(out.snapshot.memory.files).toBe(0);
     expect(out.snapshot.memory.lastUpdatedAt).toBeNull();
   });
+
+  it("returns empty missingProviderKeys when external_accounts query degrades", async () => {
+    // When the providers query errors, `presentProviders` is empty — without
+    // gating, EVERY expected provider would be flagged "missing" and inflate
+    // the header "X open" count even though the providers section already
+    // renders as degraded ("couldn't load"). The honest behavior: skip the
+    // diff entirely so the user sees "providers: unavailable", NOT a phantom
+    // "2 missing keys" pill.
+    const out = await readOpsState(
+      fakeSupabase({ errors: { external_accounts: { message: "test" } } }),
+      { ...baseOpts, expectedProviders: ["anthropic", "openai"] },
+      fakeStore({}),
+    );
+    expect(out.degraded.providers).toBe(true);
+    expect(out.attention.missingProviderKeys).toEqual([]);
+  });
 });

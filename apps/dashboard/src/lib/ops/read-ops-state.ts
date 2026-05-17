@@ -199,9 +199,16 @@ export async function readOpsState(
       (r) => r.provider_id,
     ),
   );
-  const missingProviderKeys = expectedProviders.filter(
-    (p) => !presentProviders.has(p),
-  );
+  // Gate the missing-keys list on whether the external_accounts query actually
+  // succeeded. If it errored, `presentProviders` is empty and every expected
+  // provider would be falsely flagged "missing" — inflating the header "X
+  // open" count even though the providers section already renders as degraded
+  // ("couldn't load"). Returning [] here keeps the cockpit honest: the user
+  // sees "providers: unavailable", not "5 missing keys".
+  const missingProviderKeys =
+    extAcctRes.error != null
+      ? []
+      : expectedProviders.filter((p) => !presentProviders.has(p));
 
   const failedConnectors = (failedConnectorsRes.data ?? []) as {
     connector_id: string;
