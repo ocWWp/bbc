@@ -11,6 +11,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireActor, requireRole } from "@/lib/auth/require-user";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getStore } from "@/lib/store";
 import { readOpsState } from "@/lib/ops/read-ops-state";
 import { getExpectedProviders } from "@/lib/ops/expected-providers";
 import { WorkspaceCrumb } from "@/components/WorkspaceCrumb";
@@ -53,23 +54,31 @@ export default async function OpsPage() {
   if (!r.ok) redirect("/brain");
 
   const supabase = await getSupabaseServerClient();
+  const store = await getStore();
   const expectedProviders = await getExpectedProviders();
-  const state = await readOpsState(supabase, {
-    tenantId: a.actor.tenant_id,
-    isAdmin: a.actor.role === "admin",
-    expectedProviders,
-  });
+  const state = await readOpsState(
+    supabase,
+    {
+      tenantId: a.actor.tenant_id,
+      isAdmin: a.actor.role === "admin",
+      expectedProviders,
+    },
+    store,
+  );
 
   const { attention, snapshot, degraded } = state;
+  // Any section degraded means we should warn the operator at the top of
+  // Needs Attention rather than silently render zeros below.
+  const anyDegraded = Object.values(degraded).some(Boolean);
+  // "all clear" must ALSO require no degraded sections — otherwise a query
+  // that errored falls back to zero counts and the page lies. The degraded
+  // banner + per-row "unavailable" treatments carry the message instead.
   const nothingNeeded =
+    !anyDegraded &&
     attention.pendingProposals.length === 0 &&
     attention.missingProviderKeys.length === 0 &&
     attention.failedConnectors.length === 0 &&
     attention.dlqCount === 0;
-
-  // Any section degraded means we should warn the operator at the top of
-  // Needs Attention rather than silently render zeros below.
-  const anyDegraded = Object.values(degraded).some(Boolean);
 
   return (
     <div className="container page ops-page">
@@ -167,8 +176,9 @@ export default async function OpsPage() {
                       awaiting review
                     </span>
                   </div>
-                  {/* canAccept={true}: page-level operator gate protects this surface;
-                      the server action surfaces a manager-review error if needed. */}
+                  {/* canAccept is computed per proposal from isApproved(p) —
+                      manager review must verdict='approved' before inline
+                      accept is allowed. Matches the gate on /queue/[id]. */}
                   <ul className="ops-pending-list">
                     {attention.pendingProposals.slice(0, 20).map((p) => (
                       <li key={p.proposal_id} className="ops-pending-item">
@@ -186,7 +196,7 @@ export default async function OpsPage() {
                           )}
                         </div>
                         <div className="ops-pending-actions">
-                          <ActionButtons id={p.proposal_id} canAccept={true} />
+                          <ActionButtons id={p.proposal_id} canAccept={p.canAccept} />
                         </div>
                       </li>
                     ))}
@@ -377,9 +387,9 @@ export default async function OpsPage() {
             </span>
             <span className="ops-snap-sep">·</span>
             <span className="ops-snap-fact muted">
-              last tested{" "}
+              last configured{" "}
               <span className="mono">
-                {relTime(snapshot.providers.lastTestedAt)}
+                {relTime(snapshot.providers.lastConfiguredAt)}
               </span>
             </span>
           </SnapshotRow>

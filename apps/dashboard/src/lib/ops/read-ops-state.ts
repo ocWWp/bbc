@@ -1,25 +1,45 @@
 // /ops aggregator. Reads all data sources used by the cockpit page in one
 // place so the page component stays declarative. Every field maps to a row
 // or section in docs/plans/2026-05-17-ops-page-design.md.
+//
+// Mode duality (see ADR-0004):
+//   - Queue reads (pending proposals) go through getStore() so file-mode
+//     users still get the cockpit; the store backend is LocalStore
+//     (markdown files under queue/) or SupabaseStore (DB).
+//   - Memory / providers / connectors / DLQ and last-accepted timestamp
+//     are DB-mode-only — those queries hit Supabase directly. In file-mode
+//     they error and the section renders as "unavailable" (honest:
+//     file-mode genuinely doesn't track this state). The Queue snapshot
+//     section keeps working because its pending count comes from the store.
 
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isApproved } from "@/lib/read-queue";
+import type { Proposal, Store } from "@bbc/store";
 
 export type OpsPendingProposal = {
-  id: string;            // queue_items.id (uuid)
-  proposal_id: string;   // queue_items.proposal_id (text slug)
+  proposal_id: string;   // queue_items.proposal_id / queue/<slug>.md basename
   change_kind: string;
-  summary: string;       // frontmatter.diff_summary
-  target_file: string;   // frontmatter.target_file
-  target_layer: string;  // frontmatter.target_layer
-  created_at: string;
+  summary: string;       // proposal.diff_summary
+  target_file: string;
+  target_layer: string;
+  /** Whether the operator may click Accept on this proposal. Mirrors the
+   *  /queue/[id] page rule: manager_review.verdict === "approved". The page
+   *  used to pass {true} unconditionally, bypassing the manager-review gate
+   *  the codepath was designed for. */
+  canAccept: boolean;
 };
 
 export type OpsSnapshot = {
   queue: { pending: number; lastAcceptedAt: string | null };
   memory: { files: number; lastUpdatedAt: string | null };
-  providers: { configured: number; lastTestedAt: string | null };
+  /** lastConfiguredAt = max(external_accounts.created_at). Renamed from
+   *  lastTestedAt: the underlying table has no last_tested_at column (see
+   *  migration 0025), only created_at + revoked_at. The page renders this
+   *  as "last configured" so users aren't misled into thinking BBC actively
+   *  health-checks their keys. */
+  providers: { configured: number; lastConfiguredAt: string | null };
   ingest: { connectors: number; lastSyncAt: string | null };
 };
 
@@ -50,17 +70,25 @@ export type OpsState = {
 
 export async function readOpsState(
   supabase: SupabaseClient,
-  options: { tenantId: string; isAdmin: boolean; expectedProviders: string[] }
+  options: { tenantId: string; isAdmin: boolean; expectedProviders: string[] },
+  store: Pick<Store, "queue">,
 ): Promise<OpsState> {
   const { tenantId, isAdmin, expectedProviders } = options;
 
+  // Queue pending — via the storage abstraction so file-mode users get the
+  // cockpit. Catch errors so a store outage degrades gracefully instead of
+  // taking down the page.
+  const pendingResult = await store.queue
+    .list("pending")
+    .then((rows: Proposal[]) => ({ ok: true as const, rows }))
+    .catch((_err: unknown) => ({ ok: false as const, rows: [] as Proposal[] }));
+
   const [
-    pendingRes,
     lastAcceptedRes,
     memoryCountRes,
     memoryLastRes,
     extAcctRes,
-    extAcctLastTestRes,
+    extAcctLastConfRes,
     connectorsRes,
     connectorsLastSyncRes,
     failedConnectorsRes,
@@ -68,17 +96,10 @@ export async function readOpsState(
   ] = await Promise.all([
     supabase
       .from("queue_items")
-      .select("id, proposal_id, frontmatter, created_at", { count: "exact" })
-      .eq("tenant_id", tenantId)
-      .eq("status", "pending")
-      .order("created_at", { ascending: false })
-      .limit(20),
-    supabase
-      .from("queue_items")
-      .select("updated_at")
+      .select("resolved_at")
       .eq("tenant_id", tenantId)
       .eq("status", "accepted")
-      .order("updated_at", { ascending: false })
+      .order("resolved_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
     supabase
@@ -94,13 +115,13 @@ export async function readOpsState(
       .maybeSingle(),
     supabase
       .from("external_accounts")
-      .select("provider", { count: "exact" })
+      .select("provider_id", { count: "exact" })
       .eq("tenant_id", tenantId),
     supabase
       .from("external_accounts")
-      .select("last_tested_at")
+      .select("created_at")
       .eq("tenant_id", tenantId)
-      .order("last_tested_at", { ascending: false })
+      .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
     supabase
@@ -133,41 +154,34 @@ export async function readOpsState(
       : Promise.resolve({ count: 0, error: null, data: null }),
   ]);
 
-  type ProposalRow = {
-    id: string;
-    proposal_id: string;
-    frontmatter: Record<string, unknown> | null;
-    created_at: string;
-  };
-
-  const pendingProposals: OpsPendingProposal[] = (pendingRes.data ?? []).map(
-    (r: ProposalRow) => {
-      const fm = r.frontmatter ?? {};
-      const get = (k: string, fallback = "") => {
-        const v = (fm as Record<string, unknown>)[k];
-        return typeof v === "string" ? v : fallback;
-      };
-      return {
-        id: r.id,
-        proposal_id: r.proposal_id,
-        change_kind: get("change_kind", "edit"),
-        summary: get("diff_summary"),
-        target_file: get("target_file"),
-        // Default to "" (not "main") — Main-layer accepts have stricter
-        // governance per CLAUDE.md lock matrix, so we never invent that
-        // label. Page should surface "—" / "unknown" for empty values so
-        // the operator inspects the proposal before clicking accept.
-        target_layer: get("target_layer", ""),
-        created_at: r.created_at,
-      };
-    }
+  const pendingRows = pendingResult.rows;
+  // Cap at 20 to match the page's display limit; the snapshot count below
+  // reflects the full pending tally.
+  const pendingProposals: OpsPendingProposal[] = pendingRows.slice(0, 20).map(
+    (p) => ({
+      proposal_id: p.proposal_id,
+      change_kind: p.change_kind ?? "edit",
+      summary: p.diff_summary ?? "",
+      target_file: p.target_file ?? "",
+      // Default to "" (not "main") — Main-layer accepts have stricter
+      // governance per CLAUDE.md lock matrix, so we never invent that
+      // label. Page should surface "—" / "unknown" for empty values so the
+      // operator inspects the proposal before clicking accept.
+      target_layer: p.target_layer ?? "",
+      // Manager-review gate: only proposals approved by the manager can be
+      // accepted inline. Mirrors lib/read-queue.isApproved + the /queue/[id]
+      // detail page.
+      canAccept: isApproved(p),
+    }),
   );
 
   const presentProviders = new Set(
-    ((extAcctRes.data ?? []) as { provider: string }[]).map((r) => r.provider)
+    ((extAcctRes.data ?? []) as { provider_id: string }[]).map(
+      (r) => r.provider_id,
+    ),
   );
   const missingProviderKeys = expectedProviders.filter(
-    (p) => !presentProviders.has(p)
+    (p) => !presentProviders.has(p),
   );
 
   const failedConnectors = (failedConnectorsRes.data ?? []) as {
@@ -187,9 +201,9 @@ export async function readOpsState(
     },
     snapshot: {
       queue: {
-        pending: pendingRes.count ?? 0,
-        lastAcceptedAt: (lastAcceptedRes.data as { updated_at: string } | null)
-          ?.updated_at ?? null,
+        pending: pendingRows.length,
+        lastAcceptedAt: (lastAcceptedRes.data as { resolved_at: string } | null)
+          ?.resolved_at ?? null,
       },
       memory: {
         files: memoryCountRes.count ?? 0,
@@ -198,23 +212,27 @@ export async function readOpsState(
       },
       providers: {
         configured: extAcctRes.count ?? 0,
-        lastTestedAt: (extAcctLastTestRes.data as { last_tested_at: string } | null)
-          ?.last_tested_at ?? null,
+        lastConfiguredAt:
+          (extAcctLastConfRes.data as { created_at: string } | null)
+            ?.created_at ?? null,
       },
       ingest: {
         connectors: connectorsRes.count ?? 0,
-        lastSyncAt: (connectorsLastSyncRes.data as { last_sync_at: string } | null)
-          ?.last_sync_at ?? null,
+        lastSyncAt:
+          (connectorsLastSyncRes.data as { last_sync_at: string } | null)
+            ?.last_sync_at ?? null,
       },
     },
     degraded: {
-      pendingProposals: pendingRes.error != null,
+      pendingProposals: !pendingResult.ok,
       lastAcceptedAt: lastAcceptedRes.error != null,
       // Both memory queries (count + last-updated) feed the same section;
       // either error degrades it.
       memory: memoryCountRes.error != null || memoryLastRes.error != null,
-      providers: extAcctRes.error != null || extAcctLastTestRes.error != null,
-      ingest: connectorsRes.error != null || connectorsLastSyncRes.error != null,
+      providers:
+        extAcctRes.error != null || extAcctLastConfRes.error != null,
+      ingest:
+        connectorsRes.error != null || connectorsLastSyncRes.error != null,
       failedConnectors: failedConnectorsRes.error != null,
       // dlq: the non-admin Promise.resolve path is an intentional skip
       // (error: null), so this stays false unless an admin query actually
