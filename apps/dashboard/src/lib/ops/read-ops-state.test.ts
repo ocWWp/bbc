@@ -1,11 +1,14 @@
 // Tests for the /ops cockpit aggregator. Mirrors the fake-Supabase-client
 // pattern from src/lib/connectors/read-diagnostics.test.ts but the /ops
-// reader fans out 10 parallel queries so the harness has to route by the
-// shape of the chain (select + filters) and not just by table name.
+// reader fans out queries across the storage abstraction (queue reads) and
+// supabase (memory/providers/connectors/dlq) so the harness has to route
+// by both. The store argument is injected by the tests; production code
+// gets it from getStore() (see app/ops/page.tsx).
 
 import { describe, expect, it } from "vitest";
 import { readOpsState } from "./read-ops-state";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Proposal, ProposalStatus, Store } from "@bbc/store";
 
 // ---------------------------------------------------------------------------
 // Fake supabase harness
@@ -22,12 +25,12 @@ type QueueRow = {
   proposal_id: string;
   frontmatter: Record<string, unknown> | null;
   created_at: string;
-  updated_at?: string;
+  resolved_at?: string;
   status?: string;
 };
 
 type MemoryRow = { id: string; updated_at: string };
-type ExternalAccountRow = { provider: string; last_tested_at: string | null };
+type ExternalAccountRow = { provider_id: string; created_at: string | null };
 type ConnectorRow = {
   connector_id: string;
   last_sync_status: string | null;
@@ -36,12 +39,19 @@ type ConnectorRow = {
 type DlqRow = { id: string };
 
 type Fixtures = {
-  pending?: QueueRow[];        // queue_items status='pending'
-  accepted?: QueueRow[];       // queue_items status='accepted'
+  /** Pending proposals — full Proposal shape so we can exercise canAccept. */
+  pendingProposals?: Proposal[];
+  /** Most recent accepted timestamp in DB-mode (queue_items.resolved_at).
+   *  Tests can set to a string, null, or omit. */
+  lastAcceptedAt?: string | null;
+  acceptedRows?: QueueRow[];   // legacy fixture name — kept for tests that haven't migrated
   memory?: MemoryRow[];        // memory_files
   externalAccounts?: ExternalAccountRow[]; // external_accounts
   connectors?: ConnectorRow[]; // tenant_connectors active=true, uninstalled_at null
   dlq?: DlqRow[];              // webhook_dead_letters
+  /** Force the queue store's list() to throw — exercises file-mode/DB-mode
+   *  storage outages independently of supabase errors. */
+  storeThrows?: boolean;
   /** Force a specific table's resolver to return a PostgREST error. The
    *  fake harness keys errors by table name; route inside a table is the
    *  same error for every query against that table. Mirrors what the real
@@ -55,6 +65,62 @@ type Fixtures = {
     { message: string }
   >>;
 };
+
+function fakeStore(fx: Fixtures): Store {
+  return {
+    queue: {
+      async list(status: ProposalStatus): Promise<Proposal[]> {
+        if (fx.storeThrows) throw new Error("store offline");
+        if (status === "pending") return (fx.pendingProposals ?? []).slice();
+        return [];
+      },
+      async listAll() {
+        return { pending: fx.pendingProposals ?? [], accepted: [], rejected: [] };
+      },
+      async getById() { return null; },
+      async fileProposal() { return { ok: false, output: "not used in /ops tests" }; },
+      async acceptProposal() { return { ok: false, output: "not used in /ops tests" }; },
+      async rejectProposal() { return { ok: false, output: "not used in /ops tests" }; },
+    },
+    log: {
+      async list() { return []; },
+      async lkg() { return 0; },
+    },
+    bindings: {
+      async list() { return []; },
+    },
+    tools: {
+      async list() { return []; },
+      async resolveRole() { return null; },
+      async candidatesFor() { return []; },
+    },
+  };
+}
+
+/** Build a pending Proposal with optional manager_review verdict. Frontmatter
+ *  fields are echoed into the proposal so the page can display them. */
+function makePending(opts: {
+  proposal_id: string;
+  diff_summary?: string;
+  target_file?: string;
+  target_layer?: string;
+  change_kind?: string;
+  proposed_at?: string;
+  verdict?: "approved" | "needs_changes" | "rejected";
+}): Proposal {
+  return {
+    proposal_id: opts.proposal_id,
+    filename: `${opts.proposal_id}.md`,
+    status: "pending",
+    proposed_at: opts.proposed_at,
+    target_layer: opts.target_layer,
+    target_file: opts.target_file,
+    change_kind: opts.change_kind,
+    diff_summary: opts.diff_summary,
+    manager_review: opts.verdict ? { verdict: opts.verdict } : undefined,
+    body: "",
+  };
+}
 
 function fakeSupabase(fx: Fixtures): SupabaseClient {
   const from = (table: string) => {
@@ -120,25 +186,20 @@ function queueBuilder(fx: Fixtures) {
       return { data: null, error: fx.errors.queue_items, count: null };
     }
     const status = s.filters["status"];
-    if (status === "pending") {
-      const rows = (fx.pending ?? []).slice();
-      // Order newest-first as the reader requests; tests pass rows already in
-      // newest-first or any order — sort if ordering was requested.
-      if (s.order?.col === "created_at" && !s.order.ascending) {
-        rows.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
-      }
-      const limited = s.limit ? rows.slice(0, s.limit) : rows;
-      return { data: limited, error: null, count: rows.length };
-    }
     if (status === "accepted") {
-      const rows = (fx.accepted ?? []).slice();
-      if (s.order?.col === "updated_at" && !s.order.ascending) {
+      // resolved_at lookup. Tests may set fx.lastAcceptedAt directly OR pass
+      // acceptedRows for legacy ordering. Prefer the explicit field.
+      if (fx.lastAcceptedAt !== undefined) {
+        const ts = fx.lastAcceptedAt;
+        return { data: ts ? { resolved_at: ts } : null, error: null, count: ts ? 1 : 0 };
+      }
+      const rows = (fx.acceptedRows ?? []).slice();
+      if (s.order?.col === "resolved_at" && !s.order.ascending) {
         rows.sort((a, b) =>
-          (a.updated_at ?? "") < (b.updated_at ?? "") ? 1 : -1,
+          (a.resolved_at ?? "") < (b.resolved_at ?? "") ? 1 : -1,
         );
       }
       const top = rows[0] ?? null;
-      // maybeSingle path
       return { data: top, error: null, count: rows.length };
     }
     return { data: null, error: null, count: 0 };
@@ -170,17 +231,18 @@ function externalAccountsBuilder(fx: Fixtures) {
       return { data: null, error: fx.errors.external_accounts, count: null };
     }
     const rows = (fx.externalAccounts ?? []).slice();
-    // last-tested-at lookup
-    if (s.order?.col === "last_tested_at") {
+    // last-configured-at lookup (uses created_at — external_accounts has no
+    // last_tested_at column per migration 0025).
+    if (s.order?.col === "created_at") {
       rows.sort((a, b) => {
-        const av = a.last_tested_at ?? "";
-        const bv = b.last_tested_at ?? "";
+        const av = a.created_at ?? "";
+        const bv = b.created_at ?? "";
         return av < bv ? 1 : -1;
       });
       const top = rows[0] ?? null;
       return { data: top, error: null, count: rows.length };
     }
-    // count + provider list
+    // count + provider_id list
     return { data: rows, error: null, count: rows.length };
   });
 }
@@ -236,14 +298,14 @@ const baseOpts = {
 
 describe("readOpsState", () => {
   it("returns zero everything for an empty tenant", async () => {
-    const out = await readOpsState(fakeSupabase({}), baseOpts);
+    const out = await readOpsState(fakeSupabase({}), baseOpts, fakeStore({}));
     expect(out.attention.pendingProposals).toEqual([]);
     expect(out.attention.missingProviderKeys).toEqual([]);
     expect(out.attention.failedConnectors).toEqual([]);
     expect(out.attention.dlqCount).toBe(0);
     expect(out.snapshot.queue).toEqual({ pending: 0, lastAcceptedAt: null });
     expect(out.snapshot.memory).toEqual({ files: 0, lastUpdatedAt: null });
-    expect(out.snapshot.providers).toEqual({ configured: 0, lastTestedAt: null });
+    expect(out.snapshot.providers).toEqual({ configured: 0, lastConfiguredAt: null });
     expect(out.snapshot.ingest).toEqual({ connectors: 0, lastSyncAt: null });
     expect(out.degraded).toEqual({
       pendingProposals: false,
@@ -256,94 +318,84 @@ describe("readOpsState", () => {
     });
   });
 
-  it("surfaces 3 pending proposals with frontmatter fields, newest-first", async () => {
-    const out = await readOpsState(
-      fakeSupabase({
-        pending: [
-          {
-            id: "u1",
-            proposal_id: "prop-old",
-            frontmatter: {
-              diff_summary: "older change",
-              target_file: "memory/foo.md",
-              target_layer: "main",
-              change_kind: "edit",
-            },
-            created_at: "2026-05-15T08:00:00Z",
-          },
-          {
-            id: "u2",
-            proposal_id: "prop-mid",
-            frontmatter: {
-              diff_summary: "middle change",
-              target_file: "memory/bar.md",
-              target_layer: "manager",
-              change_kind: "add",
-            },
-            created_at: "2026-05-16T08:00:00Z",
-          },
-          {
-            id: "u3",
-            proposal_id: "prop-new",
-            frontmatter: {
-              diff_summary: "newest change",
-              target_file: "memory/baz.md",
-              // target_layer intentionally omitted — reader must NOT default
-              // to "main" (which has stricter governance per the lock matrix).
-              change_kind: "supersede",
-            },
-            created_at: "2026-05-17T08:00:00Z",
-          },
-        ],
-      }),
-      baseOpts,
-    );
+  it("surfaces 3 pending proposals from the store with canAccept gated on manager_review", async () => {
+    const fx: Fixtures = {
+      pendingProposals: [
+        // Newest-first ordering matches what the store provides (DB-mode
+        // queue list orders by created_at desc; file-mode test passes order
+        // explicitly). Tests pass proposals in the order they expect them.
+        makePending({
+          proposal_id: "prop-new",
+          diff_summary: "newest change",
+          target_file: "memory/baz.md",
+          // target_layer intentionally omitted — reader must NOT default to
+          // "main" (which has stricter governance per the lock matrix).
+          change_kind: "supersede",
+          verdict: "approved", // ⇒ canAccept: true
+        }),
+        makePending({
+          proposal_id: "prop-mid",
+          diff_summary: "middle change",
+          target_file: "memory/bar.md",
+          target_layer: "manager",
+          change_kind: "add",
+          verdict: "needs_changes", // ⇒ canAccept: false
+        }),
+        makePending({
+          proposal_id: "prop-old",
+          diff_summary: "older change",
+          target_file: "memory/foo.md",
+          target_layer: "main",
+          change_kind: "edit",
+          // no verdict ⇒ canAccept: false (manager review gate)
+        }),
+      ],
+    };
+    const out = await readOpsState(fakeSupabase(fx), baseOpts, fakeStore(fx));
     expect(out.attention.pendingProposals).toHaveLength(3);
     expect(out.attention.pendingProposals[0].proposal_id).toBe("prop-new");
     expect(out.attention.pendingProposals[0].summary).toBe("newest change");
     expect(out.attention.pendingProposals[0].target_file).toBe("memory/baz.md");
-    // Missing frontmatter.target_layer => empty string, NOT "main".
+    // Missing target_layer ⇒ empty string, NOT "main".
     expect(out.attention.pendingProposals[0].target_layer).toBe("");
     expect(out.attention.pendingProposals[0].change_kind).toBe("supersede");
-    // Sibling row whose frontmatter DID set target_layer still passes through.
+    expect(out.attention.pendingProposals[0].canAccept).toBe(true);
+    // Middle has a verdict but it's not "approved".
     expect(out.attention.pendingProposals[1].target_layer).toBe("manager");
+    expect(out.attention.pendingProposals[1].canAccept).toBe(false);
+    // Oldest has no manager review at all.
     expect(out.attention.pendingProposals[2].target_layer).toBe("main");
+    expect(out.attention.pendingProposals[2].canAccept).toBe(false);
     expect(out.snapshot.queue.pending).toBe(3);
   });
 
-  it("returns lastAcceptedAt from the most recent accepted queue_items row", async () => {
+  it("marks pending proposals degraded when the store throws", async () => {
     const out = await readOpsState(
-      fakeSupabase({
-        accepted: [
-          {
-            id: "a1",
-            proposal_id: "old-accepted",
-            frontmatter: {},
-            created_at: "2026-05-10T00:00:00Z",
-            updated_at: "2026-05-10T00:00:00Z",
-            status: "accepted",
-          },
-          {
-            id: "a2",
-            proposal_id: "recent-accepted",
-            frontmatter: {},
-            created_at: "2026-05-17T00:00:00Z",
-            updated_at: "2026-05-17T10:00:00Z",
-            status: "accepted",
-          },
-        ],
-      }),
+      fakeSupabase({}),
       baseOpts,
+      fakeStore({ storeThrows: true }),
+    );
+    expect(out.degraded.pendingProposals).toBe(true);
+    expect(out.attention.pendingProposals).toEqual([]);
+    expect(out.snapshot.queue.pending).toBe(0);
+  });
+
+  it("returns lastAcceptedAt from queue_items.resolved_at (most recent)", async () => {
+    const out = await readOpsState(
+      fakeSupabase({ lastAcceptedAt: "2026-05-17T10:00:00Z" }),
+      baseOpts,
+      fakeStore({}),
     );
     expect(out.snapshot.queue.lastAcceptedAt).toBe("2026-05-17T10:00:00Z");
   });
 
-  it("computes missing provider keys against the expectedProviders list", async () => {
+  it("computes missing provider keys against external_accounts.provider_id", async () => {
     const out = await readOpsState(
       fakeSupabase({
-        externalAccounts: [{ provider: "anthropic", last_tested_at: null }],
+        externalAccounts: [{ provider_id: "anthropic", created_at: null }],
       }),
       { ...baseOpts, expectedProviders: ["anthropic", "openai"] },
+      fakeStore({}),
     );
     expect(out.attention.missingProviderKeys).toEqual(["openai"]);
     expect(out.snapshot.providers.configured).toBe(1);
@@ -359,6 +411,7 @@ describe("readOpsState", () => {
         ],
       }),
       baseOpts,
+      fakeStore({}),
     );
     const ids = out.attention.failedConnectors.map((c) => c.connector_id).sort();
     expect(ids).toEqual(["gmail", "notion"]);
@@ -371,9 +424,9 @@ describe("readOpsState", () => {
 
   it("gates DLQ count on isAdmin — non-admin always sees 0", async () => {
     const fx: Fixtures = { dlq: [{ id: "d1" }, { id: "d2" }, { id: "d3" }] };
-    const nonAdmin = await readOpsState(fakeSupabase(fx), { ...baseOpts, isAdmin: false });
+    const nonAdmin = await readOpsState(fakeSupabase(fx), { ...baseOpts, isAdmin: false }, fakeStore(fx));
     expect(nonAdmin.attention.dlqCount).toBe(0);
-    const admin = await readOpsState(fakeSupabase(fx), { ...baseOpts, isAdmin: true });
+    const admin = await readOpsState(fakeSupabase(fx), { ...baseOpts, isAdmin: true }, fakeStore(fx));
     expect(admin.attention.dlqCount).toBe(3);
   });
 
@@ -389,6 +442,7 @@ describe("readOpsState", () => {
         ],
       }),
       baseOpts,
+      fakeStore({}),
     );
     expect(out.snapshot.memory.files).toBe(5);
     expect(out.snapshot.memory.lastUpdatedAt).toBe("2026-05-17T09:30:00Z");
@@ -401,6 +455,7 @@ describe("readOpsState", () => {
     const out = await readOpsState(
       fakeSupabase({ errors: { memory_files: { message: "test" } } }),
       baseOpts,
+      fakeStore({}),
     );
     expect(out.degraded.memory).toBe(true);
     // Other sections — including the admin-skipped dlq — must NOT be degraded.
