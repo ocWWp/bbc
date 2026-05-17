@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 
 import { enableSignal } from "@/app/settings/observers/actions";
 
@@ -23,12 +24,19 @@ export type ActionCardProps = {
 
 export function ActionCard({ kind, payload }: ActionCardProps) {
   return (
-    <div
+    <motion.div
+      // Action cards arrive after the assistant text streams in. A
+      // short fade-up makes the reveal feel intentional rather than
+      // dropping in beside the prose. Reduced-motion users get
+      // duration:0 via MotionConfig at the ChatHome layer.
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.18, ease: "easeOut" }}
       className="my-2 rounded-lg border border-border bg-card/60 p-3 text-sm shadow-sm"
       data-testid={`action-card-${kind}`}
     >
       {renderBody(kind, payload)}
-    </div>
+    </motion.div>
   );
 }
 

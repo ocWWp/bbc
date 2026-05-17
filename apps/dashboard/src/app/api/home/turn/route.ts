@@ -21,6 +21,7 @@ import {
 } from "@/lib/home/sessions";
 import { makeRealClassify } from "@/lib/home/real-classify";
 import {
+  memoryTitlesOf,
   retrieveHomeContext,
   makeBuildContextFromRetrieval,
   retrievedMemoryIdsOf,
@@ -130,7 +131,7 @@ async function postImpl(req: NextRequest) {
   const collected = {
     text: "",
     toolCalls: [] as Array<{ name: string; payload: unknown }>,
-    citations: [] as string[],
+    citations: [] as Array<{ id: string; title?: string | null }>,
     status: "completed" as "completed" | "aborted" | "failed",
     errorMsg: undefined as string | undefined,
   };
@@ -141,10 +142,13 @@ async function postImpl(req: NextRequest) {
         // Mirror SSE state into a local buffer so we can finalize the
         // assistant turn with the full content after the stream closes.
         if (e.event === "text-delta") collected.text += e.data.delta;
+        if (e.event === "text-replace") collected.text = e.data.text;
         if (e.event === "action-card") {
           collected.toolCalls.push({ name: e.data.kind, payload: e.data.payload });
         }
-        if (e.event === "citation") collected.citations.push(e.data.memoryId);
+        if (e.event === "citation") {
+          collected.citations.push({ id: e.data.memoryId, title: e.data.title ?? null });
+        }
         if (e.event === "turn-end") {
           collected.status = e.data.status;
           collected.errorMsg = e.data.error;
@@ -227,6 +231,7 @@ async function postImpl(req: NextRequest) {
           classifyIntent(input.text, input.recent, classifierLlm),
         invokeLlm: makeRealInvokeLlm(anthropicClient, executor),
         retrievedMemoryIds: retrievedMemoryIdsOf(retrieval),
+        memoryTitles: memoryTitlesOf(retrieval),
       };
 
       try {

@@ -45,6 +45,13 @@ export type LlmResult = {
    * stripped because the static allowlist was set before homeTurn ran.
    */
   extraGroundedIds?: readonly string[];
+  /**
+   * Optional. Titles for memory IDs the LLM saw via tool calls — keyed
+   * by id. Merged with the static `memoryTitles` dep before emitting
+   * citation events. Without this, a tool-discovered row's chip would
+   * show its raw uuid even when the search result included a title.
+   */
+  extraGroundedTitles?: Readonly<Record<string, string>>;
 };
 
 export type BuildContextFn = (input: {
@@ -73,6 +80,16 @@ export type InvokeLlmFn = (input: {
   ctx: AgentContext;
   intent: ConversationalIntent;
   toolNames: readonly string[];
+  /**
+   * Optional. Called with each incremental text chunk as the LLM streams.
+   * When provided, the implementation SHOULD use a streaming completion so
+   * the user sees text appear live instead of waiting 4-12s for the whole
+   * response. When omitted (e.g. in tests), implementations may fall back
+   * to non-streaming. Implementations MUST still return the full
+   * accumulated text in `LlmResult.text` regardless of whether they
+   * streamed — grounding verification runs on that.
+   */
+  onTextDelta?: (delta: string) => void;
 }) => Promise<LlmResult>;
 
 export type HomeTurnDeps = {
@@ -94,17 +111,30 @@ export type HomeTurnDeps = {
   invokeLlm: InvokeLlmFn;
   /** Memory IDs the LLM is permitted to cite this turn. */
   retrievedMemoryIds: readonly string[];
+  /**
+   * Titles for the retrieved memory IDs, keyed by id. Used to populate
+   * the optional `title` on citation SSE events so chips render with the
+   * row title instead of a uuid prefix. Tool-discovered rows can supply
+   * titles too via LlmResult.extraGroundedTitles.
+   */
+  memoryTitles?: Readonly<Record<string, string>>;
 };
 
 export type SseEvent =
   | { event: "text-delta"; data: { delta: string } }
+  /**
+   * Replaces the current turn's text wholesale. Emitted after streaming
+   * completes when grounding verification stripped or appended content.
+   * The UI swaps the streamed text for the corrected text.
+   */
+  | { event: "text-replace"; data: { text: string } }
   | {
       event: "action-card";
       data: { kind: string; payload: unknown };
     }
   | {
       event: "citation";
-      data: { memoryId: string };
+      data: { memoryId: string; title?: string | null };
     }
   | {
       event: "turn-end";
@@ -177,8 +207,25 @@ export async function homeTurn(
     const tools = toolsForIntent(intent);
     const toolNames = tools.map((t) => t.name);
 
-    // 5) Invoke LLM.
-    const llm = await deps.invokeLlm({ ctx, intent, toolNames });
+    // 5) Invoke LLM. Pipe text deltas live to SSE as the model streams.
+    // The user sees text appear incrementally instead of waiting 4-12s
+    // for the full completion. We accumulate every streamed delta so
+    // step 7 can compare what the UI received against the grounded
+    // final text — this matters because tool_use iterations can stream
+    // preamble prose ("Let me look that up...") that LlmResult.text
+    // does not carry, so the grounded comparison must be made against
+    // the wider stream, not just the final iteration.
+    let streamedText = "";
+    const llm = await deps.invokeLlm({
+      ctx,
+      intent,
+      toolNames,
+      onTextDelta: (delta) => {
+        if (delta.length === 0) return;
+        streamedText += delta;
+        emit({ event: "text-delta", data: { delta } });
+      },
+    });
     actualTokens = llm.tokens;
 
     // 6) Verify grounding. Strips ungrounded sentences, appends fallback.
@@ -190,13 +237,20 @@ export async function homeTurn(
       : deps.retrievedMemoryIds;
     const grounded = verifyGrounding(llm.text, groundedIds);
 
-    // 7) Emit. text-delta first (so the user sees text), then tool result
-    // cards, then citation chips, then turn-end.
-    if (grounded.text.length > 0) {
-      emit({
-        event: "text-delta",
-        data: { delta: grounded.text },
-      });
+    // 7) Emit. If we streamed deltas live and the UI's accumulated text
+    // already matches the grounded final text, nothing more to emit.
+    // Otherwise emit text-replace so the UI swaps the streamed body for
+    // the grounded one — this covers both grounding strips and the
+    // preamble-from-tool-iterations case where streamed text is wider
+    // than the grounded final answer. If nothing streamed (no callback
+    // path, e.g. test mocks), fall back to one text-delta carrying the
+    // grounded text — same contract as before streaming existed.
+    if (streamedText.length > 0) {
+      if (streamedText !== grounded.text) {
+        emit({ event: "text-replace", data: { text: grounded.text } });
+      }
+    } else if (grounded.text.length > 0) {
+      emit({ event: "text-delta", data: { delta: grounded.text } });
     }
 
     for (const call of llm.toolCalls) {
@@ -206,10 +260,17 @@ export async function homeTurn(
       });
     }
 
+    // Merge static + tool-discovered title maps. Tool-discovered titles
+    // win on conflict because they reflect a fresh memory_fetch read.
+    const titleMap: Record<string, string> = {
+      ...(deps.memoryTitles ?? {}),
+      ...(llm.extraGroundedTitles ?? {}),
+    };
     for (const id of grounded.citations) {
+      const title = titleMap[id];
       emit({
         event: "citation",
-        data: { memoryId: id },
+        data: { memoryId: id, title: title ?? null },
       });
     }
 

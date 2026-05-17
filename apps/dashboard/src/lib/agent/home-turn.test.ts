@@ -185,6 +185,170 @@ describe("homeTurn", () => {
     const citations = events.filter((e) => e.event === "citation");
     expect(citations).toHaveLength(1);
     expect(citations[0].data.memoryId).toBe("m0042");
+    // No memoryTitles dep + no extraGroundedTitles → title null on the event.
+    expect(citations[0].data.title).toBe(null);
+  });
+
+  it("includes title on citation events when memoryTitles dep is set (F5)", async () => {
+    const events: any[] = [];
+    const deps = {
+      ...happyDeps(),
+      invokeLlm: vi.fn().mockResolvedValue({
+        text: "Voice is plain [mem:m0042].",
+        toolCalls: [],
+        tokens: 100,
+      }),
+      retrievedMemoryIds: ["m0042"],
+      memoryTitles: { m0042: "Voice and tone decision" },
+    };
+    await homeTurn(
+      {
+        tenantId: "t1",
+        actorId: "u1",
+        role: "admin",
+        userInput: "explain voice",
+        recent: [],
+      },
+      deps,
+      (e) => events.push(e),
+    );
+    const c = events.find((e) => e.event === "citation");
+    expect(c.data.title).toBe("Voice and tone decision");
+  });
+
+  it("prefers tool-discovered title (extraGroundedTitles) over static map (F5)", async () => {
+    const events: any[] = [];
+    const deps = {
+      ...happyDeps(),
+      invokeLlm: vi.fn().mockResolvedValue({
+        text: "See [mem:m0099].",
+        toolCalls: [],
+        tokens: 100,
+        extraGroundedIds: ["m0099"],
+        extraGroundedTitles: { m0099: "Fresh from memory_fetch" },
+      }),
+      retrievedMemoryIds: [],
+      memoryTitles: { m0099: "Stale static title" },
+    };
+    await homeTurn(
+      {
+        tenantId: "t1",
+        actorId: "u1",
+        role: "admin",
+        userInput: "x",
+        recent: [],
+      },
+      deps,
+      (e) => events.push(e),
+    );
+    const c = events.find((e) => e.event === "citation");
+    expect(c.data.title).toBe("Fresh from memory_fetch");
+  });
+
+  it("forwards live text deltas via onTextDelta to SSE text-delta events", async () => {
+    const events: any[] = [];
+    const deps = {
+      ...happyDeps(),
+      // Mock streams two chunks via the onTextDelta callback, then
+      // returns the full text (matching the contract real-invoke honors).
+      invokeLlm: vi.fn(async (input: { onTextDelta?: (d: string) => void }) => {
+        input.onTextDelta?.("Open the admin ");
+        input.onTextDelta?.("dashboard at /dashboard.");
+        return {
+          text: "Open the admin dashboard at /dashboard.",
+          toolCalls: [],
+          tokens: 320,
+        };
+      }),
+      classify: vi.fn().mockResolvedValue("navigate"),
+    };
+    await homeTurn(
+      {
+        tenantId: "t1",
+        actorId: "u1",
+        role: "admin",
+        userInput: "where is admin dashboard?",
+        recent: [],
+      },
+      deps,
+      (e) => events.push(e),
+    );
+    const textDeltas = events.filter((e) => e.event === "text-delta");
+    expect(textDeltas).toHaveLength(2);
+    expect(textDeltas[0].data.delta).toBe("Open the admin ");
+    expect(textDeltas[1].data.delta).toBe("dashboard at /dashboard.");
+    // Grounding was a no-op (no citations in text), so no text-replace.
+    const replaces = events.filter((e) => e.event === "text-replace");
+    expect(replaces).toHaveLength(0);
+  });
+
+  it("emits text-replace after streaming when grounding strips ungrounded claims", async () => {
+    const events: any[] = [];
+    const deps = {
+      ...happyDeps(),
+      invokeLlm: vi.fn(async (input: { onTextDelta?: (d: string) => void }) => {
+        const raw = "Churn rose 12% [mem:m9999].";
+        input.onTextDelta?.(raw);
+        return { text: raw, toolCalls: [], tokens: 200 };
+      }),
+      retrievedMemoryIds: [] as string[],
+    };
+    await homeTurn(
+      {
+        tenantId: "t1",
+        actorId: "u1",
+        role: "admin",
+        userInput: "what's going on",
+        recent: [],
+      },
+      deps,
+      (e) => events.push(e),
+    );
+    // First we streamed the raw text...
+    const textDeltas = events.filter((e) => e.event === "text-delta");
+    expect(textDeltas).toHaveLength(1);
+    expect(textDeltas[0].data.delta).toContain("m9999");
+    // ...then grounding stripped it and emitted text-replace.
+    const replaces = events.filter((e) => e.event === "text-replace");
+    expect(replaces).toHaveLength(1);
+    expect(replaces[0].data.text).not.toContain("m9999");
+  });
+
+  it("emits text-replace to overwrite preamble streamed during tool_use iterations", async () => {
+    // Mirrors real-invoke behavior: a tool_use iteration streams
+    // "Let me look that up..." live, then the final iteration streams
+    // the actual answer. LlmResult.text only carries the final
+    // iteration's text, so the wider streamed body must be replaced
+    // with the grounded final to avoid leaving preamble in the UI.
+    const events: any[] = [];
+    const deps = {
+      ...happyDeps(),
+      invokeLlm: vi.fn(async (input: { onTextDelta?: (d: string) => void }) => {
+        input.onTextDelta?.("Let me look that up... ");
+        input.onTextDelta?.("Open the admin dashboard at /dashboard.");
+        return {
+          text: "Open the admin dashboard at /dashboard.",
+          toolCalls: [],
+          tokens: 320,
+        };
+      }),
+      classify: vi.fn().mockResolvedValue("navigate"),
+    };
+    await homeTurn(
+      {
+        tenantId: "t1",
+        actorId: "u1",
+        role: "admin",
+        userInput: "where is admin dashboard?",
+        recent: [],
+      },
+      deps,
+      (e) => events.push(e),
+    );
+    const replaces = events.filter((e) => e.event === "text-replace");
+    expect(replaces).toHaveLength(1);
+    expect(replaces[0].data.text).toBe("Open the admin dashboard at /dashboard.");
+    expect(replaces[0].data.text).not.toContain("Let me look that up");
   });
 
   it("emits turn-end with status=failed when invokeLlm throws", async () => {

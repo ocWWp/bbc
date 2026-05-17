@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { requireActor } from "@/lib/auth/require-user";
 import { ChatHome, type WatchingChip } from "@/components/chat-home/ChatHome";
 import type { TurnViewModel } from "@/components/chat-home/TurnView";
-import { getActiveSessionWithTurns, type HomeTurn } from "@/lib/home/sessions";
+import { getActiveSessionWithTurns } from "@/lib/home/sessions";
+import { turnToVm } from "@/lib/home/turn-to-vm";
 import { readQueueSummary } from "@/lib/home/read-queue-summary";
 import { homeGreeting } from "@/lib/home/greeting";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
@@ -68,28 +69,3 @@ export default async function HomePage() {
   );
 }
 
-function turnToVm(t: HomeTurn): TurnViewModel {
-  const content =
-    t.content_jsonb && typeof t.content_jsonb === "object" && !Array.isArray(t.content_jsonb)
-      ? (t.content_jsonb as Record<string, unknown>)
-      : {};
-  const toolCallsRaw = Array.isArray(content.toolCalls) ? content.toolCalls : [];
-  const toolCalls = toolCallsRaw
-    .map((c) => (c && typeof c === "object" ? (c as Record<string, unknown>) : null))
-    .filter((c): c is Record<string, unknown> => c !== null)
-    .map((c) => ({
-      name: typeof c.name === "string" ? c.name : "unknown",
-      payload: c.payload,
-    }));
-  const citations = Array.isArray(content.citations)
-    ? (content.citations as unknown[]).filter((x): x is string => typeof x === "string")
-    : [];
-  return {
-    id: t.id,
-    role: t.role,
-    status: t.status,
-    text: typeof content.text === "string" ? content.text : "",
-    toolCalls,
-    citations,
-  };
-}

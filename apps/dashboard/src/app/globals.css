@@ -4777,24 +4777,64 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   color: var(--home-ink-muted);
 }
 
-/* User bubbles: crisp white card with strong border, no gradient.
-   Replaces shadcn's `bg-primary text-primary-foreground` look. */
-.home-pilot [data-testid^="turn-user-"] > div {
+/* Turn containers — crisp white cards on the dotted off-white surface.
+   Both sides use the same card material so they read as one
+   conversation; left/right alignment carries the speaker identity.
+   Padding lives here (not on the component) so the Tailwind classes
+   stay layout-only and the card material remains a CSS concern. */
+.home-pilot [data-testid^="turn-user-"] > div,
+.home-pilot [data-testid^="turn-agent-"] > div {
   background: var(--home-card) !important;
   color: var(--home-ink) !important;
   border: 1px solid var(--home-rule-strong) !important;
   border-radius: 14px !important;
   box-shadow: 0 1px 0 var(--home-rule);
 }
-
-/* Agent bubbles: same card material, slightly warmer fill so it still
-   reads as the "other side" of the conversation. */
+.home-pilot [data-testid^="turn-user-"] > div {
+  padding: 0.5rem 0.9rem !important;
+}
 .home-pilot [data-testid^="turn-agent-"] > div {
-  background: color-mix(in oklab, var(--home-card), var(--home-bg) 35%) !important;
-  color: var(--home-ink) !important;
-  border: 1px solid var(--home-rule) !important;
-  border-radius: 14px !important;
-  box-shadow: 0 1px 0 var(--home-rule);
+  padding: 0.85rem 1.05rem !important;
+}
+
+/* Vertical rhythm between turns. The fixed composer adds bottom space
+   itself; this just stops adjacent turns from sitting on each other. */
+.home-pilot [data-testid="chat-home"] [data-testid^="turn-"] {
+  margin-top: 0.6rem;
+}
+.home-pilot [data-testid="chat-home"] [data-testid^="turn-"]:first-of-type {
+  margin-top: 0;
+}
+
+/* Action cards nested inside an agent turn are children of the prose,
+   not peers. Quiet them so the parent reads as the primary surface and
+   the action is a clear affordance within it. */
+.home-pilot [data-testid^="turn-agent-"] [data-testid^="action-card-"] {
+  background: color-mix(in oklab, var(--home-card), var(--home-bg) 60%);
+  border-color: var(--home-rule);
+  box-shadow: none;
+}
+
+/* Citation chip footer: keep light, sit visually below the prose. */
+.home-pilot [data-testid^="turn-agent-"] a[data-testid^="citation-chip-"] {
+  background: color-mix(in oklab, var(--home-card), var(--home-bg) 50%);
+  border-color: var(--home-rule);
+  color: var(--home-ink-muted);
+}
+.home-pilot [data-testid^="turn-agent-"] a[data-testid^="citation-chip-"]:hover {
+  background: var(--home-bg);
+  color: var(--home-ink);
+}
+
+/* Inline [mem:UUID] pills in the prose — same family, tighter. */
+.home-pilot [data-testid^="turn-agent-"] a[data-testid^="inline-citation-"] {
+  background: color-mix(in oklab, var(--home-card), var(--home-bg) 50%);
+  border-color: var(--home-rule);
+  color: var(--home-ink-muted);
+}
+.home-pilot [data-testid^="turn-agent-"] a[data-testid^="inline-citation-"]:hover {
+  background: var(--home-bg);
+  color: var(--home-ink);
 }
 
 /* Empty-state greeting: drop the dashed muted look for a crisp card. */

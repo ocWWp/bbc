@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { MotionConfig, motion } from "framer-motion";
+
 import { TurnView, type TurnViewModel } from "./TurnView";
 
 export type WatchingChip = {
@@ -142,16 +144,25 @@ export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProp
   const empty = turns.length === 0;
 
   return (
+    // reducedMotion="user" honors the OS prefers-reduced-motion setting
+    // for every motion component nested below — turn enter, action card
+    // enter, button press, chip hover. No per-component opt-in needed.
+    <MotionConfig reducedMotion="user">
     <div className="home-pilot" data-testid="chat-home">
     <div className="container page">
+      {/*
+        Chat-app feel per F15: the page-title was redundant with the
+        breadcrumb and shouted the same line in every state. The crumb
+        carries enough page-identity for a conversational surface; the
+        composer + greeting do the rest. A visually-hidden <h1> stays
+        for screen-reader landmark / outline integrity.
+      */}
+      <h1 className="sr-only">Home — ask your second brain</h1>
       <header className="page-head">
         <div className="page-head-left">
           <div className="page-crumb">
             <span className="current">home</span>
           </div>
-          <h1 className="page-title">
-            ask <span className="serif">— your second brain</span>
-          </h1>
         </div>
       </header>
 
@@ -179,12 +190,36 @@ export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProp
 
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 pb-32">
         {empty ? (
-          <div
-            className="rounded-2xl border border-dashed border-border bg-muted/20 p-6 text-base leading-relaxed text-muted-foreground"
-            data-testid="empty-greeting"
-          >
-            {greeting}
-          </div>
+          <>
+            <div
+              className="rounded-2xl border border-dashed border-border bg-muted/20 p-6 text-base leading-relaxed text-muted-foreground"
+              data-testid="empty-greeting"
+            >
+              {greeting}
+            </div>
+            <div
+              className="flex flex-wrap gap-2"
+              data-testid="example-prompts"
+            >
+              {EXAMPLE_PROMPTS.map((p, i) => (
+                <motion.button
+                  key={p.label}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2, delay: 0.05 + i * 0.05, ease: "easeOut" }}
+                  whileHover={{ y: -1 }}
+                  whileTap={{ scale: 0.97 }}
+                  type="button"
+                  onClick={() => setDraft(p.prompt)}
+                  className="rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                  data-testid={`example-prompt-${p.intent}`}
+                >
+                  <span className="font-medium text-foreground/80">{p.label}</span>
+                  <span className="ml-1.5 opacity-60">{p.hint}</span>
+                </motion.button>
+              ))}
+            </div>
+          </>
         ) : (
           turns.map((t) => <TurnView key={t.id} turn={t} />)
         )}
@@ -208,16 +243,18 @@ export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProp
             disabled={streaming}
           />
           {streaming ? (
-            <button
+            <motion.button
+              whileTap={{ scale: 0.97 }}
               type="button"
               onClick={cancel}
               className="home-stop rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium hover:bg-muted"
               data-testid="composer-cancel"
             >
               Stop
-            </button>
+            </motion.button>
           ) : (
-            <button
+            <motion.button
+              whileTap={{ scale: 0.97 }}
               type="button"
               onClick={() => void send()}
               disabled={!draft.trim()}
@@ -225,7 +262,7 @@ export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProp
               data-testid="composer-send"
             >
               Send
-            </button>
+            </motion.button>
           )}
         </div>
         <div className="mx-auto mt-2 flex w-full max-w-3xl justify-end px-1 text-[11px] text-muted-foreground">
@@ -234,6 +271,7 @@ export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProp
       </div>
       </div>
     </div>
+    </MotionConfig>
   );
 }
 
@@ -267,6 +305,10 @@ function handleSseFrame(
           const delta = typeof parsed.delta === "string" ? parsed.delta : "";
           return { ...t, text: t.text + delta };
         }
+        case "text-replace": {
+          const text = typeof parsed.text === "string" ? parsed.text : t.text;
+          return { ...t, text };
+        }
         case "action-card": {
           const kind = typeof parsed.kind === "string" ? parsed.kind : "unknown";
           return {
@@ -276,8 +318,12 @@ function handleSseFrame(
         }
         case "citation": {
           const id = typeof parsed.memoryId === "string" ? parsed.memoryId : "";
-          if (!id || t.citations.includes(id)) return t;
-          return { ...t, citations: [...t.citations, id] };
+          if (!id || t.citations.some((c) => c.id === id)) return t;
+          const title =
+            typeof parsed.title === "string" && parsed.title.trim().length > 0
+              ? parsed.title.trim()
+              : null;
+          return { ...t, citations: [...t.citations, { id, title }] };
         }
         case "turn-end": {
           const status = typeof parsed.status === "string" ? parsed.status : "completed";
@@ -318,3 +364,32 @@ function markAborted(
     ),
   );
 }
+
+// Shown only in the empty/greeting state. Each chip maps to one of the
+// three shipped conversational intents (explain / navigate / draft) so
+// clicking through always lands on a working tool path — never a stub.
+const EXAMPLE_PROMPTS: ReadonlyArray<{
+  intent: "explain" | "navigate" | "draft";
+  label: string;
+  hint: string;
+  prompt: string;
+}> = [
+  {
+    intent: "explain",
+    label: "Explain",
+    hint: "what did we decide about voice?",
+    prompt: "What did we decide about voice and tone?",
+  },
+  {
+    intent: "navigate",
+    label: "Navigate",
+    hint: "where do I manage API keys?",
+    prompt: "Where do I manage API keys?",
+  },
+  {
+    intent: "draft",
+    label: "Draft",
+    hint: "a tweet about this week's progress",
+    prompt: "Draft a tweet about this week's progress.",
+  },
+];
