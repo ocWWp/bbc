@@ -2,7 +2,10 @@
 // (docs/design/library/bbc/project/library-data.jsx). The visual port
 // runs against this fixture data; real Skills + Connectors + Recommendations
 // land via the schema migrations in week 1 of the launch plan. Providers
-// come from memory/ops/providers/*.yaml via readProviders().
+// are real: see _providers.server.ts (loadRealProviders) which reads
+// memory/ops/providers/*.yaml + memory/ops/bindings.yaml. The loader
+// lives in a separate server-only module so this file stays safe to
+// import from "use client" components like LibraryClient.
 
 export type SkillRole =
   | "marketing"
@@ -79,7 +82,7 @@ export type ConnectorItem = {
 export type ProviderItem = {
   id: string;
   kind: "provider";
-  role: "llm" | "db" | "email" | "hosting" | "analytics";
+  role: "llm" | "db" | "email" | "hosting" | "analytics" | "design" | "billing";
   name: string;
   author: string;
   desc: string;
@@ -184,16 +187,6 @@ export function applyGoogleVerificationGate(
   });
 }
 
-export const PROVIDERS: ProviderItem[] = [
-  { id: "pr_001", kind: "provider", role: "llm",       name: "Anthropic",  author: "BBC",       desc: "Claude API — default LLM provider for studios.",            connected: true,  recommended: false, badge: null,           license: "–", env: "ANTHROPIC_KEY", lastTest: "2026-05-09 14:01", glyph: "A" },
-  { id: "pr_002", kind: "provider", role: "llm",       name: "OpenAI",     author: "BBC",       desc: "gpt-4o, o-series. Optional alternate provider per studio.", connected: false, recommended: false, badge: null,           license: "–", env: "OPENAI_KEY",    lastTest: "never",            glyph: "O" },
-  { id: "pr_003", kind: "provider", role: "db",        name: "Supabase",   author: "BBC",       desc: "Postgres + RLS. The default datastore for self-hosters.",   connected: true,  recommended: false, badge: null,           license: "–", env: "SUPABASE_KEY",  lastTest: "2026-05-09 13:50", glyph: "S" },
-  { id: "pr_004", kind: "provider", role: "email",     name: "Resend",     author: "BBC",       desc: "Transactional email. 100 free/day works for indie tenants.", connected: true,  recommended: false, badge: null,           license: "–", env: "RESEND_KEY",    lastTest: "2026-05-08 22:14", glyph: "R" },
-  { id: "pr_005", kind: "provider", role: "hosting",   name: "Cloudflare", author: "BBC",       desc: "Workers + Pages for the public-facing surface.",            connected: false, recommended: true,  badge: "recommended", license: "–", env: "CF_TOKEN",      lastTest: "never",            glyph: "C" },
-  { id: "pr_006", kind: "provider", role: "db",        name: "Neon",       author: "community", desc: "Serverless Postgres. Alternate datastore for tenants who prefer it.", connected: false, recommended: false, badge: null, license: "–", env: "NEON_URL", lastTest: "never", glyph: "n" },
-  { id: "pr_007", kind: "provider", role: "analytics", name: "PostHog",    author: "BBC",       desc: "Product analytics. Optional — agents can file events here.", connected: false, recommended: false, badge: null,           license: "–", env: "POSTHOG_KEY",   lastTest: "never",            glyph: "P" },
-  { id: "pr_008", kind: "provider", role: "llm",       name: "Ollama",     author: "community", desc: "Local LLMs via Ollama. Self-host pattern for offline tenants.", connected: false, recommended: false, badge: null, license: "MIT", env: "OLLAMA_URL", lastTest: "never", glyph: "l" },
-];
 
 export const STARTER_PACKS: StarterPack[] = [
   {
@@ -239,7 +232,7 @@ export const STARTER_PACKS: StarterPack[] = [
 
 export const ROLE_FILTERS = ["all", "marketing", "engineering", "founder", "designer", "support", "sales", "ops", "meta"] as const;
 export const SOURCE_FILTERS = ["all", "docs", "code", "chat", "tasks", "email", "files", "webhook"] as const;
-export const PROV_FILTERS = ["all", "llm", "db", "email", "hosting", "analytics"] as const;
+export const PROV_FILTERS = ["all", "llm", "db", "email", "hosting", "analytics", "design", "billing"] as const;
 
 export const IMPORT_FLAGGED_BODY = `---
 id: pricing-page-copywriter

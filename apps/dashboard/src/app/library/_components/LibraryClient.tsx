@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, useTransition, type CSSProperties } from "
 import {
   CONNECTORS,
   PROV_FILTERS,
-  PROVIDERS,
   ROLE_COLOR,
   ROLE_FILTERS,
   SKILLS,
@@ -45,6 +44,9 @@ export type LibraryClientProps = {
   /** Catalog merged with tenant_connectors install state. Defaults to the
    *  static CONNECTORS array when the server-side reader returns nothing. */
   catalogConnectors?: ConnectorItem[];
+  /** Real provider adapters loaded from memory/ops/providers/*.yaml +
+   *  bindings.yaml. Empty list = no adapters declared in this BBC repo. */
+  providers?: ProviderItem[];
   /** Pending recommendations from the W4-3 lifecycle. Empty list = the band
    *  hides itself; the server entry's empty-load path synchronously regens
    *  before render so this only happens for genuinely empty tenants. */
@@ -60,12 +62,14 @@ export type LibraryClientProps = {
 export function LibraryClient({
   importedSkills,
   catalogConnectors,
+  providers,
   recommendations,
   isAdmin = false,
   tenantSlug,
 }: LibraryClientProps) {
   const allSkills = importedSkills.length === 0 ? SKILLS : [...importedSkills, ...SKILLS];
   const connectors = catalogConnectors ?? CONNECTORS;
+  const providerItems = providers ?? [];
   const recs = recommendations ?? [];
   const [dismissedRecIds, setDismissedRecIds] = useState<Set<string>>(new Set());
   const [, startTransition] = useTransition();
@@ -140,7 +144,7 @@ export function LibraryClient({
 
   // ---------- list pipeline ----------
   const allItems: LibItem[] =
-    tab === "skills" ? allSkills : tab === "connectors" ? connectors : tab === "providers" ? PROVIDERS : [];
+    tab === "skills" ? allSkills : tab === "connectors" ? connectors : tab === "providers" ? providerItems : [];
 
   const installedCount = allItems.filter((x) =>
     x.kind === "provider" ? x.connected : x.installed,
@@ -183,7 +187,7 @@ export function LibraryClient({
     if (key === "all") return allItems.length;
     if (tab === "skills") return allSkills.filter((s) => s.role === key).length;
     if (tab === "connectors") return connectors.filter((c) => c.source === key).length;
-    if (tab === "providers") return PROVIDERS.filter((p) => p.role === key).length;
+    if (tab === "providers") return providerItems.filter((p) => p.role === key).length;
     return 0;
   }
 
@@ -278,7 +282,7 @@ export function LibraryClient({
               { key: "default" as const, lab: "Overview", ct: null as number | null },
               { key: "skills" as const, lab: "Skills", ct: allSkills.length },
               { key: "connectors" as const, lab: "Connectors", ct: connectors.length },
-              { key: "providers" as const, lab: "Providers", ct: PROVIDERS.length },
+              { key: "providers" as const, lab: "Providers", ct: providerItems.length },
             ]
           ).map((t) => (
             <button
@@ -330,6 +334,7 @@ export function LibraryClient({
             recommendations={visibleRecs}
             allSkills={allSkills}
             connectors={connectors}
+            providers={providerItems}
             onOpen={handleOpen}
             onInstall={handleInstall}
             onDismiss={handleDismissRec}
@@ -357,8 +362,8 @@ export function LibraryClient({
           <CategorySlice
             title="Providers"
             tab="providers"
-            items={PROVIDERS.slice(0, 3)}
-            total={PROVIDERS.length}
+            items={providerItems.slice(0, 3)}
+            total={providerItems.length}
             onOpen={handleOpen}
             onInstall={handleInstall}
             installingId={installingId}
@@ -375,6 +380,7 @@ export function LibraryClient({
               recommendations={visibleRecs}
               allSkills={allSkills}
               connectors={connectors}
+              providers={providerItems}
               onOpen={handleOpen}
               onInstall={handleInstall}
               onDismiss={handleDismissRec}
@@ -593,6 +599,7 @@ function resolveRecItem(
   rec: PendingRec,
   allSkills: SkillItem[],
   connectors: ConnectorItem[],
+  providers: ProviderItem[],
 ): LibItem | null {
   if (rec.target_kind === "skill") {
     return allSkills.find((s) => s.id === rec.target_id) ?? null;
@@ -602,7 +609,7 @@ function resolveRecItem(
     return connectors.find((c) => c.id === catalogId) ?? null;
   }
   if (rec.target_kind === "provider") {
-    return PROVIDERS.find((p) => p.id === rec.target_id) ?? null;
+    return providers.find((p) => p.id === rec.target_id) ?? null;
   }
   return null;
 }
@@ -612,6 +619,7 @@ function RecommendedBand({
   recommendations,
   allSkills,
   connectors,
+  providers,
   onOpen,
   onInstall,
   onDismiss,
@@ -624,13 +632,15 @@ function RecommendedBand({
   /** Same merged catalog as the main grid so install state stays consistent
    *  across the page (codex-flagged: rec card used stale static catalog). */
   connectors: ConnectorItem[];
+  /** Real providers (from memory/ops/providers/*.yaml). */
+  providers: ProviderItem[];
   onOpen: (item: LibItem) => void;
   onInstall: (item: LibItem) => void;
   onDismiss: (recId: string) => void;
 }) {
   const items = recommendations
     .map((rec) => {
-      const item = resolveRecItem(rec, allSkills, connectors);
+      const item = resolveRecItem(rec, allSkills, connectors, providers);
       return item ? { rec, item } : null;
     })
     .filter((x): x is { rec: PendingRec; item: LibItem } => x !== null);
