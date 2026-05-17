@@ -34,6 +34,23 @@ staging verification before the PR moves out of draft.
 - **P2 (GitHub PAT validation)** — `validatePatLive` now pings `/repos/{owner}/{repo}`, not `/user`. Fine-grained PATs that authenticate but lack repo access get rejected at install time, not at first sync. Tests updated in `github-validate.test.ts`.
 - **P2 (role gate)** — `/library/install/[connector_id]/page.tsx` requires `admin` to match the admin gate inside both server actions. Operators no longer see a form that fails on submit.
 
+## Live smoke executed via chrome-devtools MCP (2026-05-17)
+
+Driven against `localhost:3000` with `oscarchow@8azi.io` signed in as a tenant admin against staging Supabase. Screenshots + raw proofs in `docs/plans/2026-05-17-phase-k-smoke/`.
+
+| Step | Result | Evidence |
+|---|---|---|
+| Unauth `/library/install/github` | ✅ Redirects to `/auth/signin?callbackUrl=%2Flibrary%2Finstall%2Fgithub` | `signin-redirect.png` |
+| `/library` after sign-in renders GitHub card with **Install GitHub** button | ✅ Verified | Snapshot uid=2_106 |
+| `/library` Overview shows install ONLY on GitHub (not Notion / Linear) | ✅ Verified | Same snapshot |
+| Click **Install GitHub** → navigates to `/library/install/github` and renders PAT + Owner + Repository form | ✅ T17 wiring proven | `github-install-form.png` |
+| `/library/install/google` renders "beta · this app isn't verified" warning + all three required scopes (Gmail, Drive, Drive metadata) | ✅ T19 unverified-OAuth warning live; P2 #1 rationale baked into the copy | `google-launcher.png` |
+| Connectors tab — exactly 3 install buttons (GitHub, Google Drive, Gmail); Notion / Linear / Generic Webhook have none | ✅ T18 fully proven (no missing `install_url` on the three real connectors, no spurious one elsewhere) | `library-connectors-tab.png` + `evaluate_script` returned `{installs: [GitHub, Google Drive, Gmail], total: 3}` |
+| `/api/oauth/google/callback?error=access_denied` → redirects to `/library?install_error=access_denied` | ✅ Error-param propagation works | `network_requests` showed 307 |
+| **P1 (codex) — authenticated user calls `install_connector_atomic` for a foreign tenant** | ✅ **LOCKED DOWN**. HTTP 403, Postgres `42501`, `"permission denied for function install_connector_atomic"`. Authenticated JWT (role `authenticated`, sub `2891990a-...`, email `oscarchow@8azi.io`) hit the Supabase REST RPC directly and was refused. | `p1-lockdown-proof.json` |
+
+This covers six of the eight staging-smoke steps purely client-side. The two that still need hands-on are the ones that depend on a configured Google OAuth client (full consent flow → callback → real `external_accounts` rows) and a real fine-grained PAT.
+
 ## What was verified locally
 
 ### 1. `/library` catalog renders the new install button
