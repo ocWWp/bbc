@@ -40,4 +40,21 @@ describe("oauth-nonce", () => {
     const out = await consumeNonce(client, "missing");
     expect(out).toBeNull();
   });
+
+  it("consumeNonce returns null when the delete errors", async () => {
+    const client = { from: () => ({ delete: () => ({ eq: () => ({
+      select: () => ({ single: async () => ({ data: null, error: { code: "PGRST116", message: "0 rows" } }) })
+    }) }) }) };
+    const out = await consumeNonce(client, "n-1");
+    expect(out).toBeNull();
+  });
+
+  it("recordNonce throws when the insert errors", async () => {
+    const client = { from: () => ({ insert: () => ({ error: { message: "boom" } }) }) };
+    await expect(recordNonce(client, {
+      nonce: "n-1", tenant_id: "t-1", actor_user_id: "u-1",
+      provider: "google", scopes: ["gmail"], redirect_url: "/library?installed=gmail",
+      ttl_seconds: 300,
+    })).rejects.toThrow(/recordNonce.*boom/);
+  });
 });
