@@ -47,6 +47,14 @@ function redirectTo(req: NextRequest, path: string): NextResponse {
 }
 
 export async function GET(req: NextRequest) {
+  // File-mode short-circuit: install + OAuth need DB-mode (RLS-gated secret
+  // ciphertext rows + nonces). Without this guard a stale bookmark to the
+  // callback in a file-mode deployment hits assertOAuthEnv or the Supabase
+  // service client and produces a 500 instead of an honest redirect.
+  if ((process.env.BBC_MODE ?? "file").toLowerCase() !== "db") {
+    return redirectTo(req, "/library?install_error=file_mode");
+  }
+
   assertOAuthEnv();
 
   const code = req.nextUrl.searchParams.get("code");

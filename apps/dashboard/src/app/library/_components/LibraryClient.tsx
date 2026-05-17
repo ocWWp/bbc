@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
+import { useRouter } from "next/navigation";
 import {
   CONNECTORS,
   PROV_FILTERS,
@@ -67,6 +68,7 @@ export function LibraryClient({
   isAdmin = false,
   tenantSlug,
 }: LibraryClientProps) {
+  const router = useRouter();
   const allSkills = importedSkills.length === 0 ? SKILLS : [...importedSkills, ...SKILLS];
   const connectors = catalogConnectors ?? CONNECTORS;
   const providerItems = providers ?? [];
@@ -132,7 +134,17 @@ export function LibraryClient({
     setDetail(item);
   }
 
+  // Phase K T17: connectors with a real install flow navigate to their
+  // install page. Other items (skills, providers, catalog-only connectors)
+  // still flash the optimistic "installing…" state — the install path for
+  // those lands in a later milestone. Setting installingId before push gives
+  // immediate visual feedback while Next routes the transition.
   function handleInstall(item: LibItem) {
+    if (item.kind === "connector" && item.install_url) {
+      setInstallingId(item.id);
+      router.push(item.install_url);
+      return;
+    }
     setInstallingId(item.id);
     window.setTimeout(() => setInstallingId(null), 1600);
   }

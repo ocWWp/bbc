@@ -41,7 +41,7 @@ function isInstalled(item: LibItem): boolean {
 /** Short relative-time formatter for the connector card footer.
  *  Intentionally tiny (no Intl.RelativeTimeFormat overhead) — the precision
  *  here is "rough" by design: "5m ago" / "3h ago" / "2d ago". */
-function relativeTime(iso: string): string {
+export function relativeTime(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
   if (!Number.isFinite(ms) || ms < 0) return "just now";
   const sec = Math.floor(ms / 1000);
@@ -97,6 +97,11 @@ export function LibCard({ item, focused, installingId, installEnabled = false, o
   const installing = installingId === item.id;
   const roleColor = roleColorFor(item);
   const style: RoleColorStyle = { "--role-color": roleColor };
+  // Phase K T17: connectors with their own install_url enable the install
+  // CTA regardless of the page-level installEnabled flag (still false in
+  // v1.7 for skills/providers/catalog-only connectors).
+  const effectiveInstallEnabled =
+    installEnabled || (isConnector(item) && Boolean(item.install_url));
 
   return (
     <div
@@ -210,7 +215,7 @@ export function LibCard({ item, focused, installingId, installEnabled = false, o
           )}
           {isProvider(item) && <span>env · {item.env}</span>}
         </div>
-        {installEnabled ? (
+        {effectiveInstallEnabled ? (
           <button
             type="button"
             className={`install ${installed ? "is-installed" : ""} ${installing ? "is-installing" : ""}`}
@@ -218,7 +223,7 @@ export function LibCard({ item, focused, installingId, installEnabled = false, o
               e.stopPropagation();
               onInstall(item);
             }}
-            aria-label={`${installed ? "Open" : "Install"} ${item.name}`}
+            aria-label={`${installed ? "Reinstall" : "Install"} ${item.name}`}
           >
             {installing ? (
               <>
@@ -226,7 +231,7 @@ export function LibCard({ item, focused, installingId, installEnabled = false, o
               </>
             ) : installed ? (
               <>
-                <Icons.check /> {isProvider(item) ? "bound" : "installed"}
+                <Icons.check /> {isProvider(item) ? "bound" : "reinstall"}
               </>
             ) : (
               "install"
