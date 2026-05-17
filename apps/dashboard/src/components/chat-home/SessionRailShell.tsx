@@ -72,21 +72,6 @@ export function SessionRailShell({
           {rail}
         </div>
 
-        {/* Mobile hamburger — fixed top-left of the chat column.
-            Only present below md; the relative positioning of the
-            content area is handled by the page itself. */}
-        <button
-          type="button"
-          aria-label="Open chat history"
-          aria-expanded={open}
-          aria-controls="session-rail-drawer"
-          onClick={() => setOpen(true)}
-          className="session-rail-toggle md:hidden"
-          data-testid="session-rail-toggle"
-        >
-          <PanelLeft size={18} aria-hidden="true" />
-        </button>
-
         {/* Mobile drawer — scrim + slide-in aside. AnimatePresence
             handles the exit animation when `open` flips back to false. */}
         <AnimatePresence>
@@ -125,6 +110,20 @@ export function SessionRailShell({
         {/* Chat column. `relative` so the absolutely-positioned mobile
             toggle sits inside it, not over the rail on desktop. */}
         <main className="relative overflow-auto" data-testid="session-shell-main">
+          {/* Mobile hamburger — absolute top-left of the chat column,
+              so it sits inside <main>'s relative positioning context
+              (below the sticky app-nav header) rather than over it. */}
+          <button
+            type="button"
+            aria-label="Open chat history"
+            aria-expanded={open}
+            aria-controls="session-rail-drawer"
+            onClick={() => setOpen(true)}
+            className="session-rail-toggle md:hidden"
+            data-testid="session-rail-toggle"
+          >
+            <PanelLeft size={18} aria-hidden="true" />
+          </button>
           {children}
         </main>
       </div>
