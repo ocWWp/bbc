@@ -45,6 +45,11 @@ export type OpsSnapshot = {
 
 export type OpsAttention = {
   pendingProposals: OpsPendingProposal[];
+  /** True count of pending proposals in the store. `pendingProposals` above
+   *  is capped at 20 for inline display; the header pill, "X pending" label,
+   *  and "N more not shown" footer must use this honest total so a tenant
+   *  with 30 pending doesn't read as "20 open". */
+  pendingTotal: number;
   missingProviderKeys: string[]; // provider names expected by bindings.yaml but missing in external_accounts
   failedConnectors: { connector_id: string; status: string }[]; // last_sync_status in {error, auth_expired}
   dlqCount: number;              // admin section only; 0 for non-admin callers
@@ -113,14 +118,24 @@ export async function readOpsState(
       .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    // External accounts: only count rows that represent actually-usable BYOK
+    // secrets — exclude revoked credentials (status='revoked' per migration
+    // 0025's external_account_status enum) and OAuth/connection-string rows
+    // (kind != 'api_key' per the external_account_kind enum). Without these
+    // filters, /ops would over-count "configured" and miss a freshly-revoked
+    // key as "still present", lying to the operator either way.
     supabase
       .from("external_accounts")
       .select("provider_id", { count: "exact" })
-      .eq("tenant_id", tenantId),
+      .eq("tenant_id", tenantId)
+      .eq("status", "active")
+      .eq("kind", "api_key"),
     supabase
       .from("external_accounts")
       .select("created_at")
       .eq("tenant_id", tenantId)
+      .eq("status", "active")
+      .eq("kind", "api_key")
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
@@ -130,13 +145,17 @@ export async function readOpsState(
       .eq("tenant_id", tenantId)
       .eq("active", true)
       .is("uninstalled_at", null),
+    // last_sync_at is nullable for newly-installed-never-synced rows; Postgres
+    // sorts NULLs first by default in DESC order, so without `nullsFirst:
+    // false` a never-synced connector wins the row even when other connectors
+    // synced recently — the snapshot would always read "last sync never".
     supabase
       .from("tenant_connectors")
       .select("last_sync_at")
       .eq("tenant_id", tenantId)
       .eq("active", true)
       .is("uninstalled_at", null)
-      .order("last_sync_at", { ascending: false })
+      .order("last_sync_at", { ascending: false, nullsFirst: false })
       .limit(1)
       .maybeSingle(),
     supabase
@@ -192,6 +211,11 @@ export async function readOpsState(
   return {
     attention: {
       pendingProposals,
+      // Honest total for header pill + "X pending" label + truncation footer.
+      // `pendingProposals` above is sliced to 20 for inline display; the
+      // store returns the full list so a tenant with 30 pending reads as
+      // "30 open" in the header even though only 20 rows render below.
+      pendingTotal: pendingRows.length,
       missingProviderKeys,
       failedConnectors: failedConnectors.map((c) => ({
         connector_id: c.connector_id,

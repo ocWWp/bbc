@@ -30,7 +30,15 @@ type QueueRow = {
 };
 
 type MemoryRow = { id: string; updated_at: string };
-type ExternalAccountRow = { provider_id: string; created_at: string | null };
+// Mirrors public.external_accounts columns we touch from /ops. status +
+// kind drive the new filters (active + api_key only); revoked/oauth_token
+// rows are excluded from configured count and presentProviders.
+type ExternalAccountRow = {
+  provider_id: string;
+  created_at: string | null;
+  status?: "active" | "revoked";
+  kind?: "api_key" | "oauth_token" | "connection_string";
+};
 type ConnectorRow = {
   connector_id: string;
   last_sync_status: string | null;
@@ -141,6 +149,10 @@ type State = {
   selectCount: boolean;
   selectHead: boolean;
   order?: { col: string; ascending: boolean };
+  /** Order options beyond ascending — currently just nullsFirst, used by the
+   *  connectors last_sync_at sort so NULL never-synced rows fall to the end
+   *  instead of dominating the top. */
+  orderOpts?: { nullsFirst?: boolean };
   limit?: number;
 };
 
@@ -164,8 +176,14 @@ function makeChain(resolve: (s: State) => Promise<unknown>) {
     state.filters[`${col}__in`] = vals;
     return builder;
   };
-  builder.order = (col: string, opts?: { ascending?: boolean }) => {
+  builder.order = (
+    col: string,
+    opts?: { ascending?: boolean; nullsFirst?: boolean },
+  ) => {
     state.order = { col, ascending: opts?.ascending ?? true };
+    if (opts && "nullsFirst" in opts) {
+      state.orderOpts = { nullsFirst: opts.nullsFirst };
+    }
     return builder;
   };
   builder.limit = (n: number) => {
@@ -230,7 +248,20 @@ function externalAccountsBuilder(fx: Fixtures) {
     if (fx.errors?.external_accounts) {
       return { data: null, error: fx.errors.external_accounts, count: null };
     }
-    const rows = (fx.externalAccounts ?? []).slice();
+    // Apply the same status/kind filters the production reader does. Rows
+    // without status/kind set in the fixture default to active+api_key so
+    // existing tests keep passing.
+    const statusFilter = (s.filters["status"] as string | undefined) ?? null;
+    const kindFilter = (s.filters["kind"] as string | undefined) ?? null;
+    const rows = (fx.externalAccounts ?? [])
+      .filter((r) => {
+        const status = r.status ?? "active";
+        const kind = r.kind ?? "api_key";
+        if (statusFilter && status !== statusFilter) return false;
+        if (kindFilter && kind !== kindFilter) return false;
+        return true;
+      })
+      .slice();
     // last-configured-at lookup (uses created_at — external_accounts has no
     // last_tested_at column per migration 0025).
     if (s.order?.col === "created_at") {
@@ -261,12 +292,26 @@ function connectorsBuilder(fx: Fixtures) {
       );
       return { data: filtered, error: null, count: filtered.length };
     }
-    // Last-sync lookup
+    // Last-sync lookup. Honor nullsFirst the caller passed: production code
+    // sets {ascending: false, nullsFirst: false} so newly-installed-never-
+    // synced rows (last_sync_at IS NULL) sort to the END, not the top.
     if (s.order?.col === "last_sync_at") {
+      const ascending = s.order.ascending;
+      const nullsFirst =
+        s.orderOpts?.nullsFirst ??
+        // Postgres default: NULLs first in DESC, last in ASC. Mirror that
+        // when nullsFirst isn't specified.
+        !ascending;
       const sorted = all.slice().sort((a, b) => {
-        const av = a.last_sync_at ?? "";
-        const bv = b.last_sync_at ?? "";
-        return av < bv ? 1 : -1;
+        const aNull = a.last_sync_at == null;
+        const bNull = b.last_sync_at == null;
+        if (aNull && bNull) return 0;
+        if (aNull) return nullsFirst ? -1 : 1;
+        if (bNull) return nullsFirst ? 1 : -1;
+        const av = a.last_sync_at as string;
+        const bv = b.last_sync_at as string;
+        if (ascending) return av < bv ? -1 : av > bv ? 1 : 0;
+        return av < bv ? 1 : av > bv ? -1 : 0;
       });
       const top = sorted[0] ?? null;
       return { data: top, error: null, count: all.length };
@@ -401,6 +446,31 @@ describe("readOpsState", () => {
     expect(out.snapshot.providers.configured).toBe(1);
   });
 
+  it("excludes revoked + non-api-key rows from configured count and presentProviders", async () => {
+    // Mix of fixtures the production reader must filter:
+    //   - active + api_key   ⇒ counted, marks provider as present
+    //   - revoked + api_key  ⇒ NOT counted, still flagged missing
+    //   - active + oauth_token ⇒ NOT counted (oauth connector, not BYOK secret)
+    const out = await readOpsState(
+      fakeSupabase({
+        externalAccounts: [
+          { provider_id: "anthropic", created_at: "2026-05-15T00:00:00Z", status: "active", kind: "api_key" },
+          { provider_id: "openai",    created_at: "2026-05-10T00:00:00Z", status: "revoked", kind: "api_key" },
+          { provider_id: "google",    created_at: "2026-05-14T00:00:00Z", status: "active", kind: "oauth_token" },
+        ],
+      }),
+      { ...baseOpts, expectedProviders: ["anthropic", "openai"] },
+      fakeStore({}),
+    );
+    // Only the active+api_key anthropic row counts. openai's revoked row is
+    // not present, so openai must still appear in missingProviderKeys.
+    expect(out.snapshot.providers.configured).toBe(1);
+    expect(out.attention.missingProviderKeys).toEqual(["openai"]);
+    // lastConfiguredAt also runs through the same filters — must reflect the
+    // active+api_key row's timestamp, not the (revoked) openai row.
+    expect(out.snapshot.providers.lastConfiguredAt).toBe("2026-05-15T00:00:00Z");
+  });
+
   it("flags failed connectors and ignores healthy ones", async () => {
     const out = await readOpsState(
       fakeSupabase({
@@ -446,6 +516,52 @@ describe("readOpsState", () => {
     );
     expect(out.snapshot.memory.files).toBe(5);
     expect(out.snapshot.memory.lastUpdatedAt).toBe("2026-05-17T09:30:00Z");
+  });
+
+  it("returns honest pendingTotal even when pendingProposals is sliced to 20", async () => {
+    // Store returns 30 pending; reader must cap the inline list at 20 but
+    // set pendingTotal to 30 so the header pill + "X awaiting review" label
+    // + truncation footer all report the real count. Truncating in the
+    // header would silently undercount past 20 — the bug codex flagged.
+    const pendingProposals = Array.from({ length: 30 }, (_, i) =>
+      makePending({
+        proposal_id: `prop-${String(i).padStart(2, "0")}`,
+        diff_summary: `change ${i}`,
+        target_file: `memory/file-${i}.md`,
+        verdict: "approved",
+      }),
+    );
+    const out = await readOpsState(
+      fakeSupabase({}),
+      baseOpts,
+      fakeStore({ pendingProposals }),
+    );
+    expect(out.attention.pendingProposals).toHaveLength(20);
+    expect(out.attention.pendingTotal).toBe(30);
+    expect(out.snapshot.queue.pending).toBe(30);
+  });
+
+  it("pushes NULL last_sync_at to the end of the connectors order", async () => {
+    // Newly-installed-never-synced row has last_sync_at = null. Postgres
+    // sorts NULLs first in DESC by default; production code passes
+    // nullsFirst: false so a real timestamp wins. Verify the snapshot
+    // shows the real timestamp, not null.
+    const out = await readOpsState(
+      fakeSupabase({
+        connectors: [
+          { connector_id: "gmail", last_sync_status: "ok", last_sync_at: null },
+          {
+            connector_id: "github",
+            last_sync_status: "ok",
+            last_sync_at: "2026-05-17T08:00:00Z",
+          },
+        ],
+      }),
+      baseOpts,
+      fakeStore({}),
+    );
+    expect(out.snapshot.ingest.lastSyncAt).toBe("2026-05-17T08:00:00Z");
+    expect(out.snapshot.ingest.connectors).toBe(2);
   });
 
   it("marks sections as degraded when their queries error", async () => {

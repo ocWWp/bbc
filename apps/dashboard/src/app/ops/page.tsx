@@ -73,9 +73,13 @@ export default async function OpsPage() {
   // "all clear" must ALSO require no degraded sections — otherwise a query
   // that errored falls back to zero counts and the page lies. The degraded
   // banner + per-row "unavailable" treatments carry the message instead.
+  // pendingTotal is the honest count (store returns full list; pendingProposals
+  // above is capped at 20 for inline display). Header pill, "X pending" label,
+  // truncation footer must all read pendingTotal — otherwise a 30-pending
+  // tenant shows "20 open" in the header.
   const nothingNeeded =
     !anyDegraded &&
-    attention.pendingProposals.length === 0 &&
+    attention.pendingTotal === 0 &&
     attention.missingProviderKeys.length === 0 &&
     attention.failedConnectors.length === 0 &&
     attention.dlqCount === 0;
@@ -103,7 +107,7 @@ export default async function OpsPage() {
               className="pill warn"
               style={{ fontVariantNumeric: "tabular-nums" }}
             >
-              {attention.pendingProposals.length +
+              {attention.pendingTotal +
                 attention.missingProviderKeys.length +
                 attention.failedConnectors.length +
                 attention.dlqCount}{" "}
@@ -160,19 +164,19 @@ export default async function OpsPage() {
             {degraded.pendingProposals ? (
               <DegradedRow label="proposals queue" />
             ) : (
-              attention.pendingProposals.length > 0 && (
+              attention.pendingTotal > 0 && (
                 <div className="ops-pending">
                   <div className="ops-attention-row ops-pending-head">
                     <span className="pill warn ops-pill-count">
                       <Count
-                        n={attention.pendingProposals.length}
-                        label={`${attention.pendingProposals.length} pending proposal${
-                          attention.pendingProposals.length === 1 ? "" : "s"
+                        n={attention.pendingTotal}
+                        label={`${attention.pendingTotal} pending proposal${
+                          attention.pendingTotal === 1 ? "" : "s"
                         }`}
                       />
                     </span>
                     <span className="ops-row-text">
-                      proposal{attention.pendingProposals.length === 1 ? "" : "s"}{" "}
+                      proposal{attention.pendingTotal === 1 ? "" : "s"}{" "}
                       awaiting review
                     </span>
                   </div>
@@ -201,10 +205,10 @@ export default async function OpsPage() {
                       </li>
                     ))}
                   </ul>
-                  {attention.pendingProposals.length > 20 && (
+                  {attention.pendingTotal > 20 && (
                     <div className="ops-pending-foot">
                       <span className="ops-pending-more muted mono">
-                        {attention.pendingProposals.length - 20} more not shown
+                        {attention.pendingTotal - 20} more not shown
                       </span>
                     </div>
                   )}
