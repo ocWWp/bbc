@@ -4894,3 +4894,225 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   background: var(--home-card) !important;
   border-color: var(--home-rule-strong) !important;
 }
+
+/* ============================================================
+   /home — Chat-history rail (PR-C).
+   260px persistent rail on md+, drawer below md. All visual
+   tokens come from the .home-pilot block above; this block
+   only spends them. Crisp 1px rules over soft shadows.
+   ============================================================ */
+
+/* Rail container — sr-only heading + new-chat + list. */
+.home-pilot .session-rail {
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Primary new-chat button. Acid yellow on warm bg; the only
+   colored chip in the rail. */
+.home-pilot .session-rail-new-chat {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: var(--home-accent);
+  color: var(--home-accent-ink);
+  border: 1px solid var(--home-rule-strong);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  transition: background 120ms ease, transform 80ms ease;
+}
+.home-pilot .session-rail-new-chat:hover {
+  background: color-mix(in oklab, var(--home-accent) 92%, black);
+}
+/* :active scale handled here as a CSS fallback; framer-motion
+   whileTap was intentionally skipped because <Link> isn't a
+   motion component and wrapping it would add a layout node for
+   no real animation gain. PR-B review marked this as acceptable. */
+.home-pilot .session-rail-new-chat:active {
+  transform: scale(0.985);
+}
+.home-pilot .session-rail-new-chat:focus-visible {
+  outline: 2px solid var(--home-ink);
+  outline-offset: 2px;
+}
+
+/* Empty-state copy under the new-chat button. */
+.home-pilot .session-rail-empty {
+  padding: 24px 8px;
+  text-align: left;
+  color: var(--home-ink-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* List spacing: 2px gap; the row hover/current card edges
+   provide the visual separation, not a divider. */
+.home-pilot .session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Row container — relative for popover positioning. */
+.home-pilot .session-row {
+  position: relative;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.home-pilot .session-row:hover {
+  background: var(--home-card);
+  border-color: var(--home-rule);
+}
+.home-pilot .session-row[data-current="true"] {
+  background: var(--home-card);
+  border-color: var(--home-rule-strong);
+  box-shadow: inset 2px 0 0 var(--home-accent);
+}
+.home-pilot .session-row:focus-within {
+  outline: 2px solid var(--home-ink);
+  outline-offset: 1px;
+}
+
+/* The row link gets the full row's clickable area minus the
+   kebab gutter (pr-7 on the link element handles that). */
+.home-pilot .session-row-link {
+  color: var(--home-ink);
+  text-decoration: none;
+}
+.home-pilot .session-row-link:focus {
+  outline: none; /* outline lives on the row container */
+}
+
+.home-pilot .session-row-title {
+  display: block;
+  font-size: 13.5px;
+  line-height: 1.35;
+  color: var(--home-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Kebab — surfaces on hover/focus/open on pointer devices,
+   always visible on touch. The container has 10px of effective
+   padding around the 24px visible target = 44px touch zone. */
+.home-pilot .session-row-kebab {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background: transparent;
+  border: 0;
+  color: var(--home-ink-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 100ms ease, background 100ms ease;
+}
+.home-pilot .session-row:hover .session-row-kebab,
+.home-pilot .session-row-kebab:focus-visible,
+.home-pilot .session-row-kebab[data-popover-open="true"] {
+  opacity: 1;
+}
+.home-pilot .session-row-kebab:hover {
+  background: color-mix(in oklab, var(--home-ink) 8%, transparent);
+}
+.home-pilot .session-row-kebab:focus-visible {
+  outline: 2px solid var(--home-ink);
+  outline-offset: 2px;
+}
+@media (hover: none) {
+  .home-pilot .session-row-kebab {
+    opacity: 1;
+  }
+}
+
+/* Delete/Cancel popover — white card, strong rule, soft shadow. */
+.home-pilot .session-row-popover {
+  position: absolute;
+  top: 32px;
+  right: 8px;
+  z-index: 20;
+  min-width: 140px;
+  padding: 4px;
+  background: var(--home-card);
+  border: 1px solid var(--home-rule-strong);
+  border-radius: 6px;
+  box-shadow: 0 6px 24px rgba(21, 20, 15, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.home-pilot .session-row-popover-item {
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 0;
+  background: transparent;
+  font-size: 13px;
+  line-height: 1.3;
+  cursor: pointer;
+}
+.home-pilot .session-row-popover-item:focus-visible {
+  outline: 2px solid var(--home-ink);
+  outline-offset: 1px;
+}
+.home-pilot .session-row-popover-item--danger {
+  color: #b3261e;
+}
+.home-pilot .session-row-popover-item--danger:hover {
+  background: color-mix(in oklab, #b3261e 8%, transparent);
+}
+.home-pilot .session-row-popover-item--muted {
+  color: var(--home-ink-muted);
+}
+.home-pilot .session-row-popover-item--muted:hover {
+  background: color-mix(in oklab, var(--home-ink) 6%, transparent);
+}
+
+/* Mobile rail toggle — 40px square at top-left of chat column. */
+.home-pilot .session-rail-toggle {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--home-card);
+  border: 1px solid var(--home-rule);
+  color: var(--home-ink);
+  z-index: 10;
+}
+.home-pilot .session-rail-toggle:focus-visible {
+  outline: 2px solid var(--home-ink);
+  outline-offset: 2px;
+}
+/* The button is marked `md:hidden` by Tailwind, but .home-pilot
+   .session-rail-toggle above (specificity 0,2,0) beats the
+   utility `.md\:hidden` (0,1,0), so the toggle would render at
+   desktop widths too. Re-hide it with matched specificity. */
+@media (min-width: 768px) {
+  .home-pilot .session-rail-toggle {
+    display: none;
+  }
+}

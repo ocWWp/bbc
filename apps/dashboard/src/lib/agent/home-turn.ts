@@ -136,11 +136,29 @@ export type SseEvent =
       event: "citation";
       data: { memoryId: string; title?: string | null };
     }
+  /**
+   * Emitted by the route as the very first SSE event when a brand-new
+   * session was created for this turn. Carries the new sessionId so the
+   * client can update its URL (?session=<id>) without re-fetching the
+   * rail, plus the derived title for the rail row. Not emitted on
+   * turns that target an existing session.
+   */
+  | {
+      event: "session-created";
+      data: { sessionId: string; title: string };
+    }
   | {
       event: "turn-end";
       data: {
         status: "completed" | "aborted" | "failed";
         error?: string;
+        /**
+         * The session's `last_activity_at` after this turn completed.
+         * Populated by the route after homeTurn finishes so the client
+         * rail can update the recency timestamp without a separate
+         * round-trip.
+         */
+        lastActivityAt?: string;
       };
     };
 

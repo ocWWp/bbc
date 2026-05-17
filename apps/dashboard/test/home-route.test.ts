@@ -12,7 +12,10 @@ vi.mock("@/lib/auth/require-user", () => ({
 }));
 
 vi.mock("@/lib/home/sessions", () => ({
-  getActiveSessionWithTurns: vi.fn(async () => null),
+  // PR-C M23: page.tsx switched from getActiveSessionWithTurns → explicit
+  // (getSessionWithTurns when ?session=, listSessions for the rail).
+  getSessionWithTurns: vi.fn(async () => null),
+  listSessions: vi.fn(async () => []),
 }));
 
 vi.mock("@/lib/home/read-queue-summary", () => ({
@@ -71,7 +74,10 @@ function actorOf(role: Role, templateSlug: string | null = null) {
 async function tryRender(): Promise<{ kind: "redirect"; dest: string } | { kind: "rendered" }> {
   const mod = await import("@/app/home/page");
   try {
-    const result = await mod.default();
+    // PR-C M23: HomePage now takes a `searchParams` promise (Next 16's
+    // App Router contract). Tests cover the bare /home path; per-param
+    // validation lives in src/app/home/page.test.tsx.
+    const result = await mod.default({ searchParams: Promise.resolve({}) });
     void result;
     return { kind: "rendered" };
   } catch (e) {

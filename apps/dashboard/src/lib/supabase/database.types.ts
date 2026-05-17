@@ -25,9 +25,9 @@ export type Database = {
         Relationships: [{ foreignKeyName: "bindings_tenant_id_fkey"; columns: ["tenant_id"]; isOneToOne: false; referencedRelation: "tenants"; referencedColumns: ["id"] }]
       }
       home_sessions: {
-        Row: { archived_at: string | null; id: string; last_activity_at: string; started_at: string; tenant_id: string; user_id: string }
-        Insert: { archived_at?: string | null; id?: string; last_activity_at?: string; started_at?: string; tenant_id: string; user_id: string }
-        Update: { archived_at?: string | null; id?: string; last_activity_at?: string; started_at?: string; tenant_id?: string; user_id?: string }
+        Row: { archived_at: string | null; id: string; last_activity_at: string; started_at: string; tenant_id: string; title: string | null; user_id: string }
+        Insert: { archived_at?: string | null; id?: string; last_activity_at?: string; started_at?: string; tenant_id: string; title?: string | null; user_id: string }
+        Update: { archived_at?: string | null; id?: string; last_activity_at?: string; started_at?: string; tenant_id?: string; title?: string | null; user_id?: string }
         Relationships: [{ foreignKeyName: "home_sessions_tenant_id_fkey"; columns: ["tenant_id"]; isOneToOne: false; referencedRelation: "tenants"; referencedColumns: ["id"] }]
       }
       home_turns: {

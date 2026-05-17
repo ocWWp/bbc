@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { MotionConfig, motion } from "framer-motion";
+import { toast } from "sonner";
 
 import { TurnView, type TurnViewModel } from "./TurnView";
 
@@ -18,14 +20,40 @@ export type ChatHomeProps = {
   initialTurns: TurnViewModel[];
   /** Enabled observer signals for this tenant. Empty → no strip rendered. */
   watching?: WatchingChip[];
+  /**
+   * Active session id from the URL `?session=` param, or `null` when we're
+   * on the bare /home greeting. Threaded into the POST body so the server
+   * knows whether to start a new session or append to an existing one.
+   */
+  sessionId?: string | null;
+  /**
+   * Optional externally-owned ref to ChatHome's current AbortController.
+   * When provided, ChatHome assigns its in-flight controller to this ref
+   * whenever a fetch starts. The parent (HomeClient, M23) reads from it
+   * to tear down a live stream the moment the user deletes the current
+   * session — ChatHome's own `catch (AbortError)` then marks the
+   * in-progress turn as aborted in local state.
+   */
+  abortRef?: React.MutableRefObject<AbortController | null>;
 };
 
-export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProps) {
+export function ChatHome({
+  greeting,
+  initialTurns,
+  watching = [],
+  sessionId = null,
+  abortRef: externalAbortRef,
+}: ChatHomeProps) {
+  const router = useRouter();
   const [turns, setTurns] = useState<TurnViewModel[]>(initialTurns);
   const [draft, setDraft] = useState("");
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const scrollAnchorRef = useRef<HTMLDivElement | null>(null);
+  // Buffer for the session id from the SSE `session-created` event. The
+  // route emits it as the first frame of a new chat; we don't navigate
+  // until `turn-end` so the URL change can't tear down a live stream.
+  const pendingSessionIdRef = useRef<string | null>(null);
   // Don't fight the user — only auto-scroll if they're already pinned near
   // the bottom. Updated on every wheel/touch via the scroll listener below.
   const stickToBottomRef = useRef(true);
@@ -38,6 +66,15 @@ export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProp
     }
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Abort any in-flight stream when the component unmounts. Without this,
+  // a navigation away during streaming leaks the fetch + reader and keeps
+  // the SSE socket open until the server tears it down.
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
   }, []);
 
   useEffect(() => {
@@ -80,15 +117,31 @@ export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProp
 
     const abort = new AbortController();
     abortRef.current = abort;
+    // Mirror to the parent-owned ref so a live-delete handler (M23) can
+    // tear the stream down without going through the composer's Stop button.
+    if (externalAbortRef) externalAbortRef.current = abort;
     setStreaming(true);
 
     try {
       const res = await fetch("/api/home/turn", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ userText: text }),
+        body: JSON.stringify({ userText: text, sessionId }),
         signal: abort.signal,
       });
+      // 410 Gone → the session was deleted between page load and submit
+      // (another tab, another device, or this tab's own delete). Clear
+      // the optimistic user+agent turns we just pushed, surface a toast,
+      // and bounce back to /home so the rail re-renders without the row.
+      if (res.status === 410) {
+        await res.text().catch(() => "");
+        setTurns((prev) =>
+          prev.filter((t) => t.id !== tempUserId && t.id !== tempAgentId),
+        );
+        toast.error("This chat was deleted");
+        router.push("/home");
+        return;
+      }
       if (!res.ok || !res.body) {
         const bodyText = await res.text().catch(() => "");
         const detail = bodyText.trim().slice(0, 300);
@@ -113,7 +166,7 @@ export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProp
         while (idx !== -1) {
           const raw = buffer.slice(0, idx);
           buffer = buffer.slice(idx + 2);
-          handleSseFrame(raw, tempAgentId, setTurns);
+          handleSseFrame(raw, tempAgentId, setTurns, pendingSessionIdRef);
           idx = buffer.indexOf("\n\n");
         }
       }
@@ -125,6 +178,7 @@ export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProp
       }
     } finally {
       abortRef.current = null;
+      if (externalAbortRef) externalAbortRef.current = null;
       setStreaming(false);
       // After streaming ends, drop the streaming cursor on the agent turn.
       setTurns((prev) =>
@@ -134,8 +188,19 @@ export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProp
             : { ...t, streaming: t.id === tempAgentId ? false : t.streaming },
         ),
       );
+      // If the server announced a new session id mid-stream, flush the
+      // URL change now (after turn-end has finished updating local state).
+      // Doing it here — rather than inline in the SSE switch — keeps the
+      // router.replace off the streaming hot path and ensures exactly-once
+      // by reading + clearing the buffered ref atomically.
+      const pendingId = pendingSessionIdRef.current;
+      if (pendingId) {
+        pendingSessionIdRef.current = null;
+        router.replace(`?${new URLSearchParams({ session: pendingId }).toString()}`);
+        router.refresh();
+      }
     }
-  }, [draft, streaming]);
+  }, [draft, streaming, sessionId, router, externalAbortRef]);
 
   const cancel = useCallback(() => {
     abortRef.current?.abort();
@@ -148,7 +213,13 @@ export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProp
     // for every motion component nested below — turn enter, action card
     // enter, button press, chip hover. No per-component opt-in needed.
     <MotionConfig reducedMotion="user">
-    <div className="home-pilot" data-testid="chat-home">
+    {/*
+      `.home-pilot` lives on HomeClient's root wrapper so its design tokens
+      reach both the chat-history rail AND this chat surface. The inner
+      `chat-home` testid stays here for tests + scoped CSS that targets the
+      chat subtree specifically (e.g. turn-spacing rules).
+    */}
+    <div data-testid="chat-home">
     <div className="container page">
       {/*
         Chat-app feel per F15: the page-title was redundant with the
@@ -226,7 +297,12 @@ export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProp
         <div ref={scrollAnchorRef} className="scroll-mb-40" />
       </div>
 
-      <div className="home-composer fixed inset-x-0 bottom-0 z-10 border-t border-border bg-background/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      {/*
+        Composer stays `fixed` for the streaming UX PR-B chose, but on md+
+        we offset its left edge by the 260px session rail so it no longer
+        sits across the rail column (PR-C M26 codex fix).
+      */}
+      <div className="home-composer fixed inset-x-0 md:left-[260px] bottom-0 z-10 border-t border-border bg-background/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="mx-auto flex w-full max-w-3xl items-end gap-2">
           <textarea
             className="min-h-[44px] max-h-[160px] flex-1 resize-none rounded-xl border border-border bg-card px-4 py-2.5 text-sm leading-relaxed shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -281,6 +357,7 @@ function handleSseFrame(
   raw: string,
   agentTurnId: string,
   setTurns: React.Dispatch<React.SetStateAction<TurnViewModel[]>>,
+  pendingSessionIdRef: React.MutableRefObject<string | null>,
 ) {
   // Parse the `event:` and `data:` lines out of one frame.
   let event = "";
@@ -294,6 +371,14 @@ function handleSseFrame(
   try {
     parsed = data ? (JSON.parse(data) as Record<string, unknown>) : {};
   } catch {
+    return;
+  }
+
+  // `session-created` is the first frame for a new chat — buffer the id
+  // and defer the URL change to `turn-end` so we don't race the stream.
+  if (event === "session-created") {
+    const id = typeof parsed.sessionId === "string" ? parsed.sessionId : "";
+    if (id) pendingSessionIdRef.current = id;
     return;
   }
 
