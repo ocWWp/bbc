@@ -68,14 +68,7 @@ export default async function OpsPage() {
 
   // Any section degraded means we should warn the operator at the top of
   // Needs Attention rather than silently render zeros below.
-  const anyDegraded =
-    degraded.pendingProposals ||
-    degraded.lastAcceptedAt ||
-    degraded.memory ||
-    degraded.providers ||
-    degraded.ingest ||
-    degraded.failedConnectors ||
-    degraded.dlq;
+  const anyDegraded = Object.values(degraded).some(Boolean);
 
   return (
     <div className="container page ops-page">
@@ -121,7 +114,6 @@ export default async function OpsPage() {
         </div>
       )}
 
-      {/* ---------- Needs Attention ---------- */}
       <section className="ops-section" aria-labelledby="ops-attention-h">
         <div className="ops-section-head">
           <h2 id="ops-attention-h" className="section-eyebrow">
@@ -184,7 +176,7 @@ export default async function OpsPage() {
                     )}
                   </span>
                   <Link href="/queue" className="ops-row-cta mono">
-                    review →
+                    review <span aria-hidden="true">→</span>
                   </Link>
                 </div>
               )
@@ -211,7 +203,7 @@ export default async function OpsPage() {
                     </span>
                   </span>
                   <Link href="/settings/keys" className="ops-row-cta mono">
-                    configure →
+                    configure <span aria-hidden="true">→</span>
                   </Link>
                 </div>
               )
@@ -251,7 +243,7 @@ export default async function OpsPage() {
                     href="/library?tab=connectors"
                     className="ops-row-cta mono"
                   >
-                    view →
+                    view <span aria-hidden="true">→</span>
                   </Link>
                 </div>
               )
@@ -261,7 +253,7 @@ export default async function OpsPage() {
               <DegradedRow label="dead-letter queue" admin />
             ) : (
               attention.dlqCount > 0 && (
-                <div className="ops-attention-row" data-admin="true">
+                <div className="ops-attention-row">
                   <span className="pill err ops-pill-count">
                     <Count
                       n={attention.dlqCount}
@@ -279,7 +271,7 @@ export default async function OpsPage() {
                     href="/library/diagnostics"
                     className="ops-row-cta mono"
                   >
-                    inspect →
+                    inspect <span aria-hidden="true">→</span>
                   </Link>
                 </div>
               )
@@ -288,7 +280,6 @@ export default async function OpsPage() {
         )}
       </section>
 
-      {/* ---------- System Snapshot ---------- */}
       <section className="ops-section" aria-labelledby="ops-snapshot-h">
         <div className="ops-section-head">
           <h2 id="ops-snapshot-h" className="section-eyebrow">
@@ -307,6 +298,7 @@ export default async function OpsPage() {
             degraded={degraded.pendingProposals || degraded.lastAcceptedAt}
             empty={snapshot.queue.pending === 0 && !snapshot.queue.lastAcceptedAt}
             emptyCopy="no proposals yet — studios file here as they accept drafts"
+            linkText="review"
           >
             <span className="ops-snap-fact">
               <Count
@@ -329,6 +321,7 @@ export default async function OpsPage() {
             degraded={degraded.memory}
             empty={snapshot.memory.files === 0}
             emptyCopy="no memory yet — try /welcome or chat with /brain"
+            linkText="browse"
           >
             <span className="ops-snap-fact">
               <Count
@@ -355,6 +348,7 @@ export default async function OpsPage() {
             degraded={degraded.providers}
             empty={snapshot.providers.configured === 0}
             emptyCopy="no provider keys configured — bring your own from /settings/keys"
+            linkText="configure"
           >
             <span className="ops-snap-fact">
               <Count
@@ -411,6 +405,7 @@ function SnapshotRow({
   degraded,
   empty,
   emptyCopy,
+  linkText = "view",
   children,
 }: {
   label: string;
@@ -418,6 +413,7 @@ function SnapshotRow({
   degraded: boolean;
   empty: boolean;
   emptyCopy: string;
+  linkText?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -434,9 +430,9 @@ function SnapshotRow({
           children
         )}
       </span>
-      {!degraded && !empty && (
+      {!degraded && (
         <Link href={href} className="ops-snap-link mono">
-          view →
+          {linkText} <span aria-hidden="true">→</span>
         </Link>
       )}
     </div>
