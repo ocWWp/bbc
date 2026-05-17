@@ -14,6 +14,7 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { readOpsState } from "@/lib/ops/read-ops-state";
 import { getExpectedProviders } from "@/lib/ops/expected-providers";
 import { WorkspaceCrumb } from "@/components/WorkspaceCrumb";
+import ActionButtons from "@/components/ActionButtons";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Ops · BBC" };
@@ -151,33 +152,59 @@ export default async function OpsPage() {
               <DegradedRow label="proposals queue" />
             ) : (
               attention.pendingProposals.length > 0 && (
-                <div className="ops-attention-row">
-                  <span className="pill warn ops-pill-count">
-                    <Count
-                      n={attention.pendingProposals.length}
-                      label={`${attention.pendingProposals.length} pending proposal${
-                        attention.pendingProposals.length === 1 ? "" : "s"
-                      }`}
-                    />
-                  </span>
-                  <span className="ops-row-text">
-                    proposal{attention.pendingProposals.length === 1 ? "" : "s"}{" "}
-                    awaiting review
-                    {attention.pendingProposals[0]?.summary && (
-                      <span className="ops-row-hint">
-                        {" · most recent: "}
-                        <span className="mono">
-                          {attention.pendingProposals[0].summary.slice(0, 64)}
-                          {attention.pendingProposals[0].summary.length > 64
-                            ? "…"
-                            : ""}
-                        </span>
-                      </span>
-                    )}
-                  </span>
-                  <Link href="/queue" className="ops-row-cta mono">
-                    review <span aria-hidden="true">→</span>
-                  </Link>
+                <div className="ops-pending">
+                  <div className="ops-attention-row ops-pending-head">
+                    <span className="pill warn ops-pill-count">
+                      <Count
+                        n={attention.pendingProposals.length}
+                        label={`${attention.pendingProposals.length} pending proposal${
+                          attention.pendingProposals.length === 1 ? "" : "s"
+                        }`}
+                      />
+                    </span>
+                    <span className="ops-row-text">
+                      proposal{attention.pendingProposals.length === 1 ? "" : "s"}{" "}
+                      awaiting review
+                    </span>
+                    <span aria-hidden="true" />
+                  </div>
+                  {/* Inline list of the top 5 pending proposals. Each row links
+                      to the per-proposal review page for full context and
+                      mounts the same ActionButtons component the /queue page
+                      uses, so accept/reject behavior is identical. We pass
+                      canAccept={true} because the operator gate already
+                      protects the page; the server action surfaces a
+                      manager-review error if the proposal requires it. */}
+                  <ul className="ops-pending-list">
+                    {attention.pendingProposals.slice(0, 5).map((p) => (
+                      <li key={p.proposal_id} className="ops-pending-item">
+                        <div className="ops-pending-info">
+                          <Link
+                            href={`/queue/${p.proposal_id}`}
+                            className="ops-pending-link"
+                          >
+                            {p.summary || p.proposal_id}
+                          </Link>
+                          {p.target_file && (
+                            <span className="ops-pending-target mono">
+                              {p.target_file}
+                            </span>
+                          )}
+                        </div>
+                        <div className="ops-pending-actions">
+                          <ActionButtons id={p.proposal_id} canAccept={true} />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                  {attention.pendingProposals.length > 5 && (
+                    <div className="ops-pending-foot">
+                      <Link href="/queue" className="ops-row-cta mono">
+                        view all {attention.pendingProposals.length}{" "}
+                        <span aria-hidden="true">→</span>
+                      </Link>
+                    </div>
+                  )}
                 </div>
               )
             )}

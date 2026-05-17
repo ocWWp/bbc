@@ -5233,6 +5233,82 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 }
 .ops-row-cta:hover { color: var(--paper-ink); }
 
+/* ----------- Pending-proposals inline list -----------
+   Lives inside the Needs Attention card. Header row reuses the standard
+   .ops-attention-row grid; the list rows beneath are stripped-down proposal
+   cards — title + target_file + ActionButtons — without the card chrome,
+   diff strip, or manager-review pills you see on /queue. Operators get
+   actionable rows here; for the full review surface they click through. */
+.ops-pending {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--paper-rule);
+}
+.ops-pending:first-child { border-top: none; }
+.ops-pending-head {
+  /* Cancel the per-row border-top — the .ops-pending wrapper owns it now. */
+  border-top: none;
+  padding-bottom: 4px;
+}
+.ops-pending-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0 46px; /* indent under the pill column for a clear hierarchy */
+  display: flex;
+  flex-direction: column;
+}
+.ops-pending-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 0;
+  border-top: 1px solid var(--paper-rule);
+}
+.ops-pending-item:first-child { border-top: none; }
+.ops-pending-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.ops-pending-link {
+  color: var(--paper-ink);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ops-pending-link:hover { color: var(--paper-accent); }
+.ops-pending-target {
+  color: var(--paper-muted);
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ops-pending-actions {
+  flex-shrink: 0;
+}
+.ops-pending-foot {
+  padding: 10px 0 4px 46px;
+  border-top: 1px solid var(--paper-rule);
+}
+
+@media (max-width: 720px) {
+  .ops-pending-list { margin-left: 0; }
+  .ops-pending-foot { padding-left: 0; }
+  .ops-pending-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+}
+
 /* ----------- System Snapshot ----------- */
 .ops-snapshot {
   display: flex;
