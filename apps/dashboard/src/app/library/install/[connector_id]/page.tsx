@@ -43,16 +43,17 @@ export default async function InstallPage({
     return <NotAvailableInFileMode feature="Install" />;
   }
 
-  // Same auth posture as /library: operator+ can install. We do the check
-  // here too (not just in the server action) so unauthorized visitors get
-  // bounced before seeing the form rather than failing on submit.
+  // Install requires admin. Operator role exists so non-admins can run BBC
+  // without granting them connector-install authority — gating the page at
+  // operator while server actions require admin (codex P2 on PR #24) would
+  // let operators paste a PAT into a form that then fails on submit.
   const a = await requireActor();
   if (!a.ok) {
     redirect(
       `/auth/signin?callbackUrl=${encodeURIComponent(`/library/install/${connector_id}`)}`,
     );
   }
-  const r = requireRole(a.actor, "operator");
+  const r = requireRole(a.actor, "admin");
   if (!r.ok) redirect("/brain");
 
   if (connector_id === "github") {
