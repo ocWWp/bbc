@@ -86,7 +86,7 @@ export type LibCardProps = {
   focused?: boolean;
   installingId?: string | null;
   /** When false, the install/uninstall button is hidden and the card is
-   *  catalog-only. "installed ✓" / "connected ✓" badges still show real state. */
+   *  catalog-only. "installed ✓" / "bound ✓" badges still show real state. */
   installEnabled?: boolean;
   onOpen: (item: LibItem) => void;
   onInstall: (item: LibItem) => void;
@@ -226,7 +226,7 @@ export function LibCard({ item, focused, installingId, installEnabled = false, o
               </>
             ) : installed ? (
               <>
-                <Icons.check /> {isProvider(item) ? "connected" : "installed"}
+                <Icons.check /> {isProvider(item) ? "bound" : "installed"}
               </>
             ) : (
               "install"
@@ -235,9 +235,10 @@ export function LibCard({ item, focused, installingId, installEnabled = false, o
         ) : installed ? (
           <span
             className="install is-installed"
-            aria-label={`${item.name} is ${isProvider(item) ? "connected" : "installed"}`}
+            aria-label={`${item.name} is ${isProvider(item) ? "bound" : "installed"}`}
+
           >
-            <Icons.check /> {isProvider(item) ? "connected" : "installed"}
+            <Icons.check /> {isProvider(item) ? "bound" : "installed"}
           </span>
         ) : null}
       </div>

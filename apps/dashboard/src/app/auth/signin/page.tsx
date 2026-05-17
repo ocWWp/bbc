@@ -61,10 +61,18 @@ export default async function SignInPage({ searchParams }: PageProps) {
   const origin = h.get("origin") ?? `http://${h.get("host") ?? "localhost:3000"}`;
   const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent(target)}`;
 
-  const enabledProviders = (process.env.BBC_OAUTH_PROVIDERS ?? "")
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
+  // Default to both OAuth providers enabled. Operators can override via
+  // BBC_OAUTH_PROVIDERS=github (or =google) to disable one — useful for
+  // self-hosters who haven't configured a Google OAuth app yet. Leaving
+  // both off requires explicitly setting BBC_OAUTH_PROVIDERS="" (empty).
+  const providerEnv = process.env.BBC_OAUTH_PROVIDERS;
+  const enabledProviders =
+    providerEnv === undefined
+      ? ["github", "google"]
+      : providerEnv
+          .split(",")
+          .map((s) => s.trim().toLowerCase())
+          .filter(Boolean);
   const showGitHub = enabledProviders.includes("github");
   const showGoogle = enabledProviders.includes("google");
   const showPassword = true;

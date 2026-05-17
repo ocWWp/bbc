@@ -25,6 +25,7 @@ type EncryptedRow = {
 export type KeyResolution =
   | { source: "tenant_byok"; key: string }
   | { source: "hosted_demo_shared"; key: string }
+  | { source: "tenant_byok_decrypt_failed" }
   | { source: "none" };
 
 export async function hasTenantProviderKey(
@@ -70,8 +71,13 @@ export async function resolveTenantProviderKey(
       });
       return { source: "tenant_byok", key };
     } catch {
-      // Decryption failure: fall through to env fallback so users with broken
-      // keys still see the hosted-demo behavior rather than a hard error.
+      // Decryption failed (corrupt ciphertext, rotated encryption key, etc).
+      // Pre-launch audit P1: previously we fell through to envFallback here,
+      // which meant a user whose BYOK ciphertext broke would silently start
+      // using the shared hosted-demo key — they'd think they were paying for
+      // their own usage, but actually weren't. Now surface as a distinct
+      // resolution so the caller can ask the user to re-enter the key.
+      return { source: "tenant_byok_decrypt_failed" };
     }
   }
 

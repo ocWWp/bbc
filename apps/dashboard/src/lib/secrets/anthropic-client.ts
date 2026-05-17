@@ -37,6 +37,13 @@ export async function getAnthropicClient(
         "No Anthropic API key configured. Add one at /settings/keys, or set ANTHROPIC_API_KEY on the server.",
     };
   }
+  if (resolution.source === "tenant_byok_decrypt_failed") {
+    return {
+      ok: false,
+      error:
+        "Your saved Anthropic key couldn't be decrypted (encryption key may have rotated). Please re-enter it at /settings/keys.",
+    };
+  }
   const client = new Anthropic({ apiKey: resolution.key });
   return {
     ok: true,
