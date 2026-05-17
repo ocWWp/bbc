@@ -55,6 +55,7 @@ import { signOAuthState, type OAuthStatePayload } from "@/lib/connectors/oauth-s
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubEnv("BBC_MODE", "db");
   vi.stubEnv("BBC_OAUTH_STATE_SECRET", SECRET);
   vi.stubEnv("BBC_SECRET_ENCRYPTION_KEY", ENCRYPTION_KEY);
   vi.stubEnv("BBC_GOOGLE_OAUTH_CLIENT_ID", "test-client-id");
@@ -102,6 +103,20 @@ async function callGET(query: Record<string, string>) {
   const { GET } = await import("./route");
   return GET(makeReq(query));
 }
+
+describe("GET /api/oauth/google/callback — file-mode guard", () => {
+  it("redirects with install_error=file_mode when BBC_MODE != db (Phase K T20)", async () => {
+    vi.stubEnv("BBC_MODE", "file");
+    const res = await callGET({ code: "abc", state: "anything" });
+    expect(res.status).toBe(307);
+    const loc = res.headers.get("location") ?? "";
+    expect(loc).toContain("/library?install_error=file_mode");
+    // Nothing downstream of the guard runs.
+    expect(consumeNonceMock).not.toHaveBeenCalled();
+    expect(exchangeMock).not.toHaveBeenCalled();
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+});
 
 describe("GET /api/oauth/google/callback — error redirects", () => {
   it("redirects with install_error=missing_params when state is absent", async () => {

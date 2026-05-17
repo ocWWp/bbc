@@ -76,6 +76,7 @@ import { signOAuthState, type OAuthStatePayload } from "@/lib/connectors/oauth-s
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubEnv("BBC_MODE", "db");
   vi.stubEnv("BBC_OAUTH_STATE_SECRET", SECRET);
   vi.stubEnv("BBC_SECRET_ENCRYPTION_KEY", ENCRYPTION_KEY);
   vi.stubEnv("BBC_GOOGLE_OAUTH_CLIENT_ID", "test-client-id");
