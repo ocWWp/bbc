@@ -82,10 +82,10 @@ beforeEach(() => {
 });
 
 describe("Root route — role-aware redirect", () => {
-  it("unauth → /queue", async () => {
+  it("unauth → /ops", async () => {
     requireActorMock.mockResolvedValueOnce({ ok: false });
     const dest = await captureRedirect();
-    expect(dest).toBe("/queue");
+    expect(dest).toBe("/ops");
   });
 
   it("empty brain → /welcome (preserves empty-brain gate)", async () => {

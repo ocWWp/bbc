@@ -5307,6 +5307,12 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   padding: 10px 0 4px 46px;
   border-top: 1px solid var(--paper-rule);
 }
+.ops-pending-more {
+  /* Non-interactive "N more not shown" hint — matches .ops-row-cta sizing so
+     the foot row keeps its visual weight even without a link. */
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
 
 @media (max-width: 720px) {
   .ops-pending-list { margin-left: 0; }

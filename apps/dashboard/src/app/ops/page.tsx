@@ -193,10 +193,9 @@ export default async function OpsPage() {
                   </ul>
                   {attention.pendingProposals.length > 5 && (
                     <div className="ops-pending-foot">
-                      <Link href="/queue" className="ops-row-cta mono">
-                        view all {attention.pendingProposals.length}{" "}
-                        <span aria-hidden="true">→</span>
-                      </Link>
+                      <span className="ops-pending-more muted mono">
+                        {attention.pendingProposals.length - 5} more not shown
+                      </span>
                     </div>
                   )}
                 </div>
@@ -312,14 +311,12 @@ export default async function OpsPage() {
         </div>
 
         <div className="card card-pad ops-snapshot" role="list">
-          {/* Queue */}
+          {/* Queue — no href; this cockpit IS the queue surface. */}
           <SnapshotRow
             label="Queue"
-            href="/queue"
             degraded={degraded.pendingProposals || degraded.lastAcceptedAt}
             empty={snapshot.queue.pending === 0 && !snapshot.queue.lastAcceptedAt}
             emptyCopy="no proposals yet — studios file here as they accept drafts"
-            linkText="review"
           >
             <span className="ops-snap-fact">
               <Count
@@ -419,7 +416,10 @@ export default async function OpsPage() {
 /** Single snapshot row with consistent label/content/link grid. Shows a
  *  degraded note OR an empty-state copy OR the actual children, in that
  *  priority — zeros would lie when the underlying read failed, and an
- *  empty-state line is more useful than "0 · last sync never". */
+ *  empty-state line is more useful than "0 · last sync never".
+ *
+ *  `href` is optional: rows whose target IS this page (e.g. Queue, now that
+ *  /ops absorbs the queue cockpit) omit it and render no trailing link. */
 function SnapshotRow({
   label,
   href,
@@ -430,7 +430,7 @@ function SnapshotRow({
   children,
 }: {
   label: string;
-  href: string;
+  href?: string;
   degraded: boolean;
   empty: boolean;
   emptyCopy: string;
@@ -451,7 +451,7 @@ function SnapshotRow({
           children
         )}
       </span>
-      {!degraded && (
+      {!degraded && href && (
         <Link href={href} className="ops-snap-link mono">
           {linkText} <span aria-hidden="true">→</span>
         </Link>
