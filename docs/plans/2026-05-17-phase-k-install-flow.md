@@ -12,6 +12,20 @@
 
 ---
 
+## K.1 deviations (recorded after execution)
+
+- **Migration filenames shifted.** Plan said `0040 / 0041 / 0042`; live migrations dir was already at `0054`. Shipped as `0055 / 0056 / 0057`.
+- **Task 3 RPC adapted to real `tenant_connectors` schema** (migration 0034 reality):
+  - Conflict target uses `WHERE active` (real partial unique index `tenant_connectors_active_unique_idx`), not the plan's `WHERE last_sync_status != 'uninstalled'` (the `last_sync_status` CHECK doesn't include `'uninstalled'` either).
+  - Reinstall sets `installed_at = now()` (no `updated_at` column exists).
+  - Reinstall also resets `last_sync_at / last_sync_status / last_sync_error / uninstalled_at = null` so `/ops` honest counts don't regress (fixes from commits `738f843` + `d909446`).
+  - RPC revokes `execute` from `public, anon` before granting to `authenticated` (SECURITY DEFINER hardening).
+- **Task 2 dropped vestigial `consumed_at` column.** Plan had it; `consumeNonce()` (Task 7) uses DELETE-with-RETURNING, so the column would never be written. Table is 8 columns, not 9.
+
+Downstream tasks: when Task 9 / Task 15 call `sb.rpc("install_connector_atomic", {...})`, the parameter shape is unchanged from the plan (still 15 `p_*` args); only the function body differs.
+
+---
+
 ## Phase K.1 — Schema foundation (3 tasks)
 
 ### Task 1: Migration 0040 — OAuth columns on external_accounts
