@@ -1,0 +1,32 @@
+{
+  "test": "P1 — authenticated user calls install_connector_atomic for a different tenant",
+  "executed_at": "2026-05-17",
+  "executed_by": "chrome-devtools MCP, browser context owned by oscarchow@8azi.io",
+  "auth": {
+    "role": "authenticated",
+    "sub": "2891990a-64a5-4ec8-bcbb-531bfaac88bb",
+    "email": "oscarchow@8azi.io"
+  },
+  "request": {
+    "method": "POST",
+    "url": "https://amjvkukmdpmimelazpyw.supabase.co/rest/v1/rpc/install_connector_atomic",
+    "headers": "Authorization: Bearer <user JWT>; apikey: <publishable>",
+    "body_subset": {
+      "p_tenant_id": "00000000-0000-0000-0000-000000000000",
+      "p_actor_user_id": "00000000-0000-0000-0000-000000000000",
+      "p_connector_id": "github"
+    }
+  },
+  "response": {
+    "status": 403,
+    "body": {
+      "code": "42501",
+      "details": null,
+      "hint": null,
+      "message": "permission denied for function install_connector_atomic"
+    }
+  },
+  "verdict": "LOCKED DOWN — function not callable by this user",
+  "before_migration": "Pre-0058, this same call would have either returned a row (if grant + admin check missing) or hit only the in-function check. Now the grant denial fires first.",
+  "covers": "Codex review P1 on PR #24 — tenant isolation hole"
+}
