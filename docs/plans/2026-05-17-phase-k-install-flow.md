@@ -12,6 +12,10 @@
 
 ---
 
+## K.2 follow-up for Task 15
+
+`consumeNonce` returns `null` for **both** missing-row (`PGRST116`) AND any DB/network error. Task 15 must NOT show `install_error=state_reused` for transport errors — operators would chase a phantom CSRF bug. Either (a) log the underlying error when consume returns null after a well-formed signed state validates, or (b) add a sibling helper that distinguishes "not found" from "DB error". Recommend (b) for honesty.
+
 ## K.1 deviations (recorded after execution)
 
 - **Migration filenames shifted.** Plan said `0040 / 0041 / 0042`; live migrations dir was already at `0054`. Shipped as `0055 / 0056 / 0057`.
