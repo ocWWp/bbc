@@ -283,6 +283,80 @@ describe("GET /api/oauth/google/callback — happy path", () => {
     expect(rpcMock).not.toHaveBeenCalledTimes(3);
   });
 
+  it("partial consent: only gmail granted → installs gmail, redirect carries partial=drive", async () => {
+    const payload = makePayload({
+      actor_user_id: "user-abc",
+      tenant_id: "tenant-xyz",
+      scopes: ["gmail", "drive"],
+    });
+    const stateRaw = signOAuthState(payload);
+
+    requireActorMock.mockResolvedValueOnce(actor("user-abc"));
+    consumeNonceMock.mockResolvedValueOnce({
+      nonce: payload.nonce,
+      tenant_id: payload.tenant_id,
+      actor_user_id: payload.actor_user_id,
+      provider: "google",
+      scopes: ["gmail", "drive"],
+      redirect_url: "/library?installed=gmail,drive",
+    });
+    exchangeMock.mockResolvedValueOnce({
+      access_token: "ya29.access",
+      refresh_token: "1//refresh",
+      expires_in: 3600,
+      token_type: "Bearer",
+      // User unchecked drive on the consent screen — only gmail comes back.
+      scope: "https://www.googleapis.com/auth/gmail.readonly",
+    });
+    rpcMock.mockResolvedValueOnce({ data: null, error: null }); // gmail
+
+    const res = await callGET({ code: "the-code", state: stateRaw });
+    const loc = res.headers.get("location") ?? "";
+    expect(loc).toContain("/library?installed=gmail&partial=drive");
+
+    // Only one RPC call — drive must never have been attempted.
+    expect(rpcMock).toHaveBeenCalledTimes(1);
+    expect(rpcMock.mock.calls[0][0]).toBe("install_connector_atomic");
+    expect(rpcMock.mock.calls[0][1]).toMatchObject({
+      p_connector_id: "gmail",
+      p_provider_id: "gmail",
+    });
+  });
+
+  it("nothing relevant granted → zero RPC calls, redirect carries install_error=all_denied", async () => {
+    const payload = makePayload({
+      actor_user_id: "user-abc",
+      tenant_id: "tenant-xyz",
+      scopes: ["gmail", "drive"],
+    });
+    const stateRaw = signOAuthState(payload);
+
+    requireActorMock.mockResolvedValueOnce(actor("user-abc"));
+    consumeNonceMock.mockResolvedValueOnce({
+      nonce: payload.nonce,
+      tenant_id: payload.tenant_id,
+      actor_user_id: payload.actor_user_id,
+      provider: "google",
+      scopes: ["gmail", "drive"],
+      redirect_url: "/library?installed=gmail,drive",
+    });
+    exchangeMock.mockResolvedValueOnce({
+      access_token: "ya29.access",
+      refresh_token: "1//refresh",
+      expires_in: 3600,
+      token_type: "Bearer",
+      // Only profile scope — neither gmail nor drive granted.
+      scope: "https://www.googleapis.com/auth/userinfo.email",
+    });
+
+    const res = await callGET({ code: "the-code", state: stateRaw });
+    const loc = res.headers.get("location") ?? "";
+    expect(loc).toContain("/library?install_error=all_denied&denied=gmail,drive");
+
+    // Both scopes denied → no RPC calls at all.
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+
   it("redirects with install_error=token_exchange when exchangeCodeForTokens throws", async () => {
     const payload = makePayload({ actor_user_id: "user-abc" });
     const stateRaw = signOAuthState(payload);
