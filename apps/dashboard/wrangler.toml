@@ -25,6 +25,10 @@ routes = [
 #   BBC_OAUTH_PROVIDERS          (optional override; defaults to "github,google".
 #                                 Set to "" to disable all OAuth, or to one
 #                                 provider id to enable only that one.)
+#   BBC_OAUTH_STATE_SECRET       (REQUIRED if any OAuth connector installed;
+#                                 openssl rand -base64 32. HMAC signing key for
+#                                 /api/oauth/* state. Cloudflare unset env = "",
+#                                 which causes those routes to refuse to boot.)
 #
 # These are NOT inlined here on purpose — keep secrets in the dashboard's
 # encrypted env, not in the repo. wrangler reads them at deploy time.
