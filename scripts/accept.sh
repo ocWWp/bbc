@@ -112,6 +112,31 @@ if [ "$VERDICT" != "approved" ]; then
 fi
 
 TARGET_PATH="$ROOT/$TARGET_FILE_REL"
+
+# Path-traversal guard: a malicious or malformed proposal could declare
+# target_file: ../../etc/passwd (or similar) and accept.sh would happily
+# write outside $ROOT. Resolve the path symbolically (-m allows non-existent
+# files; we don't require the target to exist yet for new-file accepts) and
+# require it to start with $ROOT/. realpath is GNU coreutils on Linux; on
+# macOS we fall back to python3 since BSD realpath lacks the -m flag.
+resolve_path() {
+  if realpath -m / >/dev/null 2>&1; then
+    realpath -m "$1"
+  else
+    python3 -c "import os,sys; print(os.path.normpath(os.path.abspath(sys.argv[1])))" "$1"
+  fi
+}
+RESOLVED_ROOT="$(resolve_path "$ROOT")"
+RESOLVED_TARGET="$(resolve_path "$TARGET_PATH")"
+case "$RESOLVED_TARGET" in
+  "$RESOLVED_ROOT"/*) : ;;
+  "$RESOLVED_ROOT")   : ;;
+  *)
+    echo "ERROR: target_file resolves outside repo root: $RESOLVED_TARGET (root: $RESOLVED_ROOT)" >&2
+    exit 1
+    ;;
+esac
+
 TS_ISO="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 # Extract body (everything after the second --- line)

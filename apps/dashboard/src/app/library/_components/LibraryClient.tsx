@@ -215,7 +215,7 @@ export function LibraryClient({
     tab === "default"
       ? "Three categories: skills are role templates that drive studios; connectors map external sources to supertag memory; providers are the vendor adapters underneath. Browse the catalog — install + connect flows land in a later milestone."
       : tab === "skills"
-        ? "Role templates that drive a studio. Each skill declares which supertags it reads and (sometimes) writes. Importable from any github SKILL.md."
+        ? "Starter templates that drive a studio. The cards below are BBC-authored starters — import your own from any github SKILL.md to extend the catalog. Each skill declares which supertags it reads and (sometimes) writes."
         : tab === "connectors"
           ? "Map external sources to supertag memory. Connectors never write memory directly — they file proposals to /queue, which you review."
           : "Vendor adapters underneath the studios. LLMs, datastores, email, hosting. Bring your own keys.";

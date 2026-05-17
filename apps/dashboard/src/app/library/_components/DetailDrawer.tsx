@@ -152,9 +152,9 @@ export function DetailDrawer({ item, installingId, onClose, onInstall, installEn
             {installEnabled && isConnector(item) &&
               "BBC opens the OAuth flow inside Settings, syncs the first batch, and files proposals to /queue rather than writing memory directly. You review before anything lands."}
             {installEnabled && isProvider(item) &&
-              "Providers are vendor adapters. Once connected, individual studios can be bound to this provider in /settings/bindings."}
+              "Providers are vendor adapters. \"Bound\" means a binding row exists in memory/ops/bindings.yaml — it does NOT verify the API key works. Test the key at /settings/keys."}
             {!installEnabled &&
-              "Browse-only for now. Install and connect flows land in a later milestone — installed/connected badges still reflect real state from /settings/keys + tenant_connectors."}
+              "Browse-only for now. Install and connect flows land in a later milestone — installed/bound badges still reflect real state from /settings/keys + tenant_connectors."}
           </p>
 
           <div className="lib-section">
@@ -277,11 +277,11 @@ export function DetailDrawer({ item, installingId, onClose, onInstall, installEn
                 <span className="v">
                   {item.connected ? (
                     <span className="pill ok">
-                      <span className="dot" /> connected
+                      <span className="dot" /> bound
                     </span>
                   ) : (
                     <span className="pill muted">
-                      <span className="dot" /> not connected
+                      <span className="dot" /> not bound
                     </span>
                   )}
                 </span>
@@ -332,7 +332,7 @@ export function DetailDrawer({ item, installingId, onClose, onInstall, installEn
           <div className="left">
             {installed ? (
               isProvider(item) ? (
-                <>currently connected</>
+                <>currently bound</>
               ) : (
                 <>currently installed</>
               )

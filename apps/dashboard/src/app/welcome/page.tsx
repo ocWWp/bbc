@@ -22,6 +22,25 @@ export default async function WelcomePage({ searchParams }: { searchParams: Sear
   if (!a.ok) redirect("/auth/signin?callbackUrl=/welcome");
 
   const supabase = await getSupabaseServerClient();
+
+  // Pre-launch audit fix: /welcome is the one carve-out from Main CLAUDE.md
+  // principle #6 (every memory write goes through the queue). The carve-out
+  // is meant for the workspace OWNER's first dump only — teammates joining
+  // an already-set-up workspace should not see /welcome at all (and
+  // definitely shouldn't be able to bulk-insert into shared memory).
+  //
+  // Heuristic: if the tenant already has any memory rows, the workspace is
+  // already set up. Skip /welcome and send the user to /home. They can
+  // introduce themselves via chat — which DOES go through normal queue
+  // rules, exactly the right threat model for a teammate.
+  const { count: existingMemoryCount } = await supabase
+    .from("memory_files")
+    .select("id", { count: "exact", head: true })
+    .eq("tenant_id", a.actor.tenant_id);
+  if ((existingMemoryCount ?? 0) > 0) {
+    redirect("/home");
+  }
+
   const hasAnthropicKey = await hasTenantProviderKey(
     supabase,
     a.actor.tenant_id,
