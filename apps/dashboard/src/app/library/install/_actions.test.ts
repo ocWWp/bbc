@@ -31,6 +31,10 @@ vi.mock("@/lib/connectors/github-validate", () => ({
   validatePatLive: (...args: unknown[]) => validatePatLiveMock(...args),
 }));
 
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+}));
+
 import { requireActor } from "@/lib/auth/require-user";
 import { installGithubPat } from "./_actions";
 
@@ -208,6 +212,19 @@ describe("installGithubPat — happy path", () => {
     const r = await installGithubPat(makeFormData());
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toMatch(/db blew up|install failed/i);
+  });
+
+  it("malformed RPC return (missing tenant_connector_id) → { ok: false } with /shape/i", async () => {
+    requireActorMock.mockResolvedValueOnce(actorOf("admin"));
+    validatePatLiveMock.mockResolvedValueOnce({ ok: true, login: "octocat" });
+    rpcMock.mockResolvedValueOnce({
+      data: [{ external_account_id: "x" }],
+      error: null,
+    });
+
+    const r = await installGithubPat(makeFormData());
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/shape/i);
   });
 });
 
