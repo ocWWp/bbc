@@ -8,6 +8,7 @@ import { readPendingRecommendations } from "@/lib/loop3/read-recommendations";
 import { triggerLibraryVisitGenerate } from "@/lib/loop3/generate";
 import { isGoogleAppVerified } from "@/lib/connectors/google-oauth";
 import { CONNECTORS, applyGoogleVerificationGate, mergeConnectorState } from "./_data";
+import { loadRealProviders } from "./_providers.server";
 import { LibraryClient } from "./_components/LibraryClient";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +22,8 @@ export const metadata: Metadata = { title: "Library · BBC" };
 //   - Recommendations: pending rows from W4-3 lifecycle (W4-4 wiring); the
 //     visit trigger (W4-5) fires-and-forgets a regenerate on every visit
 //     (1-hour TTL).
-//   - Providers: still on _data.ts mocks; live wiring lands later.
+//   - Providers: loadRealProviders() reads memory/ops/providers/*.yaml
+//     + memory/ops/bindings.yaml. Server-only module; lives next door.
 export default async function LibraryPage() {
   const actor = await requireActor();
   if (!actor.ok) redirect(`/auth/signin?callbackUrl=${encodeURIComponent("/library")}`);
@@ -31,10 +33,11 @@ export default async function LibraryPage() {
   if (!op.ok) redirect("/brain");
 
   const supabase = await getSupabaseServerClient();
-  const [importedSkills, installedConnectors, recommendationsInitial] = await Promise.all([
+  const [importedSkills, installedConnectors, recommendationsInitial, providers] = await Promise.all([
     readTenantSkills(supabase),
     readTenantConnectors(supabase),
     readPendingRecommendations(supabase),
+    loadRealProviders(),
   ]);
   const catalogConnectors = applyGoogleVerificationGate(
     mergeConnectorState(CONNECTORS, installedConnectors),
@@ -71,6 +74,7 @@ export default async function LibraryPage() {
     <LibraryClient
       importedSkills={importedSkills}
       catalogConnectors={catalogConnectors}
+      providers={providers}
       recommendations={recommendations}
       isAdmin={isAdmin}
       tenantSlug={actor.actor.tenant_slug}
