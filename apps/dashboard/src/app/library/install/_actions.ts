@@ -22,11 +22,22 @@
  */
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireActor, requireRole } from "@/lib/auth/require-user";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  getSupabaseServerClient,
+  getSupabaseServiceClient,
+} from "@/lib/supabase/server";
 import { encryptSecret, makeDisplayHint } from "@/lib/secrets/encryption";
 import { validatePatLive } from "@/lib/connectors/github-validate";
+import {
+  buildAuthorizeUrl,
+  GMAIL_SCOPES,
+  DRIVE_SCOPES,
+} from "@/lib/connectors/google-oauth";
+import { signOAuthState } from "@/lib/connectors/oauth-state";
+import { recordNonce } from "@/lib/connectors/oauth-nonce";
 
 const githubInput = z.object({
   pat: z.string().min(10).max(2000),
@@ -105,4 +116,80 @@ export async function installGithubPat(
     external_account_id: row.external_account_id,
     tenant_connector_id: row.tenant_connector_id,
   };
+}
+
+/**
+ * Task 13 of Phase K install-flow: startGoogleOAuth.
+ *
+ * Server action that kicks off the Google OAuth dance for Gmail + Drive.
+ *
+ *   1. Requires the caller be a tenant admin (OAuth install is high-trust,
+ *      same gate as installGithubPat).
+ *   2. Refuses to start if BBC_GOOGLE_OAUTH_CLIENT_ID is unset (Cloudflare
+ *      treats unset env vars as empty string — see feedback_cloudflare_env_vars_empty_string).
+ *   3. Mints a fresh nonce, records it server-side via the oauth_state_nonces
+ *      table (5 minute TTL) so the callback (Task 14) can single-use it.
+ *   4. Signs an HMAC state payload binding {tenant, actor, provider, scopes,
+ *      nonce, expiry} so the callback can verify the redirect came from us
+ *      and hasn't been replayed.
+ *   5. Calls next/navigation `redirect()` to send the browser to Google's
+ *      consent screen. `redirect()` throws by design — that is how Next.js
+ *      implements server-side navigation; the throw is the success signal.
+ *
+ * No tokens are persisted here. The callback route (Task 14) does the code
+ * exchange and the install_connector_atomic call. This action is pure setup.
+ */
+export type StartGoogleOAuthResult = { ok: false; error: string };
+
+export async function startGoogleOAuth(
+  _formData: FormData,
+): Promise<StartGoogleOAuthResult | never> {
+  const a = await requireActor();
+  if (!a.ok) return { ok: false, error: a.output };
+  const r = requireRole(a.actor, "admin");
+  if (!r.ok) return { ok: false, error: r.output };
+
+  const clientId = process.env.BBC_GOOGLE_OAUTH_CLIENT_ID;
+  if (!clientId || clientId.length === 0) {
+    return { ok: false, error: "Google OAuth not configured on this server." };
+  }
+
+  const publicUrl = process.env.BBC_PUBLIC_URL;
+  if (!publicUrl || publicUrl.length === 0) {
+    return { ok: false, error: "Google OAuth not configured on this server." };
+  }
+
+  const nonce = crypto.randomUUID();
+  const scopes = ["gmail", "drive"];
+  const expires_at_ms = Date.now() + 5 * 60 * 1000;
+  const redirect_url = "/library?installed=gmail,drive";
+
+  const sb = getSupabaseServiceClient();
+  await recordNonce(sb, {
+    nonce,
+    tenant_id: a.actor.tenant_id,
+    actor_user_id: a.actor.user_id,
+    provider: "google",
+    scopes,
+    redirect_url,
+    ttl_seconds: 300,
+  });
+
+  const state = signOAuthState({
+    tenant_id: a.actor.tenant_id,
+    actor_user_id: a.actor.user_id,
+    provider: "google",
+    scopes,
+    nonce,
+    expires_at_ms,
+  });
+
+  const authorizeUrl = buildAuthorizeUrl({
+    clientId,
+    redirectUri: `${publicUrl}/api/oauth/google/callback`,
+    scopes: [...GMAIL_SCOPES, ...DRIVE_SCOPES],
+    state,
+  });
+
+  redirect(authorizeUrl);
 }

@@ -15,8 +15,10 @@ vi.mock("@/lib/auth/require-user", async (importOriginal) => {
 });
 
 const rpcMock = vi.fn();
+const serviceClientMock = { __tag: "service-client" as const };
 vi.mock("@/lib/supabase/server", () => ({
   getSupabaseServerClient: vi.fn(async () => ({ rpc: rpcMock })),
+  getSupabaseServiceClient: vi.fn(() => serviceClientMock),
 }));
 
 const encryptSecretMock = vi.fn();
@@ -35,8 +37,27 @@ vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
+const redirectMock = vi.fn((_url: string): never => {
+  // Mirror Next.js: redirect throws to halt server-side execution.
+  throw new Error("NEXT_REDIRECT");
+});
+vi.mock("next/navigation", () => ({
+  redirect: (url: string) => redirectMock(url),
+}));
+
+const recordNonceMock = vi.fn();
+vi.mock("@/lib/connectors/oauth-nonce", () => ({
+  recordNonce: (...args: unknown[]) => recordNonceMock(...args),
+}));
+
+const signOAuthStateMock = vi.fn();
+vi.mock("@/lib/connectors/oauth-state", () => ({
+  signOAuthState: (...args: unknown[]) => signOAuthStateMock(...args),
+}));
+
 import { requireActor } from "@/lib/auth/require-user";
-import { installGithubPat } from "./_actions";
+import { installGithubPat, startGoogleOAuth } from "./_actions";
+import { GMAIL_SCOPES, DRIVE_SCOPES } from "@/lib/connectors/google-oauth";
 
 const requireActorMock = requireActor as ReturnType<typeof vi.fn>;
 
@@ -245,5 +266,148 @@ describe("installGithubPat — input validation", () => {
     const r = await installGithubPat(makeFormData({ pat: "short" }));
     expect(r.ok).toBe(false);
     expect(validatePatLiveMock).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 13: startGoogleOAuth
+// ---------------------------------------------------------------------------
+
+describe("startGoogleOAuth — RBAC", () => {
+  beforeEach(() => {
+    process.env.BBC_GOOGLE_OAUTH_CLIENT_ID = "google-client-id-xyz";
+    process.env.BBC_PUBLIC_URL = "https://bbc.example";
+  });
+
+  it("non-admin actor (operator) is rejected with /admin/", async () => {
+    requireActorMock.mockResolvedValueOnce(actorOf("operator"));
+    const r = (await startGoogleOAuth(new FormData())) as { ok: false; error: string };
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/admin/i);
+    expect(recordNonceMock).not.toHaveBeenCalled();
+    expect(signOAuthStateMock).not.toHaveBeenCalled();
+    expect(redirectMock).not.toHaveBeenCalled();
+  });
+
+  it("non-admin actor (member) is rejected with /admin/", async () => {
+    requireActorMock.mockResolvedValueOnce(actorOf("member"));
+    const r = (await startGoogleOAuth(new FormData())) as { ok: false; error: string };
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/admin/i);
+  });
+
+  it("unauthenticated caller is rejected", async () => {
+    requireActorMock.mockResolvedValueOnce({ ok: false, output: "unauthorized: sign in required" });
+    const r = (await startGoogleOAuth(new FormData())) as { ok: false; error: string };
+    expect(r.ok).toBe(false);
+    expect(redirectMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("startGoogleOAuth — configuration", () => {
+  beforeEach(() => {
+    process.env.BBC_PUBLIC_URL = "https://bbc.example";
+  });
+
+  it("missing BBC_GOOGLE_OAUTH_CLIENT_ID → /configured/i", async () => {
+    delete process.env.BBC_GOOGLE_OAUTH_CLIENT_ID;
+    requireActorMock.mockResolvedValueOnce(actorOf("admin"));
+    const r = (await startGoogleOAuth(new FormData())) as { ok: false; error: string };
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/configured/i);
+    expect(recordNonceMock).not.toHaveBeenCalled();
+    expect(redirectMock).not.toHaveBeenCalled();
+  });
+
+  it("empty-string BBC_GOOGLE_OAUTH_CLIENT_ID (Cloudflare-unset) → /configured/i", async () => {
+    process.env.BBC_GOOGLE_OAUTH_CLIENT_ID = "";
+    requireActorMock.mockResolvedValueOnce(actorOf("admin"));
+    const r = (await startGoogleOAuth(new FormData())) as { ok: false; error: string };
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/configured/i);
+    expect(redirectMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("startGoogleOAuth — happy path", () => {
+  beforeEach(() => {
+    process.env.BBC_GOOGLE_OAUTH_CLIENT_ID = "google-client-id-xyz";
+    process.env.BBC_PUBLIC_URL = "https://bbc.example";
+    signOAuthStateMock.mockReturnValue("signed.state.value");
+    recordNonceMock.mockResolvedValue(undefined);
+  });
+
+  it("records a nonce with provider=google, scopes=[gmail,drive], 300s ttl", async () => {
+    requireActorMock.mockResolvedValueOnce(actorOf("admin"));
+    await expect(startGoogleOAuth(new FormData())).rejects.toThrow(/NEXT_REDIRECT/);
+
+    expect(recordNonceMock).toHaveBeenCalledTimes(1);
+    const [client, payload] = recordNonceMock.mock.calls[0];
+    // Service-role client passed through (cross-user nonce row).
+    expect(client).toBeTruthy();
+
+    expect(payload).toMatchObject({
+      tenant_id: "tenant-xyz",
+      actor_user_id: "user-abc",
+      provider: "google",
+      scopes: ["gmail", "drive"],
+      redirect_url: "/library?installed=gmail,drive",
+      ttl_seconds: 300,
+    });
+    // nonce is a uuid v4-shaped string.
+    expect(payload.nonce).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it("signs state with matching tenant/actor/provider/scopes/nonce and future expiry", async () => {
+    requireActorMock.mockResolvedValueOnce(actorOf("admin"));
+    const before = Date.now();
+    await expect(startGoogleOAuth(new FormData())).rejects.toThrow(/NEXT_REDIRECT/);
+
+    expect(signOAuthStateMock).toHaveBeenCalledTimes(1);
+    const [statePayload] = signOAuthStateMock.mock.calls[0];
+    expect(statePayload).toMatchObject({
+      tenant_id: "tenant-xyz",
+      actor_user_id: "user-abc",
+      provider: "google",
+      scopes: ["gmail", "drive"],
+    });
+    expect(statePayload.nonce).toMatch(/^[0-9a-f-]{36}$/);
+    expect(statePayload.expires_at_ms).toBeGreaterThan(before);
+    expect(statePayload.expires_at_ms).toBeLessThanOrEqual(before + 5 * 60 * 1000 + 1000);
+
+    // nonce passed to recordNonce and signOAuthState is the same value.
+    const [, noncePayload] = recordNonceMock.mock.calls[0];
+    expect(statePayload.nonce).toBe(noncePayload.nonce);
+  });
+
+  it("redirects to Google authorize URL with gmail+drive scopes, configured redirect_uri, and signed state", async () => {
+    requireActorMock.mockResolvedValueOnce(actorOf("admin"));
+    await expect(startGoogleOAuth(new FormData())).rejects.toThrow(/NEXT_REDIRECT/);
+
+    expect(redirectMock).toHaveBeenCalledTimes(1);
+    const [url] = redirectMock.mock.calls[0];
+    expect(url).toMatch(/^https:\/\/accounts\.google\.com\/o\/oauth2\/v2\/auth/);
+
+    const u = new URL(url);
+    expect(u.searchParams.get("client_id")).toBe("google-client-id-xyz");
+    expect(u.searchParams.get("redirect_uri")).toBe(
+      "https://bbc.example/api/oauth/google/callback",
+    );
+    expect(u.searchParams.get("state")).toBe("signed.state.value");
+
+    const scopeParam = u.searchParams.get("scope") ?? "";
+    for (const s of [...GMAIL_SCOPES, ...DRIVE_SCOPES]) {
+      expect(scopeParam).toContain(s);
+    }
+  });
+
+  it("recordNonce runs BEFORE redirect (so a recordNonce throw bubbles up and we never redirect)", async () => {
+    requireActorMock.mockResolvedValueOnce(actorOf("admin"));
+    recordNonceMock.mockRejectedValueOnce(new Error("oauth_state_nonces insert failed"));
+
+    await expect(startGoogleOAuth(new FormData())).rejects.toThrow(
+      /oauth_state_nonces insert failed/,
+    );
+    expect(redirectMock).not.toHaveBeenCalled();
   });
 });
