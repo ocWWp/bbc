@@ -51,6 +51,7 @@ Default tenant for local dev: `examples/example-tenant/` (Acme Co fixture). Over
 | `ANTHROPIC_API_KEY` | optional | tenants can BYOK at `/settings/keys` |
 | `BBC_SIGNUP_MODE` | yes | `open` or `invite_only` |
 | `BBC_HOSTED_DEMO_MODE` | yes | `true` only on the bbc.tools demo |
+| `BBC_OAUTH_STATE_SECRET` | if OAuth used | HMAC signing for OAuth state; `openssl rand -base64 32`. Cloudflare unset = empty string; routes refuse to boot. |
 
 Local: `apps/dashboard/.env.local` (gitignored; see `.env.example`). Deploy: Cloudflare dashboard env vars; `wrangler.toml` has comments documenting the same list.
 
