@@ -17,7 +17,9 @@ import { notFound } from "next/navigation";
 import { redirect } from "next/navigation";
 import { requireActor, requireRole } from "@/lib/auth/require-user";
 import { NotAvailableInFileMode } from "@/components/NotAvailableInFileMode";
+import { isGoogleAppVerified } from "@/lib/connectors/google-oauth";
 import { GithubPatForm } from "./_components/GithubPatForm";
+import { GoogleConsentLauncher } from "./_components/GoogleConsentLauncher";
 
 export const dynamic = "force-dynamic";
 
@@ -57,9 +59,7 @@ export default async function InstallPage({
     return <GithubPatForm />;
   }
   if (connector_id === "google") {
-    // Filled in by Task 14 (OAuth start). Intentionally not 404 — the route
-    // is a known stub, not an unknown connector.
-    return null;
+    return <GoogleConsentLauncher appVerified={isGoogleAppVerified()} />;
   }
   return null;
 }
