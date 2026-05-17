@@ -34,8 +34,19 @@ vi.mock("@/lib/auth/require-user", async (importOriginal) => {
 });
 
 const rpcMock = vi.fn();
+// Codex P1 on PR #24: installGithubPat MUST use service-role (migration 0058
+// revoked install_connector_atomic from `authenticated`). Wire the service
+// client to carry the rpc mock; make the cookie-backed server client's rpc
+// throw if it ever gets called.
 vi.mock("@/lib/supabase/server", () => ({
-  getSupabaseServerClient: vi.fn(async () => ({ rpc: rpcMock })),
+  getSupabaseServerClient: vi.fn(async () => ({
+    rpc: () => {
+      throw new Error(
+        "test wiring: installGithubPat must use getSupabaseServiceClient, not getSupabaseServerClient",
+      );
+    },
+  })),
+  getSupabaseServiceClient: vi.fn(() => ({ rpc: rpcMock })),
 }));
 
 const encryptSecretMock = vi.fn();

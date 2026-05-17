@@ -15,10 +15,19 @@ vi.mock("@/lib/auth/require-user", async (importOriginal) => {
 });
 
 const rpcMock = vi.fn();
-const serviceClientMock = { __tag: "service-client" as const };
+// Codex P1 on PR #24: installGithubPat MUST use the service-role client.
+// Migration 0058 revokes install_connector_atomic from `authenticated`, so
+// any call through the cookie-backed server client now 403s. We wire the
+// service client to carry the rpc mock; the server client's rpc throws so
+// any regression to the cookie-backed path will blow up the test loudly.
+const serverClientRpcMock = vi.fn(() => {
+  throw new Error(
+    "test wiring: installGithubPat must use getSupabaseServiceClient, not getSupabaseServerClient",
+  );
+});
 vi.mock("@/lib/supabase/server", () => ({
-  getSupabaseServerClient: vi.fn(async () => ({ rpc: rpcMock })),
-  getSupabaseServiceClient: vi.fn(() => serviceClientMock),
+  getSupabaseServerClient: vi.fn(async () => ({ rpc: serverClientRpcMock })),
+  getSupabaseServiceClient: vi.fn(() => ({ rpc: rpcMock })),
 }));
 
 const encryptSecretMock = vi.fn();
@@ -305,8 +314,13 @@ describe("startGoogleOAuth — RBAC", () => {
 });
 
 describe("startGoogleOAuth — configuration", () => {
+  // Set all four required env vars, then individual tests delete or empty
+  // one to verify that ALL of them are checked up-front (codex P3 post-K.5).
   beforeEach(() => {
+    process.env.BBC_GOOGLE_OAUTH_CLIENT_ID = "google-client-id-xyz";
+    process.env.BBC_GOOGLE_OAUTH_CLIENT_SECRET = "google-secret-xyz";
     process.env.BBC_PUBLIC_URL = "https://bbc.example";
+    process.env.BBC_OAUTH_STATE_SECRET = Buffer.from("0".repeat(32)).toString("base64");
   });
 
   it("missing BBC_GOOGLE_OAUTH_CLIENT_ID → /configured/i", async () => {
@@ -327,12 +341,48 @@ describe("startGoogleOAuth — configuration", () => {
     expect(r.error).toMatch(/configured/i);
     expect(redirectMock).not.toHaveBeenCalled();
   });
+
+  it("missing BBC_GOOGLE_OAUTH_CLIENT_SECRET → /configured/i, no stale nonce row (codex P3)", async () => {
+    delete process.env.BBC_GOOGLE_OAUTH_CLIENT_SECRET;
+    requireActorMock.mockResolvedValueOnce(actorOf("admin"));
+    const r = (await startGoogleOAuth(new FormData())) as { ok: false; error: string };
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/configured/i);
+    // The whole point of the fix: don't write a nonce that the callback will
+    // fail to redeem anyway.
+    expect(recordNonceMock).not.toHaveBeenCalled();
+    expect(redirectMock).not.toHaveBeenCalled();
+  });
+
+  it("missing BBC_OAUTH_STATE_SECRET → /configured/i, no stale nonce row (codex P3)", async () => {
+    delete process.env.BBC_OAUTH_STATE_SECRET;
+    requireActorMock.mockResolvedValueOnce(actorOf("admin"));
+    const r = (await startGoogleOAuth(new FormData())) as { ok: false; error: string };
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/configured/i);
+    // Without this guard, recordNonce would succeed, then signOAuthState
+    // would throw — leaking a never-redeemed nonce row to the DB.
+    expect(recordNonceMock).not.toHaveBeenCalled();
+    expect(signOAuthStateMock).not.toHaveBeenCalled();
+    expect(redirectMock).not.toHaveBeenCalled();
+  });
+
+  it("empty BBC_PUBLIC_URL (Cloudflare-unset) → /configured/i", async () => {
+    process.env.BBC_PUBLIC_URL = "";
+    requireActorMock.mockResolvedValueOnce(actorOf("admin"));
+    const r = (await startGoogleOAuth(new FormData())) as { ok: false; error: string };
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/configured/i);
+    expect(recordNonceMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("startGoogleOAuth — happy path", () => {
   beforeEach(() => {
     process.env.BBC_GOOGLE_OAUTH_CLIENT_ID = "google-client-id-xyz";
+    process.env.BBC_GOOGLE_OAUTH_CLIENT_SECRET = "google-secret-xyz";
     process.env.BBC_PUBLIC_URL = "https://bbc.example";
+    process.env.BBC_OAUTH_STATE_SECRET = Buffer.from("0".repeat(32)).toString("base64");
     signOAuthStateMock.mockReturnValue("signed.state.value");
     recordNonceMock.mockResolvedValue(undefined);
   });

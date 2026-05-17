@@ -139,8 +139,13 @@ export function LibraryClient({
   // still flash the optimistic "installing…" state — the install path for
   // those lands in a later milestone. Setting installingId before push gives
   // immediate visual feedback while Next routes the transition.
+  //
+  // Admin-only: codex P2 on the post-K.5 review flagged that operators saw
+  // the install CTA and got bounced to /brain by the admin gate on the install
+  // route. Cards/Drawer already suppress the CTA for non-admins; this is the
+  // belt-and-braces guard.
   function handleInstall(item: LibItem) {
-    if (item.kind === "connector" && item.install_url) {
+    if (isAdmin && item.kind === "connector" && item.install_url) {
       setInstallingId(item.id);
       router.push(item.install_url);
       return;
@@ -360,6 +365,7 @@ export function LibraryClient({
             onInstall={handleInstall}
             installingId={installingId}
             setTab={handleTab}
+            isAdmin={isAdmin}
           />
           <CategorySlice
             title="Connectors"
@@ -370,6 +376,7 @@ export function LibraryClient({
             onInstall={handleInstall}
             installingId={installingId}
             setTab={handleTab}
+            isAdmin={isAdmin}
           />
           <CategorySlice
             title="Providers"
@@ -380,6 +387,7 @@ export function LibraryClient({
             onInstall={handleInstall}
             installingId={installingId}
             setTab={handleTab}
+            isAdmin={isAdmin}
           />
         </>
       )}
@@ -520,6 +528,7 @@ export function LibraryClient({
                   installingId={installingId}
                   onOpen={handleOpen}
                   onInstall={handleInstall}
+                  isAdmin={isAdmin}
                 />
               ))}
             </div>
@@ -580,6 +589,7 @@ export function LibraryClient({
           installingId={installingId}
           onClose={() => setDetail(null)}
           onInstall={(it) => handleInstall(it)}
+          isAdmin={isAdmin}
         />
       )}
       {importOpen && (
@@ -697,6 +707,7 @@ function CategorySlice({
   onInstall,
   installingId,
   setTab,
+  isAdmin,
 }: {
   title: string;
   tab: Tab;
@@ -706,6 +717,7 @@ function CategorySlice({
   onInstall: (item: LibItem) => void;
   installingId: string | null;
   setTab: (t: Tab) => void;
+  isAdmin: boolean;
 }) {
   const totalForTab = total;
   return (
@@ -746,6 +758,7 @@ function CategorySlice({
             installingId={installingId}
             onOpen={onOpen}
             onInstall={onInstall}
+            isAdmin={isAdmin}
           />
         ))}
       </div>
