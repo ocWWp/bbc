@@ -5239,6 +5239,11 @@ mark.mark-skill { --mark-color: var(--t-skill); }
    cards — title + target_file + ActionButtons — without the card chrome,
    diff strip, or manager-review pills you see on /queue. Operators get
    actionable rows here; for the full review surface they click through. */
+/* Border-ownership invariant: .ops-pending wraps the header + list and owns
+   the top border for the whole pending-proposals block. The inner
+   .ops-pending-head suppresses its own border-top to avoid double-bordering.
+   Any future row variant inserted before/after .ops-pending must respect
+   this — wrapper owns the rule, inner head cancels its own. */
 .ops-pending {
   display: flex;
   flex-direction: column;
@@ -5246,6 +5251,8 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 }
 .ops-pending:first-child { border-top: none; }
 .ops-pending-head {
+  /* Override the parent grid to 2 cols — no CTA column on the header row. */
+  grid-template-columns: auto minmax(0, 1fr);
   /* Cancel the per-row border-top — the .ops-pending wrapper owns it now. */
   border-top: none;
   padding-bottom: 4px;
@@ -5253,7 +5260,8 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 .ops-pending-list {
   list-style: none;
   padding: 0;
-  margin: 0 0 0 46px; /* indent under the pill column for a clear hierarchy */
+  /* 46px = 32px pill min-width + 14px grid gap — aligns list under the text column. */
+  margin: 0 0 0 46px;
   display: flex;
   flex-direction: column;
 }
@@ -5295,6 +5303,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   flex-shrink: 0;
 }
 .ops-pending-foot {
+  /* 46px left padding matches .ops-pending-list margin (pill + grid gap). */
   padding: 10px 0 4px 46px;
   border-top: 1px solid var(--paper-rule);
 }

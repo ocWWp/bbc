@@ -166,15 +166,9 @@ export default async function OpsPage() {
                       proposal{attention.pendingProposals.length === 1 ? "" : "s"}{" "}
                       awaiting review
                     </span>
-                    <span aria-hidden="true" />
                   </div>
-                  {/* Inline list of the top 5 pending proposals. Each row links
-                      to the per-proposal review page for full context and
-                      mounts the same ActionButtons component the /queue page
-                      uses, so accept/reject behavior is identical. We pass
-                      canAccept={true} because the operator gate already
-                      protects the page; the server action surfaces a
-                      manager-review error if the proposal requires it. */}
+                  {/* canAccept={true}: page-level operator gate protects this surface;
+                      the server action surfaces a manager-review error if needed. */}
                   <ul className="ops-pending-list">
                     {attention.pendingProposals.slice(0, 5).map((p) => (
                       <li key={p.proposal_id} className="ops-pending-item">
