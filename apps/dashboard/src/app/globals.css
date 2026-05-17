@@ -5107,3 +5107,12 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   outline: 2px solid var(--home-ink);
   outline-offset: 2px;
 }
+/* The button is marked `md:hidden` by Tailwind, but .home-pilot
+   .session-rail-toggle above (specificity 0,2,0) beats the
+   utility `.md\:hidden` (0,1,0), so the toggle would render at
+   desktop widths too. Re-hide it with matched specificity. */
+@media (min-width: 768px) {
+  .home-pilot .session-rail-toggle {
+    display: none;
+  }
+}
