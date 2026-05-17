@@ -2,8 +2,8 @@
 //
 // Task 13 of v1.5 launch polish. AppNav renders different route lists
 // per role:
-//   admin     -> Home, Studio, Memory, Queue, Library, Settings
-//   operator  -> Studio, Memory, Queue, Library, Settings  (same minus Home)
+//   admin     -> Home, Studio, Memory, Ops, Library, Settings
+//   operator  -> Studio, Memory, Ops, Library, Settings  (same minus Home)
 //   member    -> Studio (/studio/<slug>), Brain, Inbox      (3 routes only)
 //
 // This is UI chrome, not authorization — RLS at the SQL layer (ADR-0012,
@@ -15,7 +15,7 @@ import { render, screen, within, cleanup } from "@testing-library/react";
 afterEach(cleanup);
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/queue",
+  usePathname: () => "/ops",
 }));
 
 vi.mock("next-themes", () => ({
@@ -36,7 +36,7 @@ function getNav() {
 }
 
 describe("AppNav — role-aware route visibility", () => {
-  it("admin sees Home + Studio + Memory + Queue + Library + Settings", () => {
+  it("admin sees Home + Studio + Memory + Ops + Library + Settings", () => {
     render(
       <AppNav
         pendingCount={0}
@@ -48,7 +48,7 @@ describe("AppNav — role-aware route visibility", () => {
     expect(within(nav).getByText("Home")).toBeDefined();
     expect(within(nav).getByText("Studio")).toBeDefined();
     expect(within(nav).getByText("Memory")).toBeDefined();
-    expect(within(nav).getByText("Queue")).toBeDefined();
+    expect(within(nav).getByText("Ops")).toBeDefined();
     expect(within(nav).getByText("Library")).toBeDefined();
     expect(within(nav).getByText("Settings")).toBeDefined();
     expect(within(nav).queryByText("Brain")).toBeNull();
@@ -67,7 +67,7 @@ describe("AppNav — role-aware route visibility", () => {
     expect(within(nav).queryByText("Home")).toBeNull();
     expect(within(nav).getByText("Studio")).toBeDefined();
     expect(within(nav).getByText("Memory")).toBeDefined();
-    expect(within(nav).getByText("Queue")).toBeDefined();
+    expect(within(nav).getByText("Ops")).toBeDefined();
     expect(within(nav).getByText("Library")).toBeDefined();
     expect(within(nav).getByText("Settings")).toBeDefined();
     expect(within(nav).queryByText("Brain")).toBeNull();
@@ -87,7 +87,7 @@ describe("AppNav — role-aware route visibility", () => {
     expect(within(nav).getByText("Inbox")).toBeDefined();
     expect(within(nav).queryByText("Home")).toBeNull();
     expect(within(nav).queryByText("Memory")).toBeNull();
-    expect(within(nav).queryByText("Queue")).toBeNull();
+    expect(within(nav).queryByText("Ops")).toBeNull();
     expect(within(nav).queryByText("Library")).toBeNull();
     expect(within(nav).queryByText("Settings")).toBeNull();
   });
@@ -124,11 +124,11 @@ describe("AppNav — role-aware route visibility", () => {
     const nav = getNav();
     expect(within(nav).getByText("Studio")).toBeDefined();
     expect(within(nav).getByText("Memory")).toBeDefined();
-    expect(within(nav).getByText("Queue")).toBeDefined();
+    expect(within(nav).getByText("Ops")).toBeDefined();
     expect(within(nav).getByText("Library")).toBeDefined();
   });
 
-  it("Queue badge shows when pendingCount > 0 (admin nav)", () => {
+  it("Ops badge shows when pendingCount > 0 (admin nav)", () => {
     render(
       <AppNav
         pendingCount={3}

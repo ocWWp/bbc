@@ -156,7 +156,7 @@ const KNOWN_ROUTES: readonly RouteEntry[] = Object.freeze([
   { route: "/memory", label: "Memory", aliases: ["memory", "memories", "memory list", "all memories"] },
   { route: "/memory/new", label: "New memory", aliases: ["new memory", "create memory", "add memory"] },
   { route: "/brain", label: "Brain", aliases: ["brain", "voice", "decisions", "glossary", "the brain"] },
-  { route: "/queue", label: "Queue", aliases: ["queue", "proposals", "queued proposals", "pending proposals", "review queue"] },
+  { route: "/ops", label: "Ops", aliases: ["ops", "cockpit", "queue", "proposals", "queued proposals", "pending proposals", "review queue"] },
   { route: "/inbox", label: "Inbox", aliases: ["inbox"] },
   { route: "/sources", label: "Sources", aliases: ["sources", "ingest sources", "connectors"] },
   { route: "/library", label: "Library", aliases: ["library", "skills library"] },

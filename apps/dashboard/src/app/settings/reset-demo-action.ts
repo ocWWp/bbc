@@ -62,7 +62,7 @@ export async function resetDemoTenant(): Promise<ResetDemoResult> {
   revalidatePath("/settings");
   revalidatePath("/library");
   revalidatePath("/memory");
-  revalidatePath("/queue");
+  revalidatePath("/ops");
 
   return { ok: true, newTenantId: data };
 }

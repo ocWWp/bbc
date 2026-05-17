@@ -118,7 +118,7 @@ export async function acceptRun(runId: string): Promise<AcceptResult> {
 
   revalidatePath(`/studio/runs/${runId}`);
   revalidatePath("/studio");
-  if (proposals.length > 0) revalidatePath("/queue");
+  if (proposals.length > 0) revalidatePath("/ops");
   return { ok: true, proposals, artifacts };
 }
 

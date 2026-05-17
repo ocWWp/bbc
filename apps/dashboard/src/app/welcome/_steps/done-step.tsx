@@ -64,15 +64,15 @@ export function DoneStep({ count, firstId, tenantSlug, proposals }: Props) {
         </div>
 
         <div className="next-grid">
-          <Link className="next-card is-primary" href="/queue">
+          <Link className="next-card is-primary" href="/ops">
             <span className="h">
-              open the <span className="serif">queue</span>.
+              open <span className="serif">ops</span>.
             </span>
             <span className="b">
-              your home. every proposal from a studio lands here for review.
+              your cockpit. every proposal from a studio lands here for review.
             </span>
             <span className="tail">
-              <span>→ /queue</span>
+              <span>→ /ops</span>
               <span>↵</span>
             </span>
           </Link>

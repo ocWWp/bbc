@@ -54,11 +54,11 @@ export default function RunActions({ runId }: { runId: string }) {
         )}
         {outcome.proposals.length > 0 && (
           <Link
-            href="/queue"
+            href="/ops"
             className="text-xs underline hover:text-foreground"
           >
             {outcome.proposals.length} proposal
-            {outcome.proposals.length === 1 ? "" : "s"} filed — review in /queue
+            {outcome.proposals.length === 1 ? "" : "s"} filed — review in /ops
           </Link>
         )}
       </div>
