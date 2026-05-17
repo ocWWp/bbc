@@ -4,6 +4,7 @@ import { requireActor, requireRole } from "@/lib/auth/require-user";
 import { listPending, listAccepted, listRejected, isApproved } from "@/lib/read-queue";
 import ActionButtons from "@/components/ActionButtons";
 import DataSource from "@/components/DataSource";
+import { WorkspaceCrumb } from "@/components/WorkspaceCrumb";
 import type { Proposal } from "@bbc/store";
 
 export const dynamic = "force-dynamic";
@@ -115,7 +116,7 @@ export default async function QueuePage() {
       <header className="page-head">
         <div className="page-head-left">
           <div className="page-crumb">
-            <Link href="/queue">acme</Link>
+            <WorkspaceCrumb tenantSlug={a.actor.tenant_slug} />
             <span className="sep">/</span>
             <span className="current">queue</span>
           </div>
@@ -156,7 +157,7 @@ export default async function QueuePage() {
 
       {isEmpty ? (
         <div className="empty lg">
-          <div className="e-eyebrow">00 proposals · 00 manager-layer · 00 main-layer</div>
+          <div className="e-eyebrow">no pending proposals</div>
           <h2 className="e-title">
             No proposals <span className="serif">yet</span>.
           </h2>
@@ -309,9 +310,9 @@ export default async function QueuePage() {
               >
                 <span>open</span>
                 <strong>{counts.all}</strong>
-                <span>main-layer</span>
+                <span>your edits</span>
                 <strong>{counts.main}</strong>
-                <span>manager-layer</span>
+                <span>agent-filed</span>
                 <strong>{counts.manager}</strong>
                 <span>awaiting review</span>
                 <strong>{counts.awaitingReview}</strong>

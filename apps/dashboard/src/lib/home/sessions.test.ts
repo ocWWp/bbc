@@ -197,3 +197,58 @@ describe("archiveSession", () => {
     expect((stub._state.lastUpdatePatch as Row).archived_at).toBeTypeOf("string");
   });
 });
+
+describe("isNotStubTurn (v1.6 cleanup filter)", () => {
+  function agentTurn(text: string) {
+    return {
+      id: "x",
+      session_id: "s",
+      role: "agent" as const,
+      status: "completed" as const,
+      content_jsonb: { text } as unknown as Row[keyof Row],
+      created_at: "",
+      finalized_at: null,
+    };
+  }
+  function userTurn(text: string) {
+    return { ...agentTurn(text), role: "user" as const };
+  }
+
+  it("drops the v1.6 stub 'Got it: ... (Stub response — real LLM lands in M3.)'", async () => {
+    const { isNotStubTurn } = await import("./sessions");
+    expect(isNotStubTurn(agentTurn('Got it: "hi". (Stub response — real LLM lands in M3.)') as never)).toBe(false);
+  });
+
+  it("drops canned greeting stubs", async () => {
+    const { isNotStubTurn } = await import("./sessions");
+    expect(isNotStubTurn(agentTurn("hey! what are you working on?") as never)).toBe(false);
+    expect(isNotStubTurn(agentTurn("hey! what's up — what are you working on?") as never)).toBe(false);
+    expect(isNotStubTurn(agentTurn("what's up?") as never)).toBe(false);
+  });
+
+  it("keeps real assistant turns", async () => {
+    const { isNotStubTurn } = await import("./sessions");
+    expect(isNotStubTurn(agentTurn("what platform are you targeting — X, LinkedIn, or something else?") as never)).toBe(true);
+  });
+
+  it("always keeps user turns regardless of text", async () => {
+    const { isNotStubTurn } = await import("./sessions");
+    // A user could legitimately type the stub text; never filter user turns.
+    expect(isNotStubTurn(userTurn("what's up?") as never)).toBe(true);
+  });
+
+  it("keeps turns with empty/missing content", async () => {
+    const { isNotStubTurn } = await import("./sessions");
+    expect(
+      isNotStubTurn({
+        id: "x",
+        session_id: "s",
+        role: "agent",
+        status: "in_progress",
+        content_jsonb: null,
+        created_at: "",
+        finalized_at: null,
+      } as never),
+    ).toBe(true);
+  });
+});

@@ -23,6 +23,7 @@ import { DetailDrawer } from "./DetailDrawer";
 import { ImportDrawer } from "./ImportDrawer";
 import type { PendingRec } from "@/lib/loop3/read-recommendations";
 import { dismissRecommendationAction } from "@/lib/loop3/actions";
+import { WorkspaceCrumb } from "@/components/WorkspaceCrumb";
 
 type Tab = "default" | "skills" | "connectors" | "providers";
 
@@ -52,6 +53,8 @@ export type LibraryClientProps = {
    *  in the header for admins only; non-admins don't see it (the route
    *  itself 404s for them via requireRole). */
   isAdmin?: boolean;
+  /** Workspace slug for the breadcrumb root. */
+  tenantSlug: string;
 };
 
 export function LibraryClient({
@@ -59,6 +62,7 @@ export function LibraryClient({
   catalogConnectors,
   recommendations,
   isAdmin = false,
+  tenantSlug,
 }: LibraryClientProps) {
   const allSkills = importedSkills.length === 0 ? SKILLS : [...importedSkills, ...SKILLS];
   const connectors = catalogConnectors ?? CONNECTORS;
@@ -205,7 +209,7 @@ export function LibraryClient({
 
   const blurb =
     tab === "default"
-      ? "Three categories: skills are role templates that drive studios; connectors map external sources to supertag memory; providers are the vendor adapters underneath. Every install is review-gated in /queue."
+      ? "Three categories: skills are role templates that drive studios; connectors map external sources to supertag memory; providers are the vendor adapters underneath. Browse the catalog — install + connect flows land in a later milestone."
       : tab === "skills"
         ? "Role templates that drive a studio. Each skill declares which supertags it reads and (sometimes) writes. Importable from any github SKILL.md."
         : tab === "connectors"
@@ -217,7 +221,7 @@ export function LibraryClient({
       <header className="page-head">
         <div className="page-head-left">
           <div className="page-crumb">
-            <span className="current">acme</span>
+            <WorkspaceCrumb tenantSlug={tenantSlug} />
             <span className="sep">/</span>
             <span className="current">library</span>
             {tab !== "default" && (
@@ -544,10 +548,7 @@ export function LibraryClient({
                   ))}
                 </div>
                 <div className="pack-foot">
-                  <span className="summary">files {p.bundle.length} review proposals</span>
-                  <button type="button" className="btn btn-primary">
-                    install pack →
-                  </button>
+                  <span className="summary">{p.bundle.length} items · catalog only</span>
                 </div>
               </article>
             ))}

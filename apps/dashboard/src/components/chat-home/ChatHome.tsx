@@ -221,12 +221,15 @@ export function ChatHome({ greeting, initialTurns, watching = [] }: ChatHomeProp
               type="button"
               onClick={() => void send()}
               disabled={!draft.trim()}
-              className="home-send rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              className="home-send rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
               data-testid="composer-send"
             >
               Send
             </button>
           )}
+        </div>
+        <div className="mx-auto mt-2 flex w-full max-w-3xl justify-end px-1 text-[11px] text-muted-foreground">
+          <span className="font-mono">↵ to send · ⇧↵ for newline</span>
         </div>
       </div>
       </div>

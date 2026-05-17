@@ -73,6 +73,7 @@ export default async function LibraryPage() {
       catalogConnectors={catalogConnectors}
       recommendations={recommendations}
       isAdmin={isAdmin}
+      tenantSlug={actor.actor.tenant_slug}
     />
   );
 }

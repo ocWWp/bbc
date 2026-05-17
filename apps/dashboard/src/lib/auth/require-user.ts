@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export type Role = "admin" | "operator" | "member" | "viewer";
@@ -31,8 +32,11 @@ const ACTOR_RE = /^human:(github|google|email):[A-Za-z0-9._%+@-]{1,254}$/;
  *
  * Returns { ok: false, output } for unauth / missing profile / no tenant
  * membership / bad shape.
+ *
+ * Wrapped in React.cache() so that layouts AND child pages that both call
+ * requireActor() during the same request share one DB roundtrip.
  */
-export async function requireActor(): Promise<
+export const requireActor = cache(async function requireActor(): Promise<
   { ok: true; actor: Actor } | { ok: false; output: string }
 > {
   const supabase = await getSupabaseServerClient();
@@ -91,7 +95,7 @@ export async function requireActor(): Promise<
       templateSlug: (membership.template_slug ?? null) as string | null,
     },
   };
-}
+});
 
 /**
  * Server-action gate: require a tenant role of at least `min`.

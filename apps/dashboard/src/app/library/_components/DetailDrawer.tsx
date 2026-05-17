@@ -68,9 +68,12 @@ export type DetailDrawerProps = {
   installingId?: string | null;
   onClose: () => void;
   onInstall: (item: LibItem) => void;
+  /** When false (current v1.7 default), install/uninstall CTAs are hidden.
+   *  The drawer remains a useful catalog detail view. */
+  installEnabled?: boolean;
 };
 
-export function DetailDrawer({ item, installingId, onClose, onInstall }: DetailDrawerProps) {
+export function DetailDrawer({ item, installingId, onClose, onInstall, installEnabled = false }: DetailDrawerProps) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -144,12 +147,14 @@ export function DetailDrawer({ item, installingId, onClose, onInstall }: DetailD
 
           <p className="lede">
             {item.desc}{" "}
-            {isSkill(item) &&
+            {installEnabled && isSkill(item) &&
               "When a studio runs this skill, BBC pulls the read-set from memory, asks for the first-use inputs once, and files outputs back to /queue for review. Every claim is cited."}
-            {isConnector(item) &&
+            {installEnabled && isConnector(item) &&
               "BBC opens the OAuth flow inside Settings, syncs the first batch, and files proposals to /queue rather than writing memory directly. You review before anything lands."}
-            {isProvider(item) &&
+            {installEnabled && isProvider(item) &&
               "Providers are vendor adapters. Once connected, individual studios can be bound to this provider in /settings/bindings."}
+            {!installEnabled &&
+              "Browse-only for now. Install and connect flows land in a later milestone — installed/connected badges still reflect real state from /settings/keys + tenant_connectors."}
           </p>
 
           <div className="lib-section">
@@ -218,7 +223,7 @@ export function DetailDrawer({ item, installingId, onClose, onInstall }: DetailD
             </div>
           )}
 
-          {isConnector(item) && item.unverified_oauth && (
+          {installEnabled && isConnector(item) && item.unverified_oauth && (
             <div className="lib-section lib-warning" role="note">
               <div className="lab">
                 <span>unverified app · expect a Google warning</span>
@@ -326,56 +331,64 @@ export function DetailDrawer({ item, installingId, onClose, onInstall }: DetailD
         <div className="lib-drawer-foot">
           <div className="left">
             {installed ? (
-              <>
-                currently installed · last used <strong>2h ago</strong>
-              </>
-            ) : isProvider(item) ? (
-              <>
-                requires <strong>{item.env}</strong> in /settings/keys
-              </>
-            ) : (
-              <>
-                installing files this to <strong>/library/{kindWord}/{item.id}</strong>
-              </>
-            )}
-          </div>
-          {installed && isSkill(item) && (
-            <button type="button" className="btn btn-ghost">
-              open in studio →
-            </button>
-          )}
-          {installed && isConnector(item) && (
-            <button type="button" className="btn btn-ghost">
-              open settings →
-            </button>
-          )}
-          <button
-            type="button"
-            className="btn btn-primary btn-lg"
-            onClick={() => onInstall(item)}
-            aria-label={`${installed ? "Uninstall" : "Install"} ${item.name}`}
-            style={
-              installed
-                ? { background: "transparent", color: "var(--ink)", border: "1px solid var(--rule-2)" }
-                : undefined
-            }
-          >
-            {installing ? (
-              <>
-                <span className="lib-spinner" /> installing…
-              </>
-            ) : installed ? (
               isProvider(item) ? (
-                "disconnect"
+                <>currently connected</>
               ) : (
-                "uninstall"
+                <>currently installed</>
               )
             ) : isProvider(item) ? (
-              "connect"
+              installEnabled ? (
+                <>requires <strong>{item.env}</strong> in /settings/keys</>
+              ) : (
+                <>catalog only — connect lands in a later milestone</>
+              )
+            ) : installEnabled ? (
+              <>installing files this to <strong>/library/{kindWord}/{item.id}</strong></>
             ) : (
-              "install"
+              <>catalog only — install lands in a later milestone</>
             )}
-          </button>
+          </div>
+          {installEnabled && (
+            <>
+              {installed && isSkill(item) && (
+                <button type="button" className="btn btn-ghost">
+                  open in studio →
+                </button>
+              )}
+              {installed && isConnector(item) && (
+                <button type="button" className="btn btn-ghost">
+                  open settings →
+                </button>
+              )}
+              <button
+                type="button"
+                className="btn btn-primary btn-lg"
+                onClick={() => onInstall(item)}
+                aria-label={`${installed ? "Uninstall" : "Install"} ${item.name}`}
+                style={
+                  installed
+                    ? { background: "transparent", color: "var(--ink)", border: "1px solid var(--rule-2)" }
+                    : undefined
+                }
+              >
+                {installing ? (
+                  <>
+                    <span className="lib-spinner" /> installing…
+                  </>
+                ) : installed ? (
+                  isProvider(item) ? (
+                    "disconnect"
+                  ) : (
+                    "uninstall"
+                  )
+                ) : isProvider(item) ? (
+                  "connect"
+                ) : (
+                  "install"
+                )}
+              </button>
+            </>
+          )}
         </div>
       </aside>
     </>

@@ -5,6 +5,7 @@ import { listMemoryItems } from "./queries";
 import { SUPERTAGS, type Supertag } from "@/lib/memory/types";
 import { BrainView } from "@/components/memory/BrainView";
 import { MemoryTabs } from "@/components/MemoryTabs";
+import { WorkspaceCrumb } from "@/components/WorkspaceCrumb";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +47,7 @@ export default async function MemoryIndex({ searchParams }: { searchParams: Sear
       <header className="page-head">
         <div className="page-head-left">
           <div className="page-crumb">
-            <Link href="/queue">acme</Link>
+            <WorkspaceCrumb tenantSlug={a.actor.tenant_slug} />
             <span className="sep">/</span>
             <span className="current">memory</span>
           </div>
@@ -137,7 +138,7 @@ export default async function MemoryIndex({ searchParams }: { searchParams: Sear
               <span>id</span>
               <span>title</span>
               <span className="fields-h">fields</span>
-              <span className="date-h">updated · by</span>
+              <span className="date-h">updated</span>
               <span style={{ justifySelf: "end" }}>status</span>
             </div>
             {items.length === 0 ? (

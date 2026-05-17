@@ -15,5 +15,5 @@ export default async function MemoryDetail({ params }: { params: Promise<{ id: s
 
   const [item, relations] = await Promise.all([getMemoryItem(id), getRelations(id)]);
   if (!item || !item.type) notFound();
-  return <EditorShell item={item} relations={relations} />;
+  return <EditorShell item={item} relations={relations} tenantSlug={a.actor.tenant_slug} />;
 }

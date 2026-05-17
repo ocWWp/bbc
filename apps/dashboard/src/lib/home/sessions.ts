@@ -146,5 +146,42 @@ export async function getActiveSessionWithTurns(
     .limit(limit);
 
   if (tErr) throw new Error(`home_turns read failed: ${tErr.message}`);
-  return { session: session as HomeSession, turns: (turns ?? []) as HomeTurn[] };
+  const all = (turns ?? []) as HomeTurn[];
+  return { session: session as HomeSession, turns: all.filter(isNotStubTurn) };
+}
+
+// v1.6 shipped a stub /home backend that wrote canned assistant responses
+// directly to home_turns. v1.7 replaced the stub with a real Anthropic loop,
+// but tenants who used v1.6 still have those stub rows mixed with real Sonnet
+// replies in their session history. This filter drops the v1.6 stub turns
+// at read time so the chat reads clean without a data migration.
+// See [[project-v17-home-real-plan]] cleanup note for the corresponding SQL
+// that operators can run for a hard delete.
+const STUB_PATTERNS: ReadonlyArray<RegExp> = [
+  /\(Stub response — real LLM lands in M3\.\)/,
+  /^hey! what(?:'s up — what)? are you working on\?$/,
+  /^what's up\?$/,
+  /^Tell me a little more — what are you trying to do\?$/,
+  // v1.6 stub navigate/draft/watch/meta canned responses (see git history of
+  // apps/dashboard/src/app/api/home/turn/route.ts).
+  /^You can open that from the left nav\. Want me to take you there\?$/,
+  /^Drafting now — give me one second\.$/,
+  /^I'll watch for it and surface anything that shows up\.$/,
+  /^That's a settings\/memory question — opening the right place\.$/,
+];
+
+function turnTextBlob(turn: HomeTurn): string {
+  // content_jsonb is an object shaped like { text: string, toolCalls?, citations? }
+  // per turnToVm() in apps/dashboard/src/app/home/page.tsx.
+  const c = turn.content_jsonb;
+  if (!c || typeof c !== "object" || Array.isArray(c)) return "";
+  const text = (c as Record<string, unknown>).text;
+  return typeof text === "string" ? text.trim() : "";
+}
+
+export function isNotStubTurn(turn: HomeTurn): boolean {
+  if (turn.role !== "agent") return true;
+  const text = turnTextBlob(turn);
+  if (!text) return true;
+  return !STUB_PATTERNS.some((re) => re.test(text));
 }
