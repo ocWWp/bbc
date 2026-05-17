@@ -88,20 +88,24 @@ export type LibCardProps = {
   /** When false, the install/uninstall button is hidden and the card is
    *  catalog-only. "installed ✓" / "bound ✓" badges still show real state. */
   installEnabled?: boolean;
+  /** Phase K codex P2: install routes require admin. Operators see /library
+   *  but must not see install CTAs that bounce them to /brain on click. */
+  isAdmin?: boolean;
   onOpen: (item: LibItem) => void;
   onInstall: (item: LibItem) => void;
 };
 
-export function LibCard({ item, focused, installingId, installEnabled = false, onOpen, onInstall }: LibCardProps) {
+export function LibCard({ item, focused, installingId, installEnabled = false, isAdmin = false, onOpen, onInstall }: LibCardProps) {
   const installed = isInstalled(item);
   const installing = installingId === item.id;
   const roleColor = roleColorFor(item);
   const style: RoleColorStyle = { "--role-color": roleColor };
   // Phase K T17: connectors with their own install_url enable the install
   // CTA regardless of the page-level installEnabled flag (still false in
-  // v1.7 for skills/providers/catalog-only connectors).
+  // v1.7 for skills/providers/catalog-only connectors). Admin-only — the
+  // install routes themselves require admin (codex P2 post-K.5).
   const effectiveInstallEnabled =
-    installEnabled || (isConnector(item) && Boolean(item.install_url));
+    installEnabled || (isAdmin && isConnector(item) && Boolean(item.install_url));
 
   return (
     <div

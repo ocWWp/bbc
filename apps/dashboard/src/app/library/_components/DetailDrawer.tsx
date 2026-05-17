@@ -71,9 +71,12 @@ export type DetailDrawerProps = {
   /** When false (current v1.7 default), install/uninstall CTAs are hidden.
    *  The drawer remains a useful catalog detail view. */
   installEnabled?: boolean;
+  /** Phase K codex P2: install routes require admin. Non-admins see the
+   *  catalog detail but no install CTA. */
+  isAdmin?: boolean;
 };
 
-export function DetailDrawer({ item, installingId, onClose, onInstall, installEnabled = false }: DetailDrawerProps) {
+export function DetailDrawer({ item, installingId, onClose, onInstall, installEnabled = false, isAdmin = false }: DetailDrawerProps) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -92,9 +95,10 @@ export function DetailDrawer({ item, installingId, onClose, onInstall, installEn
   const installed = isProvider(item) ? item.connected : item.installed;
   const installing = installingId === item.id;
   // Phase K T17/T19: connectors with their own install_url enable the
-  // install CTA regardless of the page-level installEnabled flag.
+  // install CTA regardless of the page-level installEnabled flag. Admin-only
+  // (codex P2 post-K.5) — the install routes themselves require admin.
   const effectiveInstallEnabled =
-    installEnabled || (isConnector(item) && Boolean(item.install_url));
+    installEnabled || (isAdmin && isConnector(item) && Boolean(item.install_url));
   // T19: installed connectors with a last_sync_at surface the time so the
   // operator can decide whether to reinstall (e.g., to rotate credentials)
   // without leaving the drawer.
