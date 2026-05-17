@@ -48,7 +48,7 @@ function Count({ n, label }: { n: number; label: string }) {
 export default async function OpsPage() {
   const a = await requireActor();
   if (!a.ok) redirect(`/auth/signin?callbackUrl=${encodeURIComponent("/ops")}`);
-  // Mirrors /queue: operator+ only. Members get bounced to /brain.
+  // Operator+ only. Members get bounced to /brain.
   const r = requireRole(a.actor, "operator");
   if (!r.ok) redirect("/brain");
 
@@ -170,7 +170,7 @@ export default async function OpsPage() {
                   {/* canAccept={true}: page-level operator gate protects this surface;
                       the server action surfaces a manager-review error if needed. */}
                   <ul className="ops-pending-list">
-                    {attention.pendingProposals.slice(0, 5).map((p) => (
+                    {attention.pendingProposals.slice(0, 20).map((p) => (
                       <li key={p.proposal_id} className="ops-pending-item">
                         <div className="ops-pending-info">
                           <Link
@@ -191,10 +191,10 @@ export default async function OpsPage() {
                       </li>
                     ))}
                   </ul>
-                  {attention.pendingProposals.length > 5 && (
+                  {attention.pendingProposals.length > 20 && (
                     <div className="ops-pending-foot">
                       <span className="ops-pending-more muted mono">
-                        {attention.pendingProposals.length - 5} more not shown
+                        {attention.pendingProposals.length - 20} more not shown
                       </span>
                     </div>
                   )}

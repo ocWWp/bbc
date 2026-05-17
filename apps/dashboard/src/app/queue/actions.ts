@@ -52,6 +52,11 @@ export async function acceptProposal(formData: FormData): Promise<Result> {
       console.error("notifyFlagResolved (accept) failed", err);
     }
     revalidatePath("/");
+    // /queue is now a redirect to /ops; the cockpit is the canonical queue
+    // surface and needs to invalidate so accept/reject from its inline list
+    // doesn't show stale rows. /queue stays in case any edge cache holds
+    // the redirect response. /queue/[id] still exists as a detail view.
+    revalidatePath("/ops");
     revalidatePath("/queue");
     revalidatePath(`/queue/${id}`);
     revalidatePath("/settings/log");
@@ -91,6 +96,8 @@ export async function rejectProposal(formData: FormData): Promise<Result> {
       console.error("notifyFlagResolved (reject) failed", err);
     }
     revalidatePath("/");
+    // See acceptProposal: /ops is the canonical queue surface now.
+    revalidatePath("/ops");
     revalidatePath("/queue");
     revalidatePath(`/queue/${id}`);
     revalidatePath("/settings/log");
