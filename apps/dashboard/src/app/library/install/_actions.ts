@@ -6,8 +6,11 @@
  * Server action that:
  *   1. Requires the caller be a tenant admin (PAT install is high-trust).
  *   2. Validates the {pat, owner, repo} form input shape.
- *   3. Pings GitHub /user to confirm the PAT is live + has the right scope
- *      *before* persisting any ciphertext. See validatePatLive (Task 8).
+ *   3. Pings GitHub /repos/{owner}/{repo} to confirm the PAT can actually read
+ *      the target repo *before* persisting any ciphertext. See validatePatLive
+ *      (Task 8). Hitting /user instead would pass for fine-grained PATs that
+ *      authenticate but lack repo access — install would succeed and every
+ *      sync would 403. Codex P2 on PR #24.
  *   4. Encrypts the PAT and calls install_connector_atomic (migration 0057)
  *      so the external_accounts insert + tenant_connectors upsert land in one
  *      transaction. No orphan rows on partial failure.
@@ -66,7 +69,10 @@ export async function installGithubPat(
     return { ok: false, error: "Invalid form input." };
   }
 
-  const live = await validatePatLive(parsed.data.pat);
+  const live = await validatePatLive(parsed.data.pat, {
+    owner: parsed.data.owner,
+    repo: parsed.data.repo,
+  });
   if (!live.ok) {
     return {
       ok: false,

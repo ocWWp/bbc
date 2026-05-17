@@ -32,7 +32,7 @@
 // appropriate.
 
 import { NextRequest, NextResponse } from "next/server";
-import { exchangeCodeForTokens } from "@/lib/connectors/google-oauth";
+import { exchangeCodeForTokens, GMAIL_SCOPES, DRIVE_SCOPES } from "@/lib/connectors/google-oauth";
 import { verifyOAuthState } from "@/lib/connectors/oauth-state";
 import { consumeNonce } from "@/lib/connectors/oauth-nonce";
 import { encryptSecret } from "@/lib/secrets/encryption";
@@ -109,25 +109,28 @@ export async function GET(req: NextRequest) {
   // (the consent screen lets the user check/uncheck individual scopes). We
   // must not insert an external_accounts row for a connector the user denied
   // — every subsequent API call would 403, and the row would look installed
-  // in the UI (BBC no-placeholders rule). Map each connector key to the URL
-  // prefix(es) Google returns when that scope is granted.
-  const SCOPE_PREFIXES: Record<string, string[]> = {
-    gmail: ["https://www.googleapis.com/auth/gmail."],
-    drive: ["https://www.googleapis.com/auth/drive"],
+  // in the UI (BBC no-placeholders rule).
+  //
+  // Exact match, not prefix: codex P2 on PR #24 — the old prefix check let
+  // `drive.metadata.readonly` alone satisfy "drive granted", but the drive
+  // connector also needs `drive.readonly` to read file contents. We require
+  // ALL of a connector's declared scopes (from google-oauth.ts) to be in
+  // grantedScopes; partial grants count as denied.
+  const REQUIRED_SCOPES: Record<string, readonly string[]> = {
+    gmail: GMAIL_SCOPES,
+    drive: DRIVE_SCOPES,
   };
 
   const installed: string[] = [];
   const denied: string[] = [];
   for (const scope of payload.scopes) {
-    const prefixes = SCOPE_PREFIXES[scope];
-    if (!prefixes) {
+    const required = REQUIRED_SCOPES[scope];
+    if (!required) {
       // Unknown scope key (shouldn't happen from our own signed state) — skip
       denied.push(scope);
       continue;
     }
-    const granted = prefixes.some((prefix) =>
-      grantedScopes.some((g) => g.startsWith(prefix)),
-    );
+    const granted = required.every((s) => grantedScopes.includes(s));
     if (!granted) {
       denied.push(scope);
       continue;

@@ -143,7 +143,7 @@ function tokensBoth(suffix: string) {
     expires_in: 3600,
     token_type: "Bearer",
     scope:
-      "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/drive.readonly",
+      "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.metadata.readonly",
   };
 }
 
@@ -218,6 +218,7 @@ describe("GET /api/oauth/google/callback — integration (multi-callback narrati
       expect(c.params.p_granted_scopes).toEqual([
         "https://www.googleapis.com/auth/gmail.readonly",
         "https://www.googleapis.com/auth/drive.readonly",
+        "https://www.googleapis.com/auth/drive.metadata.readonly",
       ]);
     }
 
@@ -350,6 +351,7 @@ describe("GET /api/oauth/google/callback — integration (multi-callback narrati
     expect(driveScopes).toEqual([
       "https://www.googleapis.com/auth/gmail.readonly",
       "https://www.googleapis.com/auth/drive.readonly",
+      "https://www.googleapis.com/auth/drive.metadata.readonly",
     ]);
   });
 });

@@ -201,7 +201,7 @@ describe("GET /api/oauth/google/callback — happy path", () => {
       refresh_token: "1//refresh",
       expires_in: 3600,
       token_type: "Bearer",
-      scope: "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/drive.readonly",
+      scope: "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.metadata.readonly",
     });
     rpcMock.mockResolvedValueOnce({ data: null, error: null }); // gmail
     rpcMock.mockResolvedValueOnce({ data: null, error: null }); // drive
@@ -265,7 +265,7 @@ describe("GET /api/oauth/google/callback — happy path", () => {
       refresh_token: "1//refresh",
       expires_in: 3600,
       token_type: "Bearer",
-      scope: "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/drive.readonly",
+      scope: "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.metadata.readonly",
     });
     rpcMock.mockResolvedValueOnce({ data: null, error: null }); // gmail succeeds
     rpcMock.mockResolvedValueOnce({ data: null, error: { message: "drive insert blew up" } });
@@ -355,6 +355,44 @@ describe("GET /api/oauth/google/callback — happy path", () => {
 
     // Both scopes denied → no RPC calls at all.
     expect(rpcMock).not.toHaveBeenCalled();
+  });
+
+  it("drive.metadata.readonly alone does NOT count as drive granted (P2 PR#24)", async () => {
+    // User grants gmail + drive.metadata.readonly but unchecks drive.readonly.
+    // The connector needs drive.readonly to sync file contents — installing a
+    // drive row would create a "looks installed but 403s on sync" trap (codex
+    // P2 finding). drive must be denied; gmail still proceeds.
+    const payload = makePayload({
+      actor_user_id: "user-abc",
+      tenant_id: "tenant-xyz",
+      scopes: ["gmail", "drive"],
+    });
+    const stateRaw = signOAuthState(payload);
+
+    requireActorMock.mockResolvedValueOnce(actor("user-abc"));
+    consumeNonceMock.mockResolvedValueOnce({
+      nonce: payload.nonce,
+      tenant_id: payload.tenant_id,
+      actor_user_id: payload.actor_user_id,
+      provider: "google",
+      scopes: ["gmail", "drive"],
+      redirect_url: "/library?installed=gmail,drive",
+    });
+    exchangeMock.mockResolvedValueOnce({
+      access_token: "ya29.access",
+      refresh_token: "1//refresh",
+      expires_in: 3600,
+      token_type: "Bearer",
+      scope: "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/drive.metadata.readonly",
+    });
+    rpcMock.mockResolvedValueOnce({ data: null, error: null }); // gmail only
+
+    const res = await callGET({ code: "the-code", state: stateRaw });
+    const loc = res.headers.get("location") ?? "";
+    expect(loc).toContain("/library?installed=gmail&partial=drive");
+
+    expect(rpcMock).toHaveBeenCalledTimes(1);
+    expect(rpcMock.mock.calls[0][1]).toMatchObject({ p_connector_id: "gmail" });
   });
 
   it("redirects with install_error=token_exchange when exchangeCodeForTokens throws", async () => {
