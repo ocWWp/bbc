@@ -166,6 +166,26 @@ export async function bulkAcceptProposals(
 
   const supabase = await getSupabaseServerClient();
   const tenantId = a.actor.tenant_id;
+
+  // Pre-launch audit (codex P1 follow-up): the page-level guard in
+  // /welcome/page.tsx redirects to /home if the tenant already has memory
+  // rows, but a stale browser tab — or a direct server-action call from a
+  // teammate — could still reach this insert and bulk-write into shared
+  // memory after the workspace is already set up. Re-check at write time.
+  // The CLAUDE.md carve-out is scoped to "the owner's first dump only";
+  // once any memory exists, the carve-out is over.
+  const { count: existingMemoryCount } = await supabase
+    .from("memory_files")
+    .select("id", { count: "exact", head: true })
+    .eq("tenant_id", tenantId);
+  if ((existingMemoryCount ?? 0) > 0) {
+    return {
+      ok: false,
+      error:
+        "Welcome onboarding only runs into an empty workspace. Use the chat at /home to file new memories — they'll go through the normal review queue.",
+    };
+  }
+
   const ts = Date.now();
 
   const rows = proposals
