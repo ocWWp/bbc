@@ -7,11 +7,10 @@ import {
   type ConversationTurn,
   type Emit,
   type HomeTurnDeps,
-  type InvokeLlmFn,
-  type LlmToolCall,
   type Role,
   type SseEvent,
 } from "@/lib/agent";
+import { classifyIntent } from "@/lib/agent/classify";
 import { requireActor } from "@/lib/auth/require-user";
 import {
   appendTurn,
@@ -20,8 +19,16 @@ import {
   getOrCreateActiveSession,
   type HomeTurn,
 } from "@/lib/home/sessions";
-import { POSTHOG_METRIC_CATALOG } from "@/lib/integrations/posthog";
+import { makeRealClassify } from "@/lib/home/real-classify";
+import {
+  retrieveHomeContext,
+  makeBuildContextFromRetrieval,
+  retrievedMemoryIdsOf,
+} from "@/lib/home/real-context";
+import { makeHomeToolExecutor } from "@/lib/home/tool-impls";
+import { makeRealInvokeLlm } from "@/lib/home/real-invoke";
 import { makeReserveQuota, makeReconcileQuota } from "@/lib/quota/rpc";
+import { getAnthropicClient } from "@/lib/secrets/anthropic-client";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 // SSE Route Handler. Default (Node) runtime under OpenNext on Cloudflare.
@@ -36,106 +43,10 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 // confirm OpenNext's Node runtime flushes SSE incrementally for real LLM
 // streaming (stub responses are small enough that buffering is invisible).
 
-// ---- Stub deps -----------------------------------------------------------
-//
-// Quota RPCs are real as of M4.1 (reserve_quota / reconcile_quota in
-// migration 0048). The remaining stubs land later:
-//   - context-builder DB: M5 polish (memory index excerpt + workspace name)
-//   - real Anthropic SDK call: M5 polish
-// homeTurn is invoked with the real shape; only the dep implementations
-// below are stubbed.
-
-const stubBuildContext: HomeTurnDeps["buildContext"] = async (input) => ({
-  tenantId: input.tenantId,
-  actorId: input.actorId,
-  role: input.role,
-  rolePack: { voice: "", vendors: [], decisions: [], glossary: {} },
-  buffer: {
-    kind: "conversation",
-    turns: input.recent,
-    userInput: input.userInput,
-  },
-  alwaysOn: { memoryIndexExcerpt: "", workspaceName: "Workspace" },
-});
-
-// Tiny rule-based "classifier" stub — saves an LLM round-trip in dev.
-// Returns one of the ConversationalIntent values based on heuristics.
-const stubClassify: HomeTurnDeps["classify"] = async ({ text }) => {
-  const t = text.toLowerCase();
-  if (t.includes("draft") || t.includes("write")) return "draft";
-  if (t.includes("watch") || t.includes("monitor")) return "watch";
-  if (t.includes("where") || t.includes("open") || t.includes("/")) return "navigate";
-  if (t.startsWith("what") || t.includes("explain") || t.includes("how")) return "explain";
-  if (t.includes("memory") || t.includes("setting") || t.startsWith("/")) return "meta";
-  if (t.length < 8) return "unclear";
-  return "explain";
-};
-
-function matchMetric(text: string) {
-  const t = text.toLowerCase();
-  for (const m of POSTHOG_METRIC_CATALOG) {
-    if (t.includes(m.id.replace(/_/g, " ")) || t.includes(m.label.toLowerCase())) {
-      return m;
-    }
-  }
-  // Loose keyword fallbacks so "watch my churn rate" finds something
-  // even if the user's wording doesn't match the catalog literally.
-  if (t.includes("churn")) return POSTHOG_METRIC_CATALOG.find((m) => m.id === "activation_rate") ?? POSTHOG_METRIC_CATALOG[0];
-  if (t.includes("user")) return POSTHOG_METRIC_CATALOG.find((m) => m.id === "dau") ?? POSTHOG_METRIC_CATALOG[0];
-  return POSTHOG_METRIC_CATALOG[0];
-}
-
-const stubInvokeLlm: InvokeLlmFn = async ({ intent, ctx }) => {
-  const last = ctx.buffer.kind === "conversation" ? ctx.buffer.userInput : "";
-  const text = (() => {
-    switch (intent) {
-      case "navigate":
-        return `You can open that from the left nav. Want me to take you there?`;
-      case "draft":
-        return `Drafting now — give me one second.`;
-      case "watch": {
-        const m = matchMetric(last);
-        return `I can set up a watch on ${m.label}. Click below to wire it up — nothing runs until you enable it.`;
-      }
-      case "explain":
-        return `Got it: "${last}". (Stub response — real LLM lands in M3.)`;
-      case "meta":
-        return `That's a settings/memory question — opening the right place.`;
-      case "unclear":
-      default:
-        return `Tell me a little more — what are you trying to do?`;
-    }
-  })();
-  const toolCalls: LlmToolCall[] = (() => {
-    if (intent === "navigate") {
-      return [
-        {
-          name: "route_match",
-          input: { query: last },
-          output: { route: "/memory", label: "Memory" },
-        },
-      ];
-    }
-    if (intent === "watch") {
-      const m = matchMetric(last);
-      return [
-        {
-          name: "watch_proposed",
-          input: { query: last },
-          output: {
-            metric: m.id,
-            metricLabel: m.label,
-            source: "posthog",
-            projectId: process.env.POSTHOG_PROJECT_ID ?? "",
-            region: (process.env.POSTHOG_REGION as "us" | "eu") || "us",
-          },
-        },
-      ];
-    }
-    return [];
-  })();
-  return { text, toolCalls, tokens: 0 };
-};
+// Real deps assembly happens inside postImpl per request — see below.
+// The orchestrator (`homeTurn` in @/lib/agent/home-turn) stays stateless;
+// route.ts is the composition root that resolves the per-tenant Anthropic
+// client, pre-fetches memory rows, and wires the executors.
 
 // ---- POST handler --------------------------------------------------------
 
@@ -272,13 +183,50 @@ async function postImpl(req: NextRequest) {
       req.signal.addEventListener("abort", onAbort, { once: true });
 
       const supabase = await getSupabaseServerClient();
+
+      const clientRes = await getAnthropicClient(supabase, actor.tenant_id);
+      if (!clientRes.ok) {
+        emit({ event: "text-delta", data: { delta: clientRes.error } });
+        emit({ event: "turn-end", data: { status: "failed", error: clientRes.error } });
+        try {
+          await finalizeTurn(
+            assistant.id,
+            {
+              text: collected.text,
+              toolCalls: collected.toolCalls,
+              citations: collected.citations,
+            } as unknown as import("@/lib/supabase/database.types").Json,
+            "failed",
+          );
+        } catch (finErr) {
+          void finErr;
+        }
+        try {
+          controller.close();
+        } catch {
+          /* already closed */
+        }
+        return;
+      }
+      const anthropicClient = clientRes.client;
+
+      const retrieval = await retrieveHomeContext(
+        supabase,
+        actor.tenant_id,
+        userText,
+      );
+
+      const classifierLlm = makeRealClassify(anthropicClient);
+      const executor = makeHomeToolExecutor(supabase, actor.tenant_id);
+
       const deps: HomeTurnDeps = {
         reserveQuota: makeReserveQuota(supabase),
         reconcileQuota: makeReconcileQuota(supabase),
-        buildContext: stubBuildContext,
-        classify: stubClassify,
-        invokeLlm: stubInvokeLlm,
-        retrievedMemoryIds: [],
+        buildContext: makeBuildContextFromRetrieval(retrieval),
+        classify: (input) =>
+          classifyIntent(input.text, input.recent, classifierLlm),
+        invokeLlm: makeRealInvokeLlm(anthropicClient, executor),
+        retrievedMemoryIds: retrievedMemoryIdsOf(retrieval),
       };
 
       try {
