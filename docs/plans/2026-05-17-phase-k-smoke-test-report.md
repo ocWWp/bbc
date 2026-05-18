@@ -134,26 +134,23 @@ PR #24 out of draft, do the following manually on the `bbc-staging` deploy
 |---|---|---|
 | 1 — GitHub PAT happy path | ✅ PASS | Installed PAT against `ocWWp/bbc`. UI flipped to "Reinstall GitHub" at `/library?installed=github`. **End-to-end decryption proof** (one-off node script via Supabase REST): plaintext starts `github_pat_11A...`, ends `ehrI`, matches typed PAT exactly. Screenshot: `2026-05-17-phase-k-smoke/step1-github-pat-installed.png` |
 | 2 — PAT rejection (wrong repo) | ✅ PASS | With PAT scoped to `ocWWp/bbc`, typing `ocWWp/does-not-exist-smoke-test-9999` → inline `Token lacks the repo scope.` rendered, NO `install_connector_atomic` RPC fired (tenant_connectors row unchanged). Screenshot: `2026-05-17-phase-k-smoke/step2-pat-rejection.png`. Note: first attempt with `microsoft/typescript` falsely "succeeded" because public repos accept any-PAT reads via GitHub's public-read fallback — the validation correctly distinguishes private/nonexistent from accessible-public. |
-| 5 — Reinstall | ✅ PASS (implicit) | The accidental `microsoft/typescript` install during step 2 exercised the reinstall path: same `tenant_connectors.id` (`e14babd1...`), `mapping` rewritten, prior `external_accounts` row `revoked_at = new row's installed_at`. Slot reuse + revoke-then-insert atomicity proven. |
+| 3 — Google consent happy path | ✅ PASS | Live OAuth round-trip against the new Google Cloud `bbc-local-dev` client (Web type, Gmail+Drive APIs, `oscarchow@8azi.io` test user). End-to-end: `/library/install/google` → consent → redirect `/library?installed=gmail,drive`. DB confirms two `active` `external_accounts` rows (gmail + drive) with all three scopes in `granted_scopes`. Re-run on a clean grant also exercised the reinstall path (prior rows `revoked` + new `active`). Screenshots: `2026-05-17-phase-k-smoke/step3a-library-connectors.png`, `step3b-install-google-page.png` |
+| 4 — Google partial consent / exact-scope gate | ✅ PASS via unit + integration tests (live UI structurally unreachable) | **Structural finding:** Google's consent UI for this OAuth client is **non-granular** — a single Allow/Cancel button, no per-scope checkboxes. The partial-consent code path therefore can't be exercised from the live UI; it triggers only when (a) the OAuth client is configured for granular consent, or (b) the user revokes scopes at `myaccount.google.com/permissions` between grants. Screenshot of the non-granular consent UI: `2026-05-17-phase-k-smoke/step4-google-consent-non-granular.png`. Cancel propagation confirmed live (Cancel → `/library?install_error=access_denied`): `2026-05-17-phase-k-smoke/step4-cancel-access-denied-redirect.png`. **Code-path verification** via vitest (2026-05-18, all green): (a) `route.test.ts:315` — "partial consent: only gmail granted → installs gmail, redirect carries `partial=drive`"; (b) `route.test.ts:389` — "drive.metadata.readonly alone does NOT count as drive granted (P2 PR#24)" — exact codex P2 case, asserts `/library?installed=gmail&partial=drive` and that `install_connector_atomic` fires once for gmail only; (c) `route.integration.test.ts:318` — "partial-then-full consent: first install grants gmail only, second adds drive — final state has both" — proves recovery semantics. |
+| 5 — Reinstall | ✅ PASS (implicit) | The accidental `microsoft/typescript` install during step 2 exercised the reinstall path: same `tenant_connectors.id` (`e14babd1...`), `mapping` rewritten, prior `external_accounts` row `revoked_at = new row's installed_at`. Slot reuse + revoke-then-insert atomicity proven. Also re-confirmed in step 3 (re-running Google install revoked the prior gmail+drive rows and inserted fresh active ones). |
 | 6 — Operator non-admin gate | ✅ PASS (prior session) | Per `2026-05-17-phase-k-smoke/library-connectors-tab.png` + unit test |
+| 7 — CSRF state replay | ✅ PASS | Captured a successful Google `state` from step 3 and replayed it; redirect carried `/library?install_error=state_reused` exactly as specified. The state token's HMAC is over raw JSON bytes (not the base64url-encoded payload string) — gotcha noted in handoff memory. |
 | 8 — P1 tenant isolation | ✅ PASS (prior session) | `2026-05-17-phase-k-smoke/p1-lockdown-proof.json` — authenticated JWT → 403/42501 on foreign-tenant install RPC |
 
 ### Mid-smoke P0 fix (commit `d7f24c5`)
 
 Step 1 looked successful but the credential was unrecoverable. Migration 0060 + 4 code paths + test wire-format pins shipped to fix it. See PR #25 comment thread for the full diagnosis. After the fix: real end-to-end round-trip proven (encrypt → JSON-over-wire → Postgres TEXT → JSON-back → decrypt → original PAT).
 
-### Still BLOCKED on credentials
-
-- **Step 3** — Google consent end-to-end. Needs `BBC_GOOGLE_OAUTH_CLIENT_ID/SECRET` + `BBC_PUBLIC_URL=http://localhost:3000` in `apps/dashboard/.env.local` AND a Google Cloud OAuth client (Web type) with Gmail+Drive APIs, `oscarchow@8azi.io` test user, redirect URI `http://localhost:3000/api/oauth/google/callback` whitelisted.
-- **Step 4** — Google partial consent (uncheck Drive on consent screen). Depends on step 3.
-- **Step 7** — CSRF state replay. Capture a successful Google `state` from step 3, replay it, expect `?install_error=state_reused`. Depends on step 3.
-
 ## Sign-off
 
 - [x] Steps 1, 2, 5 verified live (this session)
 - [x] Steps 6, 8 verified live (prior session)
+- [x] Step 3 verified live (this session, against new `bbc-local-dev` Google client)
+- [x] Step 4 verified via vitest (live UI is non-granular — see step 4 row for structural justification + test citations)
+- [x] Step 7 verified live (this session)
 - [x] Mid-smoke P0 (secrets round-trip) found + fixed in `d7f24c5`
-- [ ] Steps 3, 4, 7 — need Google OAuth client + 3 env vars
-- [ ] PR #25 moved from draft → ready for review
-
-Once 3/4/7 pass, mark PR ready and request review.
+- [x] PR #25 moved from draft → ready for review
