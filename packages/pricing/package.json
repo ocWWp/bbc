@@ -18,7 +18,7 @@
     "smoke": "tsx scripts/smoke.ts"
   },
   "dependencies": {
-    "yaml": "^2.6.0"
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
