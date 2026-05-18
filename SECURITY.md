@@ -41,7 +41,7 @@ There is no paid bug bounty in v1.5 — BBC takes no revenue per [ADR-0007](memo
 
 We follow a **90-day** disclosure window from the first reply, extendable by mutual agreement. Once a fix lands:
 
-1. We publish a [GitHub Security Advisory](https://github.com/ZethT/bbc/security/advisories) with the CVE (if applicable), affected versions, and the patched release.
+1. We publish a [GitHub Security Advisory](https://github.com/ocWWp/bbc/security/advisories) with the CVE (if applicable), affected versions, and the patched release.
 2. We credit the reporter in the advisory and the release notes (unless they prefer anonymity).
 3. We update `docs/security/THREAT-MODEL.md` if the finding revealed a gap in our model.
 

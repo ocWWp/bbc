@@ -2,7 +2,7 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL_v3-blue.svg)](LICENSE)
 [![Status: alpha](https://img.shields.io/badge/status-alpha-orange.svg)](#status)
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/ZethT/bbc)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/ocWWp/bbc)
 
 **Stop re-explaining your company to every AI tool.** BBC is a structured brain — your positioning, voice, decisions, team, vendors — that every AI tool you use can read from. One source of truth. Self-hosted by default. AGPLv3.
 
@@ -24,7 +24,7 @@ BBC fixes that. You give it your brain once. Every AI tool — including the Mar
 
 ### Option A — Deploy to Cloudflare (5 minutes)
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/ZethT/bbc)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/ocWWp/bbc)
 
 You'll need:
 - A free Supabase project ([supabase.com](https://supabase.com))
@@ -50,7 +50,7 @@ Env vars go in the Cloudflare dashboard (Workers & Pages → bbc-dashboard → S
 ### Option B — Local self-host
 
 ```bash
-git clone https://github.com/ZethT/bbc.git
+git clone https://github.com/ocWWp/bbc.git
 cd bbc
 cp .env.example .env       # fill in Supabase + Anthropic + encryption key
 pnpm install

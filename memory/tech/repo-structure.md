@@ -17,7 +17,7 @@ Companion to ADR-0004. Concrete layout for productizing BBC.
 
 ## Decision
 
-**Single repo: `github.com/ZethT/bbc`.** All product code (dashboard, MCP server, protocol docs, templates, deployment artifacts) lives here. No separate `bbc-dashboard` or `bbc-mcp` repos.
+**Single repo: `github.com/ocWWp/bbc`.** All product code (dashboard, MCP server, protocol docs, templates, deployment artifacts) lives here. No separate `bbc-dashboard` or `bbc-mcp` repos.
 
 **The current `bbc-dashboard` repo is generalized into `apps/dashboard/` inside the monorepo**. The tenant-specific seed data (memory layout, vendors list, voice anchors) stays as one example tenant under `examples/example-tenant/` for demos and onboarding flows.
 
@@ -134,7 +134,7 @@ This happens as the first task of Phase 1, not Phase 0. Phase 0 just records the
 2. **Update import paths.** Most code uses `@/*` aliases (already in `tsconfig.json`); those keep working. Anything referencing the BBC repo via `BBC_REPO=../bbc` env var changes to relative paths inside the monorepo (or stays env-var-driven so file-mode self-host still works).
 3. **Wire workspaces.** Root `package.json` declares workspaces; `apps/dashboard/package.json` becomes a workspace member. Same for any future `apps/mcp-server/` and `packages/*`.
 4. **Update `bbc/distribution/dashboard/CLAUDE.md`.** The leaf currently shadows an external `bbc-dashboard` repo. After the move, it shadows `apps/dashboard/` in the same repo. Update the `What this leaf governs` section and the `Quick map` paths.
-5. **Archive the originally-standalone dashboard repo.** Add a README pointing to `github.com/ZethT/bbc/apps/dashboard/`. Don't delete it (broken links to old commits matter).
+5. **Archive the originally-standalone dashboard repo.** Add a README pointing to `github.com/ocWWp/bbc/apps/dashboard/`. Don't delete it (broken links to old commits matter).
 6. **Update `.env.local` and `bbc/.claude/commands/bbc/dashboard.md`** to point at the new in-monorepo path. The `/bbc:dashboard` skill we updated in this session needs its hardcoded `/Users/grid/Documents/GitHub/bbc-dashboard` paths swapped for `apps/dashboard/`.
 
 ## Workspace tooling
