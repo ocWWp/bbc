@@ -139,7 +139,7 @@ async function callGET(query: Record<string, string>) {
 // Helper: an OK token-exchange response that grants both gmail + drive.
 function tokensBoth(suffix: string) {
   return {
-    access_token: `ya29.access.${suffix}`,
+    access_token: `stub.access.${suffix}`,
     refresh_token: `1//refresh.${suffix}`,
     expires_in: 3600,
     token_type: "Bearer",
@@ -150,7 +150,7 @@ function tokensBoth(suffix: string) {
 
 function tokensGmailOnly(suffix: string) {
   return {
-    access_token: `ya29.access.${suffix}`,
+    access_token: `stub.access.${suffix}`,
     refresh_token: `1//refresh.${suffix}`,
     expires_in: 3600,
     token_type: "Bearer",

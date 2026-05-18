@@ -212,7 +212,7 @@ describe("GET /api/oauth/google/callback — happy path", () => {
       redirect_url: "/library?installed=gmail,drive",
     });
     exchangeMock.mockResolvedValueOnce({
-      access_token: "ya29.access",
+      access_token: "stub.access",
       refresh_token: "1//refresh",
       expires_in: 3600,
       token_type: "Bearer",
@@ -268,7 +268,7 @@ describe("GET /api/oauth/google/callback — happy path", () => {
     }
 
     // No plaintext token in the redirect.
-    expect(loc).not.toContain("ya29.access");
+    expect(loc).not.toContain("stub.access");
     expect(loc).not.toContain("1//refresh");
   });
 
@@ -290,7 +290,7 @@ describe("GET /api/oauth/google/callback — happy path", () => {
       redirect_url: "/library?installed=gmail,drive",
     });
     exchangeMock.mockResolvedValueOnce({
-      access_token: "ya29.access",
+      access_token: "stub.access",
       refresh_token: "1//refresh",
       expires_in: 3600,
       token_type: "Bearer",
@@ -330,7 +330,7 @@ describe("GET /api/oauth/google/callback — happy path", () => {
       redirect_url: "/library?installed=gmail,drive",
     });
     exchangeMock.mockResolvedValueOnce({
-      access_token: "ya29.access",
+      access_token: "stub.access",
       refresh_token: "1//refresh",
       expires_in: 3600,
       token_type: "Bearer",
@@ -370,7 +370,7 @@ describe("GET /api/oauth/google/callback — happy path", () => {
       redirect_url: "/library?installed=gmail,drive",
     });
     exchangeMock.mockResolvedValueOnce({
-      access_token: "ya29.access",
+      access_token: "stub.access",
       refresh_token: "1//refresh",
       expires_in: 3600,
       token_type: "Bearer",
@@ -408,7 +408,7 @@ describe("GET /api/oauth/google/callback — happy path", () => {
       redirect_url: "/library?installed=gmail,drive",
     });
     exchangeMock.mockResolvedValueOnce({
-      access_token: "ya29.access",
+      access_token: "stub.access",
       refresh_token: "1//refresh",
       expires_in: 3600,
       token_type: "Bearer",
