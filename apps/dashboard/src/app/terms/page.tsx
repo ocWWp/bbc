@@ -34,7 +34,7 @@ export default function TermsPage() {
 
       <h2>5. Pricing and BYOK</h2>
       <p>
-        The hosted demo is free under a daily request cap. There is no SaaS billing, no credits, no metering, and no paid plans in v1 — see <a href="https://github.com/ocWWp/bbc/blob/main/memory/decisions/0007-bbc-license.md">ADR-0007</a> for the rationale. If you need more than the demo provides, either self-host (recommended) or wire your own LLM API key in <code>/settings/keys</code> (BYOK). Inference cost when you BYOK is paid by you, directly to the provider.
+        The hosted demo is free under a daily request cap. There is no SaaS billing, no credits, no metering, and no paid plans in v1 — see <a href="https://github.com/ocWWp/bbc/blob/main/memory/decisions/0007-oss-first-agpl-deferred-commercialization.md">ADR-0007</a> for the rationale. If you need more than the demo provides, either self-host (recommended) or wire your own LLM API key in <code>/settings/keys</code> (BYOK). Inference cost when you BYOK is paid by you, directly to the provider.
       </p>
 
       <h2>6. Third-party providers and connectors</h2>
