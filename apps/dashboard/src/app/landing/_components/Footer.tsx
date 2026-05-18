@@ -32,16 +32,16 @@ export function Footer() {
           </div>
           <div className="foot-col">
             <h4>open source</h4>
-            <a href="https://github.com/ZethT/bbc" target="_blank" rel="noreferrer">github</a>
-            <a href="https://github.com/ZethT/bbc/blob/main/.planning/ROADMAP.md" target="_blank" rel="noreferrer">roadmap</a>
-            <a href="https://github.com/ZethT/bbc/tree/main/memory/decisions" target="_blank" rel="noreferrer">adrs</a>
+            <a href="https://github.com/ocWWp/bbc" target="_blank" rel="noreferrer">github</a>
+            <a href="https://github.com/ocWWp/bbc/blob/main/.planning/ROADMAP.md" target="_blank" rel="noreferrer">roadmap</a>
+            <a href="https://github.com/ocWWp/bbc/tree/main/memory/decisions" target="_blank" rel="noreferrer">adrs</a>
             <a href="#">contributors</a>
           </div>
         </div>
         <div className="foot-bottom">
           <div className="license">
             <span>© 2026 big brain company</span>
-            <a href="https://github.com/ZethT/bbc/blob/main/LICENSE" target="_blank" rel="noreferrer">
+            <a href="https://github.com/ocWWp/bbc/blob/main/LICENSE" target="_blank" rel="noreferrer">
               AGPLv3 — read the license
             </a>
           </div>

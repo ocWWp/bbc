@@ -19,7 +19,7 @@ export function Nav() {
             <a className="nav-link" href="#install">install</a>
             <a className="nav-link" href="#spec">spec</a>
           </nav>
-          <a className="btn btn-ghost" href="https://github.com/ZethT/bbc" target="_blank" rel="noreferrer">
+          <a className="btn btn-ghost" href="https://github.com/ocWWp/bbc" target="_blank" rel="noreferrer">
             <GithubIcon /> github
           </a>
           <a className="btn btn-primary" href="/auth/signin">

@@ -38,11 +38,11 @@ export function CTA() {
           <div className="cta-foot">
             <a
               className="btn btn-ghost btn-lg"
-              href="https://github.com/ZethT/bbc"
+              href="https://github.com/ocWWp/bbc"
               target="_blank"
               rel="noreferrer"
             >
-              <GithubIcon /> github.com/ZethT/bbc
+              <GithubIcon /> github.com/ocWWp/bbc
             </a>
             <a className="btn btn-ghost btn-lg" href="#spec">
               read the spec <ExtIcon />

@@ -1,15 +1,15 @@
 {
   "test": "P1 — authenticated user calls install_connector_atomic for a different tenant",
   "executed_at": "2026-05-17",
-  "executed_by": "chrome-devtools MCP, browser context owned by oscarchow@8azi.io",
+  "executed_by": "chrome-devtools MCP, browser context owned by a tenant member",
   "auth": {
     "role": "authenticated",
-    "sub": "2891990a-64a5-4ec8-bcbb-531bfaac88bb",
-    "email": "oscarchow@8azi.io"
+    "sub": "<redacted user UUID>",
+    "email": "<redacted tenant-member email>"
   },
   "request": {
     "method": "POST",
-    "url": "https://amjvkukmdpmimelazpyw.supabase.co/rest/v1/rpc/install_connector_atomic",
+    "url": "https://<staging-project-ref>.supabase.co/rest/v1/rpc/install_connector_atomic",
     "headers": "Authorization: Bearer <user JWT>; apikey: <publishable>",
     "body_subset": {
       "p_tenant_id": "00000000-0000-0000-0000-000000000000",

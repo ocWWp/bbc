@@ -87,7 +87,7 @@ export function invitationEmailHtml(a: InvitationEmailArgs): string {
   <hr style="border:none;border-top:1px solid #eee;margin:32px 0 16px;"/>
   <p style="font-size:12px;color:#888;">
     Don't recognize this invitation? You can safely ignore this email — no account is created until you click the link.
-    <br/>BBC · github.com/ZethT/bbc
+    <br/>BBC · github.com/ocWWp/bbc
   </p>
 </body></html>`;
 }
@@ -105,7 +105,7 @@ export function invitationEmailText(a: InvitationEmailArgs): string {
     "",
     `Don't recognize this invitation? You can safely ignore this email — no account is created until you click the link.`,
     "",
-    `BBC · github.com/ZethT/bbc`,
+    `BBC · github.com/ocWWp/bbc`,
   ].join("\n");
 }
 

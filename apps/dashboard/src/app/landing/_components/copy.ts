@@ -36,7 +36,7 @@ export const LANDING_COPY = {
     cta_primary_label: "Try the hosted demo →",
     cta_primary_href: "/auth/signin?demo=1",
     cta_secondary_label: "Self-host on Cloudflare ↗",
-    cta_secondary_href: "https://github.com/ZethT/bbc",
+    cta_secondary_href: "https://github.com/ocWWp/bbc",
   },
   walkthrough: {
     // Task 10: the section-blurb under "how it works".
