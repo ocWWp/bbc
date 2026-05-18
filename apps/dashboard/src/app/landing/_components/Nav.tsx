@@ -9,7 +9,7 @@ export function Nav() {
             <span className="brand-mark">bbc</span>
             <span>big brain company</span>
           </a>
-          <span className="nav-tag">v1.5 · beta</span>
+          <span className="nav-tag">beta</span>
         </div>
         <div className="nav-right">
           <nav className="nav-links">
@@ -17,7 +17,14 @@ export function Nav() {
             <a className="nav-link" href="#how">three loops</a>
             <a className="nav-link" href="#vs">vs vectors</a>
             <a className="nav-link" href="#install">install</a>
-            <a className="nav-link" href="#spec">spec</a>
+            <a
+              className="nav-link"
+              href="https://github.com/ocWWp/bbc/blob/main/memory/_schema.md"
+              target="_blank"
+              rel="noreferrer"
+            >
+              spec
+            </a>
           </nav>
           <a className="btn btn-ghost" href="https://github.com/ocWWp/bbc" target="_blank" rel="noreferrer">
             <GithubIcon /> github

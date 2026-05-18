@@ -11,7 +11,7 @@ export function Footer() {
               <span>big brain company</span>
             </div>
             <p className="desc">
-              an open-source structured company brain. nine supertags, human-reviewed, deterministic by design. three compounding loops on top of one schema.
+              an open-source brain for your company. typed memory in, deterministic answers out, improvement proposals back.
             </p>
           </div>
           <div className="foot-col">
@@ -24,7 +24,13 @@ export function Footer() {
           </div>
           <div className="foot-col">
             <h4>build with bbc</h4>
-            <a href="#spec">spec</a>
+            <a
+              href="https://github.com/ocWWp/bbc/blob/main/memory/_schema.md"
+              target="_blank"
+              rel="noreferrer"
+            >
+              spec
+            </a>
             <a href="#">sdk reference</a>
             <a href="#">rest api</a>
             <a href="#">claude / gpt agents</a>
@@ -45,8 +51,13 @@ export function Footer() {
               AGPLv3 — read the license
             </a>
           </div>
-          <a className="spec" href="#spec">
-            /spec/typed-memory-v1.md <ExtIcon />
+          <a
+            className="spec"
+            href="https://github.com/ocWWp/bbc/blob/main/memory/_schema.md"
+            target="_blank"
+            rel="noreferrer"
+          >
+            memory/_schema.md <ExtIcon />
           </a>
         </div>
       </div>
