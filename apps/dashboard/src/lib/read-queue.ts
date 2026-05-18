@@ -13,21 +13,6 @@ export async function listPending(limit?: number): Promise<Proposal[]> {
   return typeof limit === "number" ? all.slice(0, limit) : all;
 }
 
-export async function listAccepted(limit?: number): Promise<Proposal[]> {
-  const store = await getStore();
-  const all = await store.queue.list("accepted");
-  // Newest first.
-  const reversed = [...all].reverse();
-  return typeof limit === "number" ? reversed.slice(0, limit) : reversed;
-}
-
-export async function listRejected(limit?: number): Promise<Proposal[]> {
-  const store = await getStore();
-  const all = await store.queue.list("rejected");
-  const reversed = [...all].reverse();
-  return typeof limit === "number" ? reversed.slice(0, limit) : reversed;
-}
-
 export async function findById(id: string): Promise<Proposal | null> {
   const store = await getStore();
   // Accept either the proposal_id or its filename derivative.

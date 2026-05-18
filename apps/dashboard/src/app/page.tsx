@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Root route. Routing logic, in order:
- *   1. Unauthenticated → /queue (which bounces to /auth/signin).
+ *   1. Unauthenticated → /ops (which bounces to /auth/signin).
  *   2. Authenticated + empty brain → /welcome (preserves the onboarding gate;
  *      fresh tenants without any memories should not land on /home).
  *   3. Admin → /home.
@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function Root() {
   const a = await requireActor();
-  if (!a.ok) redirect("/queue");
+  if (!a.ok) redirect("/ops");
 
   const supabase = await getSupabaseServerClient();
   const { count } = await supabase

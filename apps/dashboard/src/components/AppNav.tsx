@@ -34,11 +34,11 @@ const MEMORY_ROUTE: Route = {
   match: (p) =>
     p === "/memory" || p.startsWith("/memory/") || p === "/sources" || p.startsWith("/sources/"),
 };
-const QUEUE_ROUTE: Route = {
-  key: "queue",
-  label: "Queue",
-  href: "/queue",
-  match: (p) => p === "/" || p === "/queue" || p.startsWith("/queue/"),
+const OPS_ROUTE: Route = {
+  key: "ops",
+  label: "Ops",
+  href: "/ops",
+  match: (p) => p === "/" || p === "/ops" || p.startsWith("/ops/") || p === "/queue" || p.startsWith("/queue/"),
   badge: "pending",
 };
 const LIBRARY_ROUTE: Route = {
@@ -72,14 +72,14 @@ const ADMIN_ROUTES: ReadonlyArray<Route> = [
   HOME_ROUTE,
   STUDIO_ROUTE,
   MEMORY_ROUTE,
-  QUEUE_ROUTE,
+  OPS_ROUTE,
   LIBRARY_ROUTE,
   SETTINGS_ROUTE,
 ];
 const OPERATOR_ROUTES: ReadonlyArray<Route> = [
   STUDIO_ROUTE,
   MEMORY_ROUTE,
-  QUEUE_ROUTE,
+  OPS_ROUTE,
   LIBRARY_ROUTE,
   SETTINGS_ROUTE,
 ];

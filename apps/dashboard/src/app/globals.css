@@ -5116,3 +5116,283 @@ mark.mark-skill { --mark-color: var(--t-skill); }
     display: none;
   }
 }
+
+/* ============================================================
+   /ops — operator cockpit
+   ------------------------------------------------------------
+   Two sections (Needs Attention + System Snapshot), each a
+   single .card with .card-pad. The visual language mirrors
+   /queue (page-head, pills, mono timestamps, serif accent in
+   title). All counts are tabular so columns don't jitter
+   between rows.
+   ============================================================ */
+
+.ops-page .page-head { align-items: flex-end; }
+
+.ops-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 28px;
+}
+.ops-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ops-section-sub {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+/* Degraded banner — soft, not alarming. Sits between page-head and the
+   first section so the operator sees it before reading any zeros. */
+.ops-degraded-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  margin-top: 12px;
+  border: 1px solid var(--paper-rule);
+  border-left: 2px solid var(--paper-muted-2);
+  border-radius: 8px;
+  background: var(--paper-bg-2);
+  font-size: 13px;
+  color: var(--paper-ink-2);
+  line-height: 1.45;
+}
+.ops-degraded-banner .dot {
+  width: 6px;
+  height: 6px;
+  margin-top: 7px;
+  border-radius: 999px;
+  background: var(--paper-muted);
+  flex: 0 0 auto;
+}
+.ops-degraded-banner strong { color: var(--paper-ink); font-weight: 500; }
+
+/* ----------- Needs Attention ----------- */
+.ops-attention {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 4px 20px;
+}
+.ops-attention-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 0;
+  border-top: 1px solid var(--paper-rule);
+  font-size: 14px;
+  color: var(--paper-ink);
+  line-height: 1.4;
+}
+.ops-attention-row:first-child { border-top: none; }
+.ops-attention-row.ops-attention-degraded { opacity: 0.78; }
+
+/* Pill that wraps a count number — keep its bottom optical-aligned with
+   the body text by nudging up 1px (counter-acts the dense-line height). */
+.ops-pill-count {
+  font-variant-numeric: tabular-nums;
+  min-width: 32px;
+  justify-content: center;
+  transform: translateY(-0.5px);
+}
+
+.ops-count {
+  font-family: var(--font-geist-mono), monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+.ops-row-text { min-width: 0; }
+.ops-row-text .mono {
+  color: var(--paper-ink-2);
+  font-size: 12.5px;
+}
+.ops-row-hint {
+  color: var(--paper-muted);
+  font-size: 13px;
+}
+.ops-admin-tag {
+  font-size: 11px;
+  color: var(--paper-muted);
+  letter-spacing: 0.04em;
+}
+.ops-row-cta {
+  color: var(--paper-accent);
+  font-size: 12px;
+  text-decoration: none;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.ops-row-cta:hover { color: var(--paper-ink); }
+
+/* ----------- Pending-proposals inline list -----------
+   Lives inside the Needs Attention card. Header row reuses the standard
+   .ops-attention-row grid; the list rows beneath are stripped-down proposal
+   cards — title + target_file + ActionButtons — without the card chrome,
+   diff strip, or manager-review pills you see on /queue. Operators get
+   actionable rows here; for the full review surface they click through. */
+/* Border-ownership invariant: .ops-pending wraps the header + list and owns
+   the top border for the whole pending-proposals block. The inner
+   .ops-pending-head suppresses its own border-top to avoid double-bordering.
+   Any future row variant inserted before/after .ops-pending must respect
+   this — wrapper owns the rule, inner head cancels its own. */
+.ops-pending {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--paper-rule);
+}
+.ops-pending:first-child { border-top: none; }
+.ops-pending-head {
+  /* Override the parent grid to 2 cols — no CTA column on the header row. */
+  grid-template-columns: auto minmax(0, 1fr);
+  /* Cancel the per-row border-top — the .ops-pending wrapper owns it now. */
+  border-top: none;
+  padding-bottom: 4px;
+}
+.ops-pending-list {
+  list-style: none;
+  padding: 0;
+  /* 46px = 32px pill min-width + 14px grid gap — aligns list under the text column. */
+  margin: 0 0 0 46px;
+  display: flex;
+  flex-direction: column;
+}
+.ops-pending-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 0;
+  border-top: 1px solid var(--paper-rule);
+}
+.ops-pending-item:first-child { border-top: none; }
+.ops-pending-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.ops-pending-link {
+  color: var(--paper-ink);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ops-pending-link:hover { color: var(--paper-accent); }
+.ops-pending-target {
+  color: var(--paper-muted);
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ops-pending-actions {
+  flex-shrink: 0;
+}
+.ops-pending-foot {
+  /* 46px left padding matches .ops-pending-list margin (pill + grid gap). */
+  padding: 10px 0 4px 46px;
+  border-top: 1px solid var(--paper-rule);
+}
+.ops-pending-more {
+  /* Non-interactive "N more not shown" hint — matches .ops-row-cta sizing so
+     the foot row keeps its visual weight even without a link. */
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+@media (max-width: 720px) {
+  .ops-pending-list { margin-left: 0; }
+  .ops-pending-foot { padding-left: 0; }
+  .ops-pending-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+}
+
+/* ----------- System Snapshot ----------- */
+.ops-snapshot {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 4px 20px;
+}
+.ops-snap-row {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: baseline;
+  padding: 13px 0;
+  border-top: 1px solid var(--paper-rule);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.ops-snap-row:first-child { border-top: none; }
+.ops-snap-k {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 11px;
+  color: var(--paper-muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.ops-snap-v {
+  color: var(--paper-ink);
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+.ops-snap-fact { font-variant-numeric: tabular-nums; }
+.ops-snap-fact.muted { color: var(--paper-muted); }
+.ops-snap-fact .mono {
+  color: var(--paper-ink-2);
+  font-size: 12.5px;
+}
+.ops-snap-sep { color: var(--paper-rule-2); }
+.ops-snap-degraded {
+  font-style: italic;
+}
+.ops-snap-link {
+  color: var(--paper-accent);
+  font-size: 12px;
+  text-decoration: none;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+.ops-snap-link:hover { color: var(--paper-ink); }
+
+/* Narrow viewports: stack everything; drop the third column inline. */
+@media (max-width: 720px) {
+  .ops-attention-row {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "pill text"
+      ".    cta";
+    row-gap: 8px;
+  }
+  .ops-attention-row > .ops-pill-count { grid-area: pill; }
+  .ops-attention-row > .ops-row-text { grid-area: text; }
+  .ops-attention-row > .ops-row-cta { grid-area: cta; justify-self: end; }
+
+  .ops-snap-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding: 14px 0;
+  }
+  .ops-snap-row > .ops-snap-link { justify-self: end; }
+}

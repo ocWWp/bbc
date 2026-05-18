@@ -250,8 +250,8 @@ export function LibraryClient({
             </a>
           )}
           {isAdmin && (
-            <a href="/library/diagnostics" className="btn btn-ghost">
-              diagnostics →
+            <a href="/ops" className="btn btn-ghost">
+              ops →
             </a>
           )}
           <a

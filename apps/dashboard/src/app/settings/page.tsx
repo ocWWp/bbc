@@ -162,9 +162,9 @@ export default async function SettingsGeneral() {
             </Link>
           </div>
           <div className="row">
-            <span className="k">queue</span>
+            <span className="k">ops</span>
             <span className="v">Pending proposals across all studios</span>
-            <Link href="/queue" className="btn btn-ghost">
+            <Link href="/ops" className="btn btn-ghost">
               open
             </Link>
           </div>

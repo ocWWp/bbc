@@ -11,7 +11,7 @@ import {
 describe("matchRoute", () => {
   it("matches an exact alias", () => {
     const r = matchRoute("queue");
-    expect(r).toEqual({ route: "/queue", label: "Queue" });
+    expect(r).toEqual({ route: "/ops", label: "Ops" });
   });
 
   it("matches a multi-word alias for a Studio route", () => {

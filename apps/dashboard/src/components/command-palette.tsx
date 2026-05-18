@@ -14,7 +14,7 @@ import {
 
 const ROUTES = [
   { label: "Dashboard", href: "/dashboard", group: "Navigate" },
-  { label: "Queue", href: "/queue", group: "Navigate" },
+  { label: "Ops", href: "/ops", group: "Navigate" },
   { label: "Memory", href: "/memory", group: "Navigate" },
   { label: "Marketing Studio", href: "/studio/marketing", group: "Navigate" },
   { label: "Team", href: "/settings/team", group: "Navigate" },

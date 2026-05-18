@@ -568,7 +568,7 @@ export async function acceptStudioRun(runId: string): Promise<ReviewResult> {
     };
     try {
       const result = await emitter.emit(ctx, g.supabase);
-      if (result.proposals.length > 0) revalidatePath("/queue");
+      if (result.proposals.length > 0) revalidatePath("/ops");
     } catch (e) {
       const m = e instanceof Error ? e.message : "unknown";
       console.error(

@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { findById, isApproved } from "@/lib/read-queue";
 import { readObservationMeta, type ObservationMeta } from "@/lib/home/read-observation-meta";
-import { requireActor } from "@/lib/auth/require-user";
+import { requireActor, requireRole } from "@/lib/auth/require-user";
 import ActionButtons from "@/components/ActionButtons";
 import type { Proposal } from "@bbc/store";
 
@@ -73,12 +73,23 @@ function parseBody(body: string): { diff: { t: "ctx" | "add" | "del"; s: string;
 
 export default async function ProposalDetail({ params }: PageProps) {
   const { id } = await params;
+
+  // Operator+ only. Members get bounced to /brain. Matches /ops (the
+  // canonical queue surface that links here) so a member who lands on a
+  // proposal detail URL — e.g. via an Inbox notification — doesn't end up
+  // reading queue contents the operator gate is meant to protect.
+  const a = await requireActor();
+  if (!a.ok) {
+    redirect(`/auth/signin?callbackUrl=${encodeURIComponent("/queue/" + id)}`);
+  }
+  const r = requireRole(a.actor, "operator");
+  if (!r.ok) redirect("/brain");
+
   const p = await findById(id);
   if (!p) notFound();
 
   const observationMeta = await readObservationMeta(p.proposal_id);
-  const actorRes = await requireActor();
-  const isAdmin = actorRes.ok && actorRes.actor.role === "admin";
+  const isAdmin = a.actor.role === "admin";
 
   const tag = observationMeta ? "observation" : inferTag(p);
   const reviewed = !!p.manager_review;
@@ -98,7 +109,7 @@ export default async function ProposalDetail({ params }: PageProps) {
       <header className="page-head">
         <div className="page-head-left">
           <div className="page-crumb">
-            <Link href="/queue">queue</Link>
+            <Link href="/ops">ops</Link>
             <span className="sep">/</span>
             <span className="current mono">{p.proposal_id}</span>
           </div>
