@@ -34,7 +34,7 @@ export default function TermsPage() {
 
       <h2>5. Pricing and BYOK</h2>
       <p>
-        The hosted demo is free under a daily request cap. There is no SaaS billing, no credits, no metering, and no paid plans in v1 — see <a href="https://github.com/ZethT/bbc/blob/main/memory/decisions/0007-bbc-license.md">ADR-0007</a> for the rationale. If you need more than the demo provides, either self-host (recommended) or wire your own LLM API key in <code>/settings/keys</code> (BYOK). Inference cost when you BYOK is paid by you, directly to the provider.
+        The hosted demo is free under a daily request cap. There is no SaaS billing, no credits, no metering, and no paid plans in v1 — see <a href="https://github.com/ocWWp/bbc/blob/main/memory/decisions/0007-bbc-license.md">ADR-0007</a> for the rationale. If you need more than the demo provides, either self-host (recommended) or wire your own LLM API key in <code>/settings/keys</code> (BYOK). Inference cost when you BYOK is paid by you, directly to the provider.
       </p>
 
       <h2>6. Third-party providers and connectors</h2>
@@ -49,7 +49,7 @@ export default function TermsPage() {
 
       <h2>8. Open-source license + warranty</h2>
       <p>
-        BBC source is licensed under AGPLv3; see <code>LICENSE</code> in the public <a href="https://github.com/ZethT/bbc">BBC repo</a>. The hosted demo is provided &quot;as is&quot; without warranties of any kind. Our liability for the hosted demo is capped at any fees you have paid in the prior 12 months (which, in v1, is zero).
+        BBC source is licensed under AGPLv3; see <code>LICENSE</code> in the public <a href="https://github.com/ocWWp/bbc">BBC repo</a>. The hosted demo is provided &quot;as is&quot; without warranties of any kind. Our liability for the hosted demo is capped at any fees you have paid in the prior 12 months (which, in v1, is zero).
       </p>
 
       <h2>9. Changes</h2>

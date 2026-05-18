@@ -40,7 +40,7 @@ export default function PrivacyPage() {
         <li><strong>Resend</strong> — transactional email (invitations).</li>
       </ul>
       <p>
-        BBC runs no payment processor, no Stripe, no metering pipeline. The hosted demo is free under a daily request cap; v1 has no SaaS billing per <a href="https://github.com/ZethT/bbc/blob/main/memory/decisions/0007-bbc-license.md">ADR-0007</a>. If you exceed the demo cap, self-host or wire your own API key under <code>/settings/keys</code>.
+        BBC runs no payment processor, no Stripe, no metering pipeline. The hosted demo is free under a daily request cap; v1 has no SaaS billing per <a href="https://github.com/ocWWp/bbc/blob/main/memory/decisions/0007-bbc-license.md">ADR-0007</a>. If you exceed the demo cap, self-host or wire your own API key under <code>/settings/keys</code>.
       </p>
       <p>
         When you install a connector (Notion, Linear, GitHub, Gmail, Drive), data flows directly between BBC and that provider over OAuth scopes you explicitly grant. Each provider&apos;s own privacy policy applies to the data they hold.
@@ -57,7 +57,7 @@ export default function PrivacyPage() {
       </p>
 
       <h2>Changes</h2>
-      <p>Material changes to this policy are committed in <a href="https://github.com/ZethT/bbc">the public BBC repo</a> and emailed to demo-tenant admins at least 30 days in advance.</p>
+      <p>Material changes to this policy are committed in <a href="https://github.com/ocWWp/bbc">the public BBC repo</a> and emailed to demo-tenant admins at least 30 days in advance.</p>
 
       <h2>Contact</h2>
       <p>Privacy questions: <a href="mailto:privacy@bbc.tools">privacy@bbc.tools</a></p>
