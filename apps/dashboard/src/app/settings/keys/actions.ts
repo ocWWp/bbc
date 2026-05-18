@@ -7,6 +7,7 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import {
   encryptSecret,
   makeDisplayHint,
+  toWireSecret,
   validateProviderKey,
 } from "@/lib/secrets/encryption";
 
@@ -62,9 +63,9 @@ export async function setProviderKey(
     };
   }
 
-  let encrypted;
+  let wire;
   try {
-    encrypted = encryptSecret(plaintext);
+    wire = toWireSecret(encryptSecret(plaintext));
   } catch (e) {
     const m = e instanceof Error ? e.message : "unknown";
     return { ok: false, error: `Encryption failed: ${m}` };
@@ -96,9 +97,9 @@ export async function setProviderKey(
       tenant_id: tenantId,
       provider_id: providerId,
       kind,
-      secret_ciphertext: encrypted.ciphertext,
-      secret_iv: encrypted.iv,
-      secret_tag: encrypted.tag,
+      secret_ciphertext: wire.ciphertext,
+      secret_iv: wire.iv,
+      secret_tag: wire.tag,
       display_hint: displayHint,
       status: "active",
       created_by: userId,

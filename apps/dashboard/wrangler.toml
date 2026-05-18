@@ -25,6 +25,23 @@ routes = [
 #   BBC_OAUTH_PROVIDERS          (optional override; defaults to "github,google".
 #                                 Set to "" to disable all OAuth, or to one
 #                                 provider id to enable only that one.)
+#   BBC_OAUTH_STATE_SECRET       (REQUIRED if any OAuth connector installed;
+#                                 openssl rand -base64 32. HMAC signing key for
+#                                 /api/oauth/* state. Cloudflare unset env = "",
+#                                 which causes those routes to refuse to boot.)
+#   BBC_GOOGLE_OAUTH_CLIENT_ID   (REQUIRED to install Gmail/Drive; from Google Cloud
+#                                 console → OAuth client (Web).)
+#   BBC_GOOGLE_OAUTH_CLIENT_SECRET (REQUIRED to install Gmail/Drive; pair with
+#                                 client id above. Store via `wrangler secret put`.)
+#   BBC_PUBLIC_URL               (REQUIRED to install Gmail/Drive; canonical origin
+#                                 used to build the OAuth redirect_uri. Must match
+#                                 the value whitelisted in the Google Cloud console.)
+#   BBC_GOOGLE_OAUTH_VERIFIED    (optional; "true" once your Google OAuth app has
+#                                 cleared verification. While unset/empty/"false"
+#                                 the dashboard surfaces a "this app isn't verified"
+#                                 warning on Gmail/Drive. Defaults to false.)
 #
-# These are NOT inlined here on purpose — keep secrets in the dashboard's
-# encrypted env, not in the repo. wrangler reads them at deploy time.
+# See memory/ops/providers/google.md for the 100-user Testing-mode cap and
+# the verification path. These are NOT inlined here on purpose — keep secrets
+# in the dashboard's encrypted env, not in the repo. wrangler reads them at
+# deploy time.

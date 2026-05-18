@@ -6,7 +6,7 @@
 // safe to call from a server component to decide whether to prompt for BYOK.
 
 import "server-only";
-import { decryptSecret } from "./encryption";
+import { decryptSecret, fromWireSecret } from "./encryption";
 
 // The Supabase client passed in is whatever getSupabaseServerClient() returns;
 // we deliberately don't bind it to the generated Database type here because
@@ -16,10 +16,13 @@ import { decryptSecret } from "./encryption";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type LooseSupabase = any;
 
+// Migration 0060 moved these columns from bytea to TEXT (base64). Read them as
+// strings and decode via fromWireSecret() before decryptSecret. See the
+// storage-encoding note in encryption.ts for the full P0 context.
 type EncryptedRow = {
-  secret_ciphertext: Buffer;
-  secret_iv: Buffer;
-  secret_tag: Buffer;
+  secret_ciphertext: string;
+  secret_iv: string;
+  secret_tag: string;
 };
 
 export type KeyResolution =
@@ -64,11 +67,13 @@ export async function resolveTenantProviderKey(
   if (!error && data) {
     const row = data as unknown as EncryptedRow;
     try {
-      const key = decryptSecret({
-        ciphertext: row.secret_ciphertext,
-        iv: row.secret_iv,
-        tag: row.secret_tag,
-      });
+      const key = decryptSecret(
+        fromWireSecret({
+          ciphertext: row.secret_ciphertext,
+          iv: row.secret_iv,
+          tag: row.secret_tag,
+        }),
+      );
       return { source: "tenant_byok", key };
     } catch {
       // Decryption failed (corrupt ciphertext, rotated encryption key, etc).

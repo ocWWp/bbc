@@ -77,6 +77,11 @@ export type ConnectorItem = {
    *  card shows a "beta" pill and the install drawer surfaces an
    *  unverified-app warning. Set per-tenant at request time. */
   unverified_oauth?: boolean;
+  /** Phase K (T17/T18): destination for the install CTA. Connectors with a
+   *  built install flow set this; cards and the drawer render an active
+   *  Install button. Connectors without it stay catalog-only — the global
+   *  v1.7 `installEnabled=false` default still applies to them. */
+  install_url?: string;
 };
 
 export type ProviderItem = {
@@ -134,14 +139,14 @@ export const SKILLS: SkillItem[] = [
 
 export const CONNECTORS: ConnectorItem[] = [
   { id: "co_001", kind: "connector", connector_id: "notion",          source: "docs",    name: "Notion",          author: "BBC",          desc: "Pages → typed memory. Maps databases to supertags; keeps mappings reviewable in /queue.", writes: ["decision", "product", "note", "glossary"], scopes_yes: ["pages", "page content", "databases"], scopes_no: ["comments", "integrations"], installed: false, recommended: false, badge: null, license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/notion", glyph: "N" },
-  { id: "co_002", kind: "connector", connector_id: "github",          source: "code",    name: "GitHub",          author: "BBC",          desc: "Repos → typed memory. ADRs in /docs become decisions; READMEs become product memory.", writes: ["decision", "product", "skill"], scopes_yes: ["read repos", "read PRs", "read issues"], scopes_no: ["write", "admin"], installed: false, recommended: false, badge: null, license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/github", glyph: "G" },
+  { id: "co_002", kind: "connector", connector_id: "github",          source: "code",    name: "GitHub",          author: "BBC",          desc: "Repos → typed memory. ADRs in /docs become decisions; READMEs become product memory.", writes: ["decision", "product", "skill"], scopes_yes: ["read repos", "read PRs", "read issues"], scopes_no: ["write", "admin"], installed: false, recommended: false, badge: null, license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/github", glyph: "G", install_url: "/library/install/github" },
   { id: "co_003", kind: "connector", connector_id: "linear",          source: "tasks",   name: "Linear",          author: "BBC",          desc: "Projects, active cycles, and issues → typed memory. Projects + cycles become product rows; issues labeled `adr` become decisions, the rest become notes.", writes: ["product", "decision", "note"], scopes_yes: ["read"], scopes_no: ["write", "admin"], installed: false, recommended: true, badge: "recommended", license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/linear", glyph: "L" },
   // Slack (co_004) removed: catalog entry promised an install flow that
   // didn't exist (connector_id: null = stub). See pre-launch audit; restore
   // when a real Slack adapter ships.
   { id: "co_005", kind: "connector", connector_id: "webhook-generic", source: "webhook", name: "Generic Webhook", author: "BBC",          desc: "POST JSON to a per-workspace endpoint. You map fields to supertags in BBC; we sign every payload.", writes: ["any (mapped)"], scopes_yes: ["–"], scopes_no: ["–"], installed: false, recommended: false, badge: null, license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/webhook", glyph: "⇢" },
-  { id: "co_006", kind: "connector", connector_id: "drive",           source: "docs",    name: "Google Drive",    author: "BBC",          desc: "My Drive + shared drives → typed memory. Google Docs/Sheets/Slides become notes; PDFs and binary files become source artifacts.", writes: ["note", "source_artifact"], scopes_yes: ["drive.readonly", "drive.metadata.readonly"], scopes_no: ["drive.file (write)", "admin"], installed: false, recommended: false, badge: null, license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/gdrive", glyph: "▤" },
-  { id: "co_007", kind: "connector", connector_id: "gmail",           source: "email",   name: "Gmail",           author: "BBC",          desc: "Threads matching your query → typed memory. Starred (or any custom-labeled) threads become decisions; senders/recipients become team rows.", writes: ["note", "decision", "team"], scopes_yes: ["gmail.readonly"], scopes_no: ["send", "modify"], installed: false, recommended: false, badge: null, license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/gmail", glyph: "@" },
+  { id: "co_006", kind: "connector", connector_id: "drive",           source: "docs",    name: "Google Drive",    author: "BBC",          desc: "My Drive + shared drives → typed memory. Google Docs/Sheets/Slides become notes; PDFs and binary files become source artifacts.", writes: ["note", "source_artifact"], scopes_yes: ["drive.readonly", "drive.metadata.readonly"], scopes_no: ["drive.file (write)", "admin"], installed: false, recommended: false, badge: null, license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/gdrive", glyph: "▤", install_url: "/library/install/google" },
+  { id: "co_007", kind: "connector", connector_id: "gmail",           source: "email",   name: "Gmail",           author: "BBC",          desc: "Threads matching your query → typed memory. Starred (or any custom-labeled) threads become decisions; senders/recipients become team rows.", writes: ["note", "decision", "team"], scopes_yes: ["gmail.readonly"], scopes_no: ["send", "modify"], installed: false, recommended: false, badge: null, license: "AGPL-3.0", repo: "github.com/bbc-org/connectors/gmail", glyph: "@", install_url: "/library/install/google" },
   // Discord (co_008) removed: see Slack note above.
   // Local folder (co_009) removed: file-mode self-host path, no in-dashboard
   // install flow. Self-hosters drop markdown into the repo directly.

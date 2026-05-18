@@ -51,6 +51,11 @@ Default tenant for local dev: `examples/example-tenant/` (Acme Co fixture). Over
 | `ANTHROPIC_API_KEY` | optional | tenants can BYOK at `/settings/keys` |
 | `BBC_SIGNUP_MODE` | yes | `open` or `invite_only` |
 | `BBC_HOSTED_DEMO_MODE` | yes | `true` only on the bbc.tools demo |
+| `BBC_OAUTH_STATE_SECRET` | if OAuth used | HMAC signing for OAuth state; `openssl rand -base64 32`. Cloudflare unset = empty string; routes refuse to boot. |
+| `BBC_GOOGLE_OAUTH_CLIENT_ID` | if Gmail/Drive | OAuth client id from Google Cloud → OAuth client (Web). |
+| `BBC_GOOGLE_OAUTH_CLIENT_SECRET` | if Gmail/Drive | Paired secret; store via `wrangler secret put`. |
+| `BBC_PUBLIC_URL` | if Gmail/Drive | Canonical origin (no trailing slash) — used to build `${BBC_PUBLIC_URL}/api/oauth/google/callback`. Must match the redirect URI whitelisted in the Google Cloud console. |
+| `BBC_GOOGLE_OAUTH_VERIFIED` | optional | `"true"` once Google verification clears. Until then the catalog shows a "this app isn't verified" warning for Gmail/Drive. See `memory/ops/providers/google.md`. |
 
 Local: `apps/dashboard/.env.local` (gitignored; see `.env.example`). Deploy: Cloudflare dashboard env vars; `wrangler.toml` has comments documenting the same list.
 

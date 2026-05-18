@@ -1,0 +1,66 @@
+/**
+ * /library/install/[connector_id] — installer landing page.
+ *
+ * Server component. Routes the connector_id to the matching install UI:
+ *   - github → render <GithubPatForm/> (Task 10)
+ *   - google → no-op stub for now; Task 14 will render the OAuth start button
+ *   - anything else → 404
+ *
+ * Mode guard: install is a DB-mode-only flow (secret encryption + RLS),
+ * so we short-circuit with NotAvailableInFileMode when BBC_MODE != "db".
+ * We don't call getStore() because the @bbc/store Store interface doesn't
+ * expose a `.mode` field — BBC_MODE is the authoritative signal at the
+ * dashboard layer (see src/lib/store.ts).
+ */
+
+import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
+import { requireActor, requireRole } from "@/lib/auth/require-user";
+import { NotAvailableInFileMode } from "@/components/NotAvailableInFileMode";
+import { isGoogleAppVerified } from "@/lib/connectors/google-oauth";
+import { GithubPatForm } from "./_components/GithubPatForm";
+import { GoogleConsentLauncher } from "./_components/GoogleConsentLauncher";
+
+export const dynamic = "force-dynamic";
+
+// "supported" means the route resolves rather than 404'ing. Google is a
+// supported stub today; Task 14 fills the body.
+const SUPPORTED: Record<string, true> = { github: true, google: true };
+
+function isDbMode(): boolean {
+  return (process.env.BBC_MODE ?? "file").toLowerCase() === "db";
+}
+
+export default async function InstallPage({
+  params,
+}: {
+  params: Promise<{ connector_id: string }>;
+}) {
+  const { connector_id } = await params;
+  if (!SUPPORTED[connector_id]) notFound();
+
+  if (!isDbMode()) {
+    return <NotAvailableInFileMode feature="Install" />;
+  }
+
+  // Install requires admin. Operator role exists so non-admins can run BBC
+  // without granting them connector-install authority — gating the page at
+  // operator while server actions require admin (codex P2 on PR #24) would
+  // let operators paste a PAT into a form that then fails on submit.
+  const a = await requireActor();
+  if (!a.ok) {
+    redirect(
+      `/auth/signin?callbackUrl=${encodeURIComponent(`/library/install/${connector_id}`)}`,
+    );
+  }
+  const r = requireRole(a.actor, "admin");
+  if (!r.ok) redirect("/brain");
+
+  if (connector_id === "github") {
+    return <GithubPatForm />;
+  }
+  if (connector_id === "google") {
+    return <GoogleConsentLauncher appVerified={isGoogleAppVerified()} />;
+  }
+  return null;
+}

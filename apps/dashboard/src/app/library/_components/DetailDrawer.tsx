@@ -11,7 +11,7 @@ import type {
 } from "../_data";
 import { ROLE_COLOR } from "../_data";
 import { Icons } from "./Icons";
-import { SchemaChip } from "./Cards";
+import { SchemaChip, relativeTime } from "./Cards";
 import { BrandIcon, hasBrandIcon } from "./BrandIcon";
 
 function isSkill(item: LibItem): item is SkillItem {
@@ -71,9 +71,12 @@ export type DetailDrawerProps = {
   /** When false (current v1.7 default), install/uninstall CTAs are hidden.
    *  The drawer remains a useful catalog detail view. */
   installEnabled?: boolean;
+  /** Phase K codex P2: install routes require admin. Non-admins see the
+   *  catalog detail but no install CTA. */
+  isAdmin?: boolean;
 };
 
-export function DetailDrawer({ item, installingId, onClose, onInstall, installEnabled = false }: DetailDrawerProps) {
+export function DetailDrawer({ item, installingId, onClose, onInstall, installEnabled = false, isAdmin = false }: DetailDrawerProps) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -91,6 +94,18 @@ export function DetailDrawer({ item, installingId, onClose, onInstall, installEn
 
   const installed = isProvider(item) ? item.connected : item.installed;
   const installing = installingId === item.id;
+  // Phase K T17/T19: connectors with their own install_url enable the
+  // install CTA regardless of the page-level installEnabled flag. Admin-only
+  // (codex P2 post-K.5) — the install routes themselves require admin.
+  const effectiveInstallEnabled =
+    installEnabled || (isAdmin && isConnector(item) && Boolean(item.install_url));
+  // T19: installed connectors with a last_sync_at surface the time so the
+  // operator can decide whether to reinstall (e.g., to rotate credentials)
+  // without leaving the drawer.
+  const installedHint =
+    isConnector(item) && item.installed && item.last_sync_at
+      ? `installed · last synced ${relativeTime(item.last_sync_at)}`
+      : null;
 
   const firstUseInputs = isSkill(item) ? FIRST_USE_INPUTS_BY_ROLE[item.role] : null;
   const kindWord = isSkill(item) ? "skills" : isConnector(item) ? "connectors" : "providers";
@@ -147,13 +162,13 @@ export function DetailDrawer({ item, installingId, onClose, onInstall, installEn
 
           <p className="lede">
             {item.desc}{" "}
-            {installEnabled && isSkill(item) &&
+            {effectiveInstallEnabled && isSkill(item) &&
               "When a studio runs this skill, BBC pulls the read-set from memory, asks for the first-use inputs once, and files outputs back to /queue for review. Every claim is cited."}
-            {installEnabled && isConnector(item) &&
+            {effectiveInstallEnabled && isConnector(item) &&
               "BBC opens the OAuth flow inside Settings, syncs the first batch, and files proposals to /queue rather than writing memory directly. You review before anything lands."}
-            {installEnabled && isProvider(item) &&
+            {effectiveInstallEnabled && isProvider(item) &&
               "Providers are vendor adapters. \"Bound\" means a binding row exists in memory/ops/bindings.yaml — it does NOT verify the API key works. Test the key at /settings/keys."}
-            {!installEnabled &&
+            {!effectiveInstallEnabled &&
               "Browse-only for now. Install and connect flows land in a later milestone — installed/bound badges still reflect real state from /settings/keys + tenant_connectors."}
           </p>
 
@@ -223,7 +238,7 @@ export function DetailDrawer({ item, installingId, onClose, onInstall, installEn
             </div>
           )}
 
-          {installEnabled && isConnector(item) && item.unverified_oauth && (
+          {effectiveInstallEnabled && isConnector(item) && item.unverified_oauth && (
             <div className="lib-section lib-warning" role="note">
               <div className="lab">
                 <span>unverified app · expect a Google warning</span>
@@ -333,38 +348,35 @@ export function DetailDrawer({ item, installingId, onClose, onInstall, installEn
             {installed ? (
               isProvider(item) ? (
                 <>currently bound</>
+              ) : installedHint ? (
+                <>{installedHint}</>
               ) : (
                 <>currently installed</>
               )
             ) : isProvider(item) ? (
-              installEnabled ? (
+              effectiveInstallEnabled ? (
                 <>requires <strong>{item.env}</strong> in /settings/keys</>
               ) : (
                 <>catalog only — connect lands in a later milestone</>
               )
-            ) : installEnabled ? (
+            ) : effectiveInstallEnabled ? (
               <>installing files this to <strong>/library/{kindWord}/{item.id}</strong></>
             ) : (
               <>catalog only — install lands in a later milestone</>
             )}
           </div>
-          {installEnabled && (
+          {effectiveInstallEnabled && (
             <>
               {installed && isSkill(item) && (
                 <button type="button" className="btn btn-ghost">
                   open in studio →
                 </button>
               )}
-              {installed && isConnector(item) && (
-                <button type="button" className="btn btn-ghost">
-                  open settings →
-                </button>
-              )}
               <button
                 type="button"
                 className="btn btn-primary btn-lg"
                 onClick={() => onInstall(item)}
-                aria-label={`${installed ? "Uninstall" : "Install"} ${item.name}`}
+                aria-label={`${installed ? "Reinstall" : "Install"} ${item.name}`}
                 style={
                   installed
                     ? { background: "transparent", color: "var(--ink)", border: "1px solid var(--rule-2)" }
@@ -378,6 +390,8 @@ export function DetailDrawer({ item, installingId, onClose, onInstall, installEn
                 ) : installed ? (
                   isProvider(item) ? (
                     "disconnect"
+                  ) : isConnector(item) ? (
+                    "reinstall"
                   ) : (
                     "uninstall"
                   )

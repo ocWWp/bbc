@@ -47,6 +47,23 @@ Sign-up is **invite-only**, gated by the `public.tenant_invitations` table. A `B
 
 Every server action (Accept / Reject) calls `requireActor()` (see `src/lib/auth/require-user.ts`), which resolves the user's profile + tenant + role via the server-side Supabase client. `requireRole(actor, 'member')` then gates write actions: viewers can read but not Accept or Reject. Phase 5 (RBAC) may further tighten Accept to admin-only.
 
+### Connector OAuth (Gmail / Drive)
+
+`/library/install/google` opens Google's consent screen for Gmail + Drive, redirects through `/api/oauth/google/callback`, and writes one row per granted scope into `external_accounts` via `install_connector_atomic` (migration 0057, locked down further in 0058). Only tenant **admins** can install — operators and members see a degraded view. Setup:
+
+1. **Create an OAuth client (Web)** in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials) and **enable the Gmail API and the Drive API** on the same project.
+2. **Whitelist the redirect URI** under "Authorized redirect URIs" — `${BBC_PUBLIC_URL}/api/oauth/google/callback`. The value must match `BBC_PUBLIC_URL` exactly (scheme + host + no trailing slash).
+3. **Set four env vars** (see `.env.example`):
+   - `BBC_GOOGLE_OAUTH_CLIENT_ID`
+   - `BBC_GOOGLE_OAUTH_CLIENT_SECRET` (Cloudflare: `wrangler secret put BBC_GOOGLE_OAUTH_CLIENT_SECRET`)
+   - `BBC_PUBLIC_URL`
+   - `BBC_GOOGLE_OAUTH_VERIFIED` — leave unset until verification clears
+4. **`BBC_OAUTH_STATE_SECRET`** is shared with all OAuth connectors (`openssl rand -base64 32`). Routes refuse to boot if it's unset.
+
+While Google has your OAuth client in **Testing** mode, only the up-to-**100 test users** you list on the consent screen can complete install — Google's hard cap, see [`memory/ops/providers/google.md`](../../memory/ops/providers/google.md) for the verification path. The catalog surfaces a "this app isn't verified" warning on Gmail/Drive while `BBC_GOOGLE_OAUTH_VERIFIED` is not `"true"`.
+
+GitHub PAT install (`/library/install/github`) needs no extra env config — the user pastes their personal access token, BBC pings `/repos/{owner}/{repo}` to confirm access before persisting the encrypted PAT.
+
 ## Hosting prerequisites
 
 Before exposing this on a network:
