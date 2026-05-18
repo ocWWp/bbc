@@ -128,10 +128,32 @@ PR #24 out of draft, do the following manually on the `bbc-staging` deploy
 
 `/library` after a successful install of Gmail + Drive — placeholder, capture on staging smoke. Page state: both cards show "installed" badge + reinstall CTA; the drawer for either shows "installed · last synced just now".
 
+## Live smoke results (2026-05-18, against feat/phase-k-install @ d7f24c5, PR #25)
+
+| Step | Result | Evidence |
+|---|---|---|
+| 1 — GitHub PAT happy path | ✅ PASS | Installed PAT against `ocWWp/bbc`. UI flipped to "Reinstall GitHub" at `/library?installed=github`. **End-to-end decryption proof** (one-off node script via Supabase REST): plaintext starts `github_pat_11A...`, ends `ehrI`, matches typed PAT exactly. Screenshot: `2026-05-17-phase-k-smoke/step1-github-pat-installed.png` |
+| 2 — PAT rejection (wrong repo) | ✅ PASS | With PAT scoped to `ocWWp/bbc`, typing `ocWWp/does-not-exist-smoke-test-9999` → inline `Token lacks the repo scope.` rendered, NO `install_connector_atomic` RPC fired (tenant_connectors row unchanged). Screenshot: `2026-05-17-phase-k-smoke/step2-pat-rejection.png`. Note: first attempt with `microsoft/typescript` falsely "succeeded" because public repos accept any-PAT reads via GitHub's public-read fallback — the validation correctly distinguishes private/nonexistent from accessible-public. |
+| 5 — Reinstall | ✅ PASS (implicit) | The accidental `microsoft/typescript` install during step 2 exercised the reinstall path: same `tenant_connectors.id` (`e14babd1...`), `mapping` rewritten, prior `external_accounts` row `revoked_at = new row's installed_at`. Slot reuse + revoke-then-insert atomicity proven. |
+| 6 — Operator non-admin gate | ✅ PASS (prior session) | Per `2026-05-17-phase-k-smoke/library-connectors-tab.png` + unit test |
+| 8 — P1 tenant isolation | ✅ PASS (prior session) | `2026-05-17-phase-k-smoke/p1-lockdown-proof.json` — authenticated JWT → 403/42501 on foreign-tenant install RPC |
+
+### Mid-smoke P0 fix (commit `d7f24c5`)
+
+Step 1 looked successful but the credential was unrecoverable. Migration 0060 + 4 code paths + test wire-format pins shipped to fix it. See PR #25 comment thread for the full diagnosis. After the fix: real end-to-end round-trip proven (encrypt → JSON-over-wire → Postgres TEXT → JSON-back → decrypt → original PAT).
+
+### Still BLOCKED on credentials
+
+- **Step 3** — Google consent end-to-end. Needs `BBC_GOOGLE_OAUTH_CLIENT_ID/SECRET` + `BBC_PUBLIC_URL=http://localhost:3000` in `apps/dashboard/.env.local` AND a Google Cloud OAuth client (Web type) with Gmail+Drive APIs, `oscarchow@8azi.io` test user, redirect URI `http://localhost:3000/api/oauth/google/callback` whitelisted.
+- **Step 4** — Google partial consent (uncheck Drive on consent screen). Depends on step 3.
+- **Step 7** — CSRF state replay. Capture a successful Google `state` from step 3, replay it, expect `?install_error=state_reused`. Depends on step 3.
+
 ## Sign-off
 
-- [ ] Steps 1-8 above complete on staging
-- [ ] Screenshots attached to PR #24
-- [ ] PR #24 moved from draft → ready for review
+- [x] Steps 1, 2, 5 verified live (this session)
+- [x] Steps 6, 8 verified live (prior session)
+- [x] Mid-smoke P0 (secrets round-trip) found + fixed in `d7f24c5`
+- [ ] Steps 3, 4, 7 — need Google OAuth client + 3 env vars
+- [ ] PR #25 moved from draft → ready for review
 
-Once all eight steps pass on staging, mark the PR ready and request review.
+Once 3/4/7 pass, mark PR ready and request review.
