@@ -4200,6 +4200,77 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   word-break: break-word;
 }
 
+/* connection-health: three-bucket health header. */
+.lib-diag-health {
+  padding: 14px 0 4px;
+}
+.lib-diag-health.has-attention {
+  background: color-mix(in oklab, var(--warn, #d97706), transparent 94%);
+  border-color: color-mix(in oklab, var(--warn, #d97706), transparent 65%);
+}
+.lib-diag-health > h2 {
+  padding: 0 20px;
+}
+.lib-diag-buckets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+.lib-diag-bucket {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 20px 10px;
+  border-left: 1px solid var(--rule);
+}
+.lib-diag-bucket:first-child {
+  border-left: none;
+}
+.lib-diag-bucket .lab {
+  font-family: "Geist Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+  color: var(--paper-muted);
+  font-weight: 500;
+}
+.lib-diag-bucket .num {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.lib-diag-bucket.warn .num {
+  color: var(--warn, #d97706);
+}
+
+/* connection-health: per-row reconnect button (auth_expired only). */
+.btn-reconnect {
+  display: inline-block;
+  font-family: "Geist Mono", monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  text-decoration: none;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--rule-2);
+  border-radius: 6px;
+  padding: 2px 10px;
+  line-height: 18px;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.btn-reconnect:hover {
+  background: color-mix(in oklab, var(--ink), transparent 94%);
+  border-color: var(--ink);
+}
+.btn-reconnect:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
 /* D-W5-4: connectors whose OAuth app is still in third-party review. */
 .lib-card .corner.beta {
   background: color-mix(in oklab, var(--warn, #d97706), transparent 88%);

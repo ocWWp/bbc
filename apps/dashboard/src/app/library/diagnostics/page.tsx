@@ -8,7 +8,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { requireActor, requireRole } from "@/lib/auth/require-user";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import { readDiagnostics } from "@/lib/connectors/read-diagnostics";
+import { readDiagnostics, computeHealthBuckets } from "@/lib/connectors/read-diagnostics";
+import { installPathFor } from "@/lib/connectors/install-paths";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Diagnostics · Library · BBC", robots: { index: false, follow: false } };
@@ -21,6 +22,8 @@ export default async function DiagnosticsPage() {
 
   const supabase = await getSupabaseServerClient();
   const diag = await readDiagnostics(supabase);
+  const health = computeHealthBuckets(diag.connectors);
+  const hasAttention = health.needs_attention > 0;
 
   return (
     <main className="lib-diag">
@@ -31,6 +34,27 @@ export default async function DiagnosticsPage() {
           <code>{actor.actor.tenant_slug}</code>.
         </p>
       </header>
+
+      <section
+        className={`lib-diag-section lib-diag-health${hasAttention ? " has-attention" : ""}`}
+        aria-label="Connector health summary"
+      >
+        <h2>Connector health</h2>
+        <div className="lib-diag-buckets">
+          <div className="lib-diag-bucket">
+            <div className="lab">healthy</div>
+            <div className="num">{health.healthy}</div>
+          </div>
+          <div className={`lib-diag-bucket${hasAttention ? " warn" : ""}`}>
+            <div className="lab">need attention</div>
+            <div className="num">{health.needs_attention}</div>
+          </div>
+          <div className="lib-diag-bucket">
+            <div className="lab">never synced</div>
+            <div className="num">{health.never_synced}</div>
+          </div>
+        </div>
+      </section>
 
       <section className="lib-diag-section">
         <h2>Dead-letter totals</h2>
@@ -83,26 +107,40 @@ export default async function DiagnosticsPage() {
                 <th>last sync</th>
                 <th>dlq</th>
                 <th>last error</th>
+                <th>actions</th>
               </tr>
             </thead>
             <tbody>
-              {diag.connectors.map((c) => (
-                <tr key={c.row_id}>
-                  <td>
-                    <code>{c.connector_id}</code>
-                  </td>
-                  <td>
-                    {c.last_sync_status ? (
-                      <span className={`pill ${pillClassFor(c.last_sync_status)}`}>{c.last_sync_status}</span>
-                    ) : (
-                      <span className="muted">never synced</span>
-                    )}
-                  </td>
-                  <td>{c.last_sync_at ?? "—"}</td>
-                  <td>{c.dlq_count}</td>
-                  <td className="err">{c.last_sync_error ?? "—"}</td>
-                </tr>
-              ))}
+              {diag.connectors.map((c) => {
+                const installHref =
+                  c.last_sync_status === "auth_expired" ? installPathFor(c.connector_id) : undefined;
+                return (
+                  <tr key={c.row_id}>
+                    <td>
+                      <code>{c.connector_id}</code>
+                    </td>
+                    <td>
+                      {c.last_sync_status ? (
+                        <span className={`pill ${pillClassFor(c.last_sync_status)}`}>{c.last_sync_status}</span>
+                      ) : (
+                        <span className="muted">never synced</span>
+                      )}
+                    </td>
+                    <td>{c.last_sync_at ?? "—"}</td>
+                    <td>{c.dlq_count}</td>
+                    <td className="err">{c.last_sync_error ?? "—"}</td>
+                    <td>
+                      {installHref ? (
+                        <a className="btn-reconnect" href={installHref}>
+                          reconnect
+                        </a>
+                      ) : (
+                        <span className="muted">—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
