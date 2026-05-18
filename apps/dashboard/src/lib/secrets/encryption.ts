@@ -1,7 +1,17 @@
 // AES-256-GCM encryption helpers for BYOK secrets stored in the
 // external_accounts table. Plaintext never reaches Postgres; ciphertext + iv
-// + auth tag are stored as bytea columns. The 32-byte symmetric key lives in
-// BBC_SECRET_ENCRYPTION_KEY (base64-encoded raw bytes).
+// + auth tag are stored as base64 strings in TEXT columns. The 32-byte
+// symmetric key lives in BBC_SECRET_ENCRYPTION_KEY (base64-encoded raw bytes).
+//
+// Storage encoding note (migration 0060, post-PR #25 smoke P0):
+// Earlier versions stored these as bytea, but Supabase JS RPC/insert
+// JSON-serialises Buffer values as `{"type":"Buffer","data":[...]}`. PostgREST
+// stored that JSON-string bytes literally into bytea, which meant the round-
+// trip was broken: decryptSecret would see a 69-byte "iv" (the JSON literal),
+// fail the 12-byte guard, and silently fall through to envFallback in
+// tenant-keys.ts. Live BYOK had never actually used a user's key. We now pass
+// base64 strings on the wire (toWireSecret/fromWireSecret below) and store as
+// TEXT — Buffer.toString('base64') round-trips faithfully through JSON.
 //
 // Threat model: this protects against a database leak. It does NOT protect
 // against a server compromise (the server has the key by definition). Use a
@@ -74,6 +84,33 @@ export function decryptSecret(input: EncryptedSecret): string {
   // Tamper detection: decipher.final() throws if the tag doesn't match.
   const plaintext = Buffer.concat([decipher.update(input.ciphertext), decipher.final()]);
   return plaintext.toString("utf8");
+}
+
+// Wire-format helpers — convert Buffer fields to/from base64 strings at the
+// Supabase boundary. Use these EVERYWHERE you pass encrypted material to
+// `.insert()` or `.rpc()`, and EVERYWHERE you read it back. Passing a Buffer
+// directly will silently break the round-trip; see the storage-encoding note
+// above. The narrow types make the asymmetry explicit at every callsite.
+export type WireSecret = {
+  ciphertext: string;
+  iv: string;
+  tag: string;
+};
+
+export function toWireSecret(s: EncryptedSecret): WireSecret {
+  return {
+    ciphertext: s.ciphertext.toString("base64"),
+    iv: s.iv.toString("base64"),
+    tag: s.tag.toString("base64"),
+  };
+}
+
+export function fromWireSecret(w: WireSecret): EncryptedSecret {
+  return {
+    ciphertext: Buffer.from(w.ciphertext, "base64"),
+    iv: Buffer.from(w.iv, "base64"),
+    tag: Buffer.from(w.tag, "base64"),
+  };
 }
 
 // Display hint shown in the UI so users can recognize their own key without

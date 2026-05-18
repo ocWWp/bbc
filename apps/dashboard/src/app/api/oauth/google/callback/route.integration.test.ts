@@ -237,11 +237,20 @@ describe("GET /api/oauth/google/callback — integration (multi-callback narrati
     // Ciphertext is independent per callback (fresh encryptSecret invocation
     // per token-exchange result). Compare callback-1 gmail to callback-2
     // gmail — they should differ because the underlying access_token differs.
-    const ct1 = calls[0].params.p_secret_ciphertext as Buffer;
-    const ct3 = calls[2].params.p_secret_ciphertext as Buffer;
-    expect(Buffer.isBuffer(ct1)).toBe(true);
-    expect(Buffer.isBuffer(ct3)).toBe(true);
-    expect(ct1.equals(ct3)).toBe(false);
+    //
+    // Migration 0060 / mid-PR-#25 P0 fix: secret params are base64 strings on
+    // the wire (NEVER Buffers — Supabase JS JSON-serializes Buffer as a
+    // {"type":"Buffer","data":[...]} object that PostgREST stores literally
+    // into bytea, breaking decryption). The test now pins string-shape.
+    const ct1 = calls[0].params.p_secret_ciphertext;
+    const ct3 = calls[2].params.p_secret_ciphertext;
+    expect(typeof ct1).toBe("string");
+    expect(typeof ct3).toBe("string");
+    expect(ct1).not.toBe(ct3);
+    // And the ciphertext should still be valid base64 (no JSON wrapping
+    // crept in).
+    expect(/^[A-Za-z0-9+/=]+$/.test(ct1 as string)).toBe(true);
+    expect(/^[A-Za-z0-9+/=]+$/.test(ct3 as string)).toBe(true);
   });
 
   it("drive-fails-then-retry: orphan-free recovery via a fresh callback", async () => {
@@ -297,9 +306,13 @@ describe("GET /api/oauth/google/callback — integration (multi-callback narrati
     // simply called the RPC again). Confirms gmail was NOT skipped just
     // because it was already "installed" — every callback re-asserts the
     // full scope list, which is what makes the retry path work.
-    const gmail1 = calls[0].p_secret_ciphertext as Buffer;
-    const gmail2 = calls[2].p_secret_ciphertext as Buffer;
-    expect(gmail1.equals(gmail2)).toBe(false);
+    // Wire-format string (migration 0060) — see header comment in the
+    // previous test for the full P0 context.
+    const gmail1 = calls[0].p_secret_ciphertext;
+    const gmail2 = calls[2].p_secret_ciphertext;
+    expect(typeof gmail1).toBe("string");
+    expect(typeof gmail2).toBe("string");
+    expect(gmail1).not.toBe(gmail2);
   });
 
   it("partial-then-full consent: first install grants gmail only, second adds drive — final state has both", async () => {

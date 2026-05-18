@@ -35,7 +35,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { exchangeCodeForTokens, GMAIL_SCOPES, DRIVE_SCOPES } from "@/lib/connectors/google-oauth";
 import { verifyOAuthState } from "@/lib/connectors/oauth-state";
 import { consumeNonce } from "@/lib/connectors/oauth-nonce";
-import { encryptSecret } from "@/lib/secrets/encryption";
+import { encryptSecret, toWireSecret } from "@/lib/secrets/encryption";
 import { requireActor } from "@/lib/auth/require-user";
 import { getSupabaseServiceClient } from "@/lib/supabase/server";
 import { assertOAuthEnv } from "@/lib/connectors/oauth-env-guard";
@@ -108,8 +108,8 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const access = encryptSecret(tokens.access_token);
-  const refresh = tokens.refresh_token ? encryptSecret(tokens.refresh_token) : null;
+  const access = toWireSecret(encryptSecret(tokens.access_token));
+  const refresh = tokens.refresh_token ? toWireSecret(encryptSecret(tokens.refresh_token)) : null;
   const expires_at = new Date(Date.now() + (tokens.expires_in ?? 3600) * 1000).toISOString();
   const grantedScopes = tokens.scope.split(" ");
 

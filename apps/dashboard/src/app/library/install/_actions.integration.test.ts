@@ -51,10 +51,16 @@ vi.mock("@/lib/supabase/server", () => ({
 
 const encryptSecretMock = vi.fn();
 const makeDisplayHintMock = vi.fn();
-vi.mock("@/lib/secrets/encryption", () => ({
-  encryptSecret: (...args: unknown[]) => encryptSecretMock(...args),
-  makeDisplayHint: (...args: unknown[]) => makeDisplayHintMock(...args),
-}));
+// Use the real toWireSecret so the wire-format round-trip (Buffer →
+// base64 string) is exercised here too. See encryption.ts header note.
+vi.mock("@/lib/secrets/encryption", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/secrets/encryption")>();
+  return {
+    ...actual,
+    encryptSecret: (...args: unknown[]) => encryptSecretMock(...args),
+    makeDisplayHint: (...args: unknown[]) => makeDisplayHintMock(...args),
+  };
+});
 
 const validatePatLiveMock = vi.fn();
 vi.mock("@/lib/connectors/github-validate", () => ({

@@ -29,7 +29,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireActor, requireRole } from "@/lib/auth/require-user";
 import { getSupabaseServiceClient } from "@/lib/supabase/server";
-import { encryptSecret, makeDisplayHint } from "@/lib/secrets/encryption";
+import { encryptSecret, makeDisplayHint, toWireSecret } from "@/lib/secrets/encryption";
 import { validatePatLive } from "@/lib/connectors/github-validate";
 import {
   buildAuthorizeUrl,
@@ -82,7 +82,7 @@ export async function installGithubPat(
     };
   }
 
-  const enc = encryptSecret(parsed.data.pat);
+  const wire = toWireSecret(encryptSecret(parsed.data.pat));
   // Migration 0058 revoked install_connector_atomic from `authenticated`, so
   // the cookie-backed server client can't call it. Service-role is the only
   // remaining caller. The admin check above (requireRole(actor, "admin")) is
@@ -107,9 +107,9 @@ export async function installGithubPat(
     p_connector_id: "github",
     p_provider_id: "github",
     p_kind: "api_key",
-    p_secret_ciphertext: enc.ciphertext,
-    p_secret_iv: enc.iv,
-    p_secret_tag: enc.tag,
+    p_secret_ciphertext: wire.ciphertext,
+    p_secret_iv: wire.iv,
+    p_secret_tag: wire.tag,
     p_refresh_ciphertext: null,
     p_refresh_iv: null,
     p_refresh_tag: null,

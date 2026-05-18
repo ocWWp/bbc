@@ -253,6 +253,20 @@ describe("GET /api/oauth/google/callback — happy path", () => {
       p_kind: "oauth_token",
     });
 
+    // Wire-format pin (migration 0060 / P0 mid-smoke fix on PR #25): secret
+    // params MUST be base64 strings, not Buffers. The 0060 migration moved
+    // the columns to TEXT after we discovered Supabase JS JSON-serializes
+    // Buffer as `{"type":"Buffer","data":[...]}`. See encryption.ts header.
+    for (const callIdx of [0, 1]) {
+      const params = rpcMock.mock.calls[callIdx][1] as Record<string, unknown>;
+      expect(typeof params.p_secret_ciphertext).toBe("string");
+      expect(typeof params.p_secret_iv).toBe("string");
+      expect(typeof params.p_secret_tag).toBe("string");
+      expect(typeof params.p_refresh_ciphertext).toBe("string");
+      expect(typeof params.p_refresh_iv).toBe("string");
+      expect(typeof params.p_refresh_tag).toBe("string");
+    }
+
     // No plaintext token in the redirect.
     expect(loc).not.toContain("ya29.access");
     expect(loc).not.toContain("1//refresh");

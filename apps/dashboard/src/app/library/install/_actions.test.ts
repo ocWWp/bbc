@@ -32,10 +32,18 @@ vi.mock("@/lib/supabase/server", () => ({
 
 const encryptSecretMock = vi.fn();
 const makeDisplayHintMock = vi.fn();
-vi.mock("@/lib/secrets/encryption", () => ({
-  encryptSecret: (...args: unknown[]) => encryptSecretMock(...args),
-  makeDisplayHint: (...args: unknown[]) => makeDisplayHintMock(...args),
-}));
+// Use the real toWireSecret so the test catches the bug class that bit us
+// mid-PR-#25 smoke: passing Buffer to Supabase JS lets it JSON-serialize as
+// `{"type":"Buffer","data":[...]}`. The wire format MUST be base64 strings
+// (the happy-path assertion below pins this).
+vi.mock("@/lib/secrets/encryption", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/secrets/encryption")>();
+  return {
+    ...actual,
+    encryptSecret: (...args: unknown[]) => encryptSecretMock(...args),
+    makeDisplayHint: (...args: unknown[]) => makeDisplayHintMock(...args),
+  };
+});
 
 const validatePatLiveMock = vi.fn();
 vi.mock("@/lib/connectors/github-validate", () => ({
@@ -197,6 +205,24 @@ describe("installGithubPat — happy path", () => {
       p_granted_scopes: null,
       p_mapping: { owner: "octocat", repo: "hello-world" },
     });
+
+    // Wire-format pin (migration 0060 / P0 mid-smoke fix): secret params MUST
+    // be base64 strings, NEVER raw Buffers. Passing a Buffer lets Supabase JS
+    // JSON-serialize it as `{"type":"Buffer","data":[...]}` and PostgREST
+    // stores that literally. The encryptSecretMock returns Buffer.from("ct")/
+    // ("iv")/("tg"); toWireSecret base64-encodes them.
+    expect(typeof (rpcParams as Record<string, unknown>).p_secret_ciphertext).toBe("string");
+    expect(typeof (rpcParams as Record<string, unknown>).p_secret_iv).toBe("string");
+    expect(typeof (rpcParams as Record<string, unknown>).p_secret_tag).toBe("string");
+    expect((rpcParams as Record<string, unknown>).p_secret_ciphertext).toBe(
+      Buffer.from("ct").toString("base64"),
+    );
+    expect((rpcParams as Record<string, unknown>).p_secret_iv).toBe(
+      Buffer.from("iv").toString("base64"),
+    );
+    expect((rpcParams as Record<string, unknown>).p_secret_tag).toBe(
+      Buffer.from("tg").toString("base64"),
+    );
     // All 15 params present.
     expect(Object.keys(rpcParams).sort()).toEqual(
       [
