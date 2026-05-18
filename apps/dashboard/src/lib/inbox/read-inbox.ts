@@ -8,7 +8,7 @@ export type InboxItem = {
   kind: string;
   title: string;
   body: string | null;
-  source_kind: "queue_item" | "recommendation" | "memory_file" | null;
+  source_kind: "queue_item" | "recommendation" | "memory_file" | "connector" | null;
   source_queue_item_id: string | null;
   source_recommendation_id: string | null;
   source_memory_id: string | null;

@@ -129,3 +129,19 @@ function isKnownReason(r: string): r is DiagnosticsReason {
     r === "rate_limited"
   );
 }
+
+export type HealthBuckets = {
+  healthy: number;
+  needs_attention: number;
+  never_synced: number;
+};
+
+export function computeHealthBuckets(rows: DiagnosticsRow[]): HealthBuckets {
+  let healthy = 0, needs_attention = 0, never_synced = 0;
+  for (const r of rows) {
+    if (r.last_sync_status === null) never_synced++;
+    else if (r.last_sync_status === "ok") healthy++;
+    else needs_attention++;
+  }
+  return { healthy, needs_attention, never_synced };
+}

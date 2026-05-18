@@ -1,7 +1,7 @@
 // D-W6-4 tests for the admin /library/diagnostics reader.
 
 import { describe, expect, it } from "vitest";
-import { readDiagnostics } from "./read-diagnostics";
+import { computeHealthBuckets, readDiagnostics, type DiagnosticsRow } from "./read-diagnostics";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type ConnectorRow = {
@@ -143,5 +143,50 @@ describe("readDiagnostics", () => {
     );
     expect(out.connectors).toHaveLength(1);
     expect(out.total_dlq).toBe(0);
+  });
+});
+
+const mkRow = (last_sync_status: string | null): DiagnosticsRow => ({
+  row_id: "r" + Math.random(),
+  connector_id: "github",
+  installed_at: "2026-01-01T00:00:00Z",
+  last_sync_at: null,
+  last_sync_status,
+  last_sync_error: null,
+  dlq_count: 0,
+});
+
+describe("computeHealthBuckets", () => {
+  it("counts ok as healthy", () => {
+    const b = computeHealthBuckets([mkRow("ok"), mkRow("ok")]);
+    expect(b).toEqual({ healthy: 2, needs_attention: 0, never_synced: 0 });
+  });
+
+  it("counts auth_expired, error, partial, rate_limited as needs_attention", () => {
+    const b = computeHealthBuckets([
+      mkRow("auth_expired"),
+      mkRow("error"),
+      mkRow("partial"),
+      mkRow("rate_limited"),
+    ]);
+    expect(b).toEqual({ healthy: 0, needs_attention: 4, never_synced: 0 });
+  });
+
+  it("counts null last_sync_status as never_synced", () => {
+    const b = computeHealthBuckets([mkRow(null), mkRow(null)]);
+    expect(b).toEqual({ healthy: 0, needs_attention: 0, never_synced: 2 });
+  });
+
+  it("handles empty input", () => {
+    expect(computeHealthBuckets([])).toEqual({ healthy: 0, needs_attention: 0, never_synced: 0 });
+  });
+
+  it("classifies a mixed fleet", () => {
+    const b = computeHealthBuckets([
+      mkRow("ok"), mkRow("ok"), mkRow("ok"),
+      mkRow("auth_expired"),
+      mkRow(null),
+    ]);
+    expect(b).toEqual({ healthy: 3, needs_attention: 1, never_synced: 1 });
   });
 });
