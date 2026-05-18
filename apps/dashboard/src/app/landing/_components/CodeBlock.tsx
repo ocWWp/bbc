@@ -97,7 +97,7 @@ const STEPS = [
   {
     key: "cli" as TabKey,
     eyebrow: "01 · install",
-    title: "Install the CLI, scaffold your brain.",
+    title: "install the CLI, scaffold your brain.",
     body: (
       <>
         one command. <code>create-bbc</code> sets up your brain: nine typed tables with row-level security, encrypted keys, and an MCP server on <code>:8787</code>.
@@ -108,7 +108,7 @@ const STEPS = [
   {
     key: "mcp" as TabKey,
     eyebrow: "02 · connect",
-    title: "Wire it into Claude (or any MCP agent).",
+    title: "wire it into claude (or any MCP agent).",
     body: (
       <>
         add one block to <code>~/.claude/mcp.json</code>. claude gets nine typed tools — <code>brain.find</code>, <code>brain.cite</code>, <code>brain.propose</code> — one per memory type.
@@ -119,7 +119,7 @@ const STEPS = [
   {
     key: "query" as TabKey,
     eyebrow: "03 · query",
-    title: "Lookups are by type, never by similarity.",
+    title: "lookups are by type, never by similarity.",
     body: (
       <>
         a <code>brain.find</code> call returns one row or null. no ranking, no top-k. compose answers and the SDK returns citations alongside the text.
@@ -130,7 +130,7 @@ const STEPS = [
   {
     key: "curl" as TabKey,
     eyebrow: "04 · http",
-    title: "Or skip the SDK and hit the REST endpoint.",
+    title: "or skip the SDK and hit the REST endpoint.",
     body: (
       <>
         bearer-token auth. same shape across every memory type. every response carries <code>reviewed_by</code> and <code>reviewed_at</code> so you can trust what comes back.
