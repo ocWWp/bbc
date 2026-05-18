@@ -5,10 +5,10 @@ export type InboxInsert = {
   tenant_id: string;
   user_id: string;
   channel: "mentions" | "from_bbc";
-  kind: "flag_resolved" | "loop3_suggestion" | "mention";
+  kind: "flag_resolved" | "loop3_suggestion" | "mention" | "connector_auth_expired" | "connector_error";
   title: string;
   body?: string;
-  source_kind?: "queue_item" | "recommendation" | "memory_file";
+  source_kind?: "queue_item" | "recommendation" | "memory_file" | "connector";
   /** queue_items.id (uuid), not the text proposal_id slug. */
   source_queue_item_id?: string;
   source_recommendation_id?: string;
