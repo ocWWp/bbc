@@ -50,6 +50,37 @@ export const LANDING_COPY = {
     loop3_promise:
       "BBC learns. It watches what your team actually accepts and rejects, and suggests improvements you approve with one click. Today: new skills + tools matched to your roles. Soon: the brain proposes its own next page.",
   },
+  roadmap: {
+    eyebrow: "the arc",
+    // Renders as: `where this is <span className="serif">headed.</span>`
+    title_lead: "where this is",
+    title_serif: "headed.",
+    blurb:
+      "three loops, in order: ingest, act, improve. loop 1 is shipped. loop 2 is partial. loop 3 is designed.",
+    loops: [
+      {
+        num: "01",
+        status_glyph: "✓",
+        status_label: "shipped",
+        title: "ingest",
+        body: "brain-dump in. claude proposes typed memories. you approve each one. nothing commits without a human.",
+      },
+      {
+        num: "02",
+        status_glyph: "◐",
+        status_label: "shipping",
+        title: "act",
+        body: "role agents come with the brain pre-loaded and the right tools wired up. marketing studio is the first; eng, founder, designer, support follow.",
+      },
+      {
+        num: "03",
+        status_glyph: "○",
+        status_label: "designed",
+        title: "improve",
+        body: "bbc watches how your team uses the brain and files improvement proposals about your company itself. needs a public privacy ADR before code lands.",
+      },
+    ],
+  },
   moat: {
     title: "Why BBC",
     intro:
