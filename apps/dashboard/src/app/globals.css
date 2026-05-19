@@ -5025,18 +5025,24 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   color: var(--home-ink-muted);
 }
 
-/* Primary CTA: acid yellow. The stop button stays neutral. */
+/* Primary CTA — monochrome via --btn-primary-* tokens.
+   See docs/plans/2026-05-19-v18-button-system-design.md. */
 .home-pilot .home-send {
-  background: var(--home-accent);
-  color: var(--home-accent-ink);
-  border: 1px solid color-mix(in oklab, var(--home-accent), black 15%);
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
+  border: 1px solid var(--btn-primary-border);
   font-weight: 600;
+  transition: background 120ms ease;
 }
 .home-pilot .home-send:hover {
-  background: color-mix(in oklab, var(--home-accent), white 8%);
+  background: var(--btn-primary-hover-bg);
+}
+.home-pilot .home-send:focus-visible {
+  outline: 2px solid var(--btn-focus-ring);
+  outline-offset: 2px;
 }
 .home-pilot .home-send:disabled {
-  opacity: 0.5;
+  opacity: var(--btn-disabled-opacity);
   cursor: not-allowed;
 }
 .home-pilot .home-stop {
