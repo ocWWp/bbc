@@ -4891,9 +4891,6 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   --home-ink-muted: #6b6657;
   --home-rule: #e5dfd1;
   --home-rule-strong: #d2cab5;
-  /* Acid yellow for primary CTAs. Reads on both light + dark. */
-  --home-accent: #e0ff54;
-  --home-accent-ink: #15140f;
   /* Dotted grid: 18px cell, ~6% black dots. */
   --home-grid-color: rgba(21, 20, 15, 0.07);
   --home-grid-size: 18px;
@@ -5137,7 +5134,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 .home-pilot .session-row[data-current="true"] {
   background: var(--home-card);
   border-color: var(--home-rule-strong);
-  box-shadow: inset 2px 0 0 var(--home-accent);
+  box-shadow: inset 2px 0 0 var(--paper-ink);
 }
 .home-pilot .session-row:focus-within {
   outline: 2px solid var(--home-ink);
