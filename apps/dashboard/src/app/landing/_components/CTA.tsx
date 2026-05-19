@@ -13,7 +13,12 @@ export function CTA() {
             OpenNext + Workers. spins up in under a minute. your data never leaves your account. byo postgres if you prefer.
           </p>
           <div className="cta-foot">
-            <a className="btn btn-lg" href="/auth/signin">
+            <a
+              className="btn btn-lg"
+              href="https://deploy.workers.cloudflare.com/?url=https://github.com/ocWWp/bbc"
+              target="_blank"
+              rel="noreferrer"
+            >
               <CloudflareIcon /> deploy
             </a>
             <span
@@ -33,7 +38,7 @@ export function CTA() {
             read the source.<br />star the repo.
           </h3>
           <p className="cta-body">
-            AGPLv3. roadmap and ADRs in the open. the typed-memory spec lives in <span className="mono">/spec</span> for anyone who wants to ship their own implementation.
+            AGPLv3. roadmap and ADRs in the open. the typed-memory schema lives in <span className="mono">memory/_schema.md</span> for anyone who wants to ship their own implementation.
           </p>
           <div className="cta-foot">
             <a
@@ -44,7 +49,12 @@ export function CTA() {
             >
               <GithubIcon /> github.com/ocWWp/bbc
             </a>
-            <a className="btn btn-ghost btn-lg" href="#spec">
+            <a
+              className="btn btn-ghost btn-lg"
+              href="https://github.com/ocWWp/bbc/blob/main/memory/_schema.md"
+              target="_blank"
+              rel="noreferrer"
+            >
               read the spec <ExtIcon />
             </a>
           </div>

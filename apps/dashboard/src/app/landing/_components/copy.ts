@@ -25,18 +25,21 @@
 export const LANDING_COPY = {
   hero: {
     eyebrow: "open source · AGPLv3 · self-hosted or hosted demo",
-    // Headline renders as:
-    //   <h1>{headline_lead} <span className="serif">{headline_serif}</span><br />{headline_tail}</h1>
-    headline_lead: "Your AI doesn't know",
-    headline_serif: "your company.",
-    headline_tail: "BBC fixes that.",
+    // Headline renders as two visual lines: `{lead}` then `{serif}`.
+    // `tail` is optional; when set it adds a third line.
+    headline_lead: "the company brain for your team",
+    headline_serif: "and their agents.",
+    headline_tail: "",
     subhead:
-      "One shared brain. Every AI tool — Claude, ChatGPT, Cursor, your role-specific assistants — cites the same answers about your team's decisions, voice, vendors, and people. Stop re-explaining your company every time.",
-    // CTAs (Task 9 flips order so demo is primary, self-host is secondary).
-    cta_primary_label: "Try the hosted demo →",
-    cta_primary_href: "/auth/signin?demo=1",
-    cta_secondary_label: "Self-host on Cloudflare ↗",
+      "open-source typed memory. one source of truth across claude, cursor, and the studio agents you wire up.",
+    // CTAs: deploy primary (per brief), github secondary, hosted demo as tertiary text link.
+    cta_primary_label: "deploy to cloudflare",
+    cta_primary_href:
+      "https://deploy.workers.cloudflare.com/?url=https://github.com/ocWWp/bbc",
+    cta_secondary_label: "github",
     cta_secondary_href: "https://github.com/ocWWp/bbc",
+    cta_tertiary_label: "try the hosted demo →",
+    cta_tertiary_href: "/auth/signin?demo=1",
   },
   walkthrough: {
     // Task 10: the section-blurb under "how it works".
@@ -47,10 +50,41 @@ export const LANDING_COPY = {
     loop3_promise:
       "BBC learns. It watches what your team actually accepts and rejects, and suggests improvements you approve with one click. Today: new skills + tools matched to your roles. Soon: the brain proposes its own next page.",
   },
+  roadmap: {
+    eyebrow: "the arc",
+    // Renders as: `where this is <span className="serif">headed.</span>`
+    title_lead: "where this is",
+    title_serif: "headed.",
+    blurb:
+      "three loops, in order: ingest, act, improve. loop 1 is shipped. loop 2 is partial. loop 3 is designed.",
+    loops: [
+      {
+        num: "01",
+        status_glyph: "✓",
+        status_label: "shipped",
+        title: "ingest",
+        body: "brain-dump in. claude proposes typed memories. you approve each one. nothing commits without a human.",
+      },
+      {
+        num: "02",
+        status_glyph: "◐",
+        status_label: "shipping",
+        title: "act",
+        body: "role agents come with the brain pre-loaded and the right tools wired up. marketing studio is the first; eng, founder, designer, support follow.",
+      },
+      {
+        num: "03",
+        status_glyph: "○",
+        status_label: "designed",
+        title: "improve",
+        body: "bbc watches how your team uses the brain and files improvement proposals about your company itself. needs a public privacy ADR before code lands.",
+      },
+    ],
+  },
   moat: {
     title: "Why BBC",
     intro:
-      "Five layers, each one a moat. Notion is text; Claude Projects is context; BBC is auditable institutional knowledge that every AI tool reads the same.",
+      "notion is text. claude projects is context. bbc is typed memory. same answer for every tool that reads it.",
     /**
      * Tool names referenced in the moat layers below.
      * Each MUST have a matching entry in memory/ops/vendors.md.
@@ -58,24 +92,24 @@ export const LANDING_COPY = {
     referenced_tools: ["claude", "chatgpt", "cursor"] as const,
     layers: [
       {
-        title: "Typed memory + queue gate",
-        body: "Nine supertags. Every memory human-reviewed before commit. Notion is text; Claude Projects is context; BBC is auditable institutional knowledge.",
+        title: "typed, not text",
+        body: "nine supertags — voice, decision, vendor, team, glossary, and four more. a human approves every one before it lands.",
       },
       {
-        title: "Role-shaped Studios",
-        body: "Marketing, Eng, Founder, Designer, Support. Each Studio is pre-loaded with your brain and pre-equipped with the best tools for that role. You don't reconfigure for every task.",
+        title: "one agent per role",
+        body: "marketing, eng, founder, designer, support. each one comes with the brain pre-loaded and the right tools wired up. no reconfiguring per task.",
       },
       {
-        title: "Skill inheritance",
-        body: "Skills extend abstract bases. Your tenant specializes. Override modes (replace / add / remove). A real type system for prompts, not flat Custom GPTs.",
+        title: "skills you can customize",
+        body: "prompts and how-tos extend a shared base. your team can replace, add, or remove. a real type system for prompts, not flat copies like custom gpts.",
       },
       {
-        title: "Skill discovery (rule-based today)",
-        body: "BBC matches installed skills and tools to your team's roles via the W4 recommender. You see what fits — you accept it. Phase N expands this to daily ecosystem crawling.",
+        title: "it suggests what's missing",
+        body: "bbc sees which skills and tools fit your roles and proposes them. rule-based today. ecosystem crawler later. you accept one click at a time.",
       },
       {
-        title: "MCP + REST",
-        body: "Every AI tool reads the same brain — Claude, Cursor, ChatGPT, anything with MCP. One source of truth across the stack you already use.",
+        title: "every ai reads the same brain",
+        body: "claude, cursor, chatgpt — anything that speaks mcp. same answers, every tool. or hit the rest endpoint.",
       },
     ],
   },

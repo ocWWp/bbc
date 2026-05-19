@@ -97,10 +97,10 @@ const STEPS = [
   {
     key: "cli" as TabKey,
     eyebrow: "01 · install",
-    title: "Install the CLI, scaffold your brain.",
+    title: "install the CLI, scaffold your brain.",
     body: (
       <>
-        One command. <code>create-bbc</code> generates nine supertag tables with row-level security, an encrypted key file, and an MCP server on <code>:8787</code>.
+        one command. <code>create-bbc</code> sets up your brain: nine typed tables with row-level security, encrypted keys, and an MCP server on <code>:8787</code>.
       </>
     ),
     refs: ["create-bbc", "AES-256-GCM"],
@@ -108,10 +108,10 @@ const STEPS = [
   {
     key: "mcp" as TabKey,
     eyebrow: "02 · connect",
-    title: "Wire it into Claude (or any MCP agent).",
+    title: "wire it into claude (or any MCP agent).",
     body: (
       <>
-        Add one block to <code>~/.claude/mcp.json</code>. Claude gets nine typed tools — <code>brain.find</code>, <code>brain.cite</code>, <code>brain.propose</code> — one per supertag.
+        add one block to <code>~/.claude/mcp.json</code>. claude gets nine typed tools — <code>brain.find</code>, <code>brain.cite</code>, <code>brain.propose</code> — one per memory type.
       </>
     ),
     refs: ["MCP", "9 tools"],
@@ -119,10 +119,10 @@ const STEPS = [
   {
     key: "query" as TabKey,
     eyebrow: "03 · query",
-    title: "Lookups are by type, never by similarity.",
+    title: "lookups are by type, never by similarity.",
     body: (
       <>
-        A <code>brain.find</code> call returns one row or null. No ranking, no top-k. Compose answers and the SDK returns citations alongside the text.
+        a <code>brain.find</code> call returns one row or null. no ranking, no top-k. compose answers and the SDK returns citations alongside the text.
       </>
     ),
     refs: ["one row or null", "post.cites"],
@@ -130,10 +130,10 @@ const STEPS = [
   {
     key: "curl" as TabKey,
     eyebrow: "04 · http",
-    title: "Or skip the SDK and hit the REST endpoint.",
+    title: "or skip the SDK and hit the REST endpoint.",
     body: (
       <>
-        Bearer-token auth. Same shape across every supertag. Every response carries <code>reviewed_by</code> and <code>reviewed_at</code> so you can trust what comes back.
+        bearer-token auth. same shape across every memory type. every response carries <code>reviewed_by</code> and <code>reviewed_at</code> so you can trust what comes back.
       </>
     ),
     refs: ["bearer", "reviewed_at"],
@@ -199,7 +199,7 @@ export function CodeBlock() {
               </div>
             ))}
             <div className="doc-step-end">
-              <a className="btn btn-ghost" href="#"><ExtIcon /> full reference · coming with phase L</a>
+              <a className="btn btn-ghost" href="#"><ExtIcon /> full reference · coming soon</a>
             </div>
           </div>
 

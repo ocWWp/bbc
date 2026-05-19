@@ -1043,6 +1043,36 @@
   .bbc-landing-root .moat-card { padding: 20px 18px 18px; }
 }
 
+/* ---------- ROADMAP (reuses moat-grid + moat-card) ---------- */
+.bbc-landing-root .roadmap-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.bbc-landing-root .roadmap-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--paper-rule);
+  color: var(--paper-muted);
+  background: transparent;
+}
+.bbc-landing-root .roadmap-status.is-shipped {
+  background: color-mix(in oklab, var(--paper-ink), transparent 92%);
+  border-color: color-mix(in oklab, var(--paper-ink), transparent 80%);
+  color: var(--paper-ink);
+}
+.bbc-landing-root .roadmap-status.is-shipping {
+  border-style: dashed;
+  color: var(--paper-ink-2);
+}
+
 /* ---------- STACK ---------- */
 .bbc-landing-root .stack {
   display: grid;

@@ -1,4 +1,4 @@
-import { GithubIcon } from "./icons";
+import { CloudflareIcon, GithubIcon } from "./icons";
 import { Brain3D } from "./Brain3D";
 import { LANDING_COPY } from "./copy";
 
@@ -17,15 +17,20 @@ export function Hero() {
               <span>{hero.eyebrow}</span>
             </div>
             <h1>
-              {hero.headline_lead}{" "}
-              <span className="serif">{hero.headline_serif}</span>
+              {hero.headline_lead}
               <br />
-              {hero.headline_tail}
+              <span className="serif">{hero.headline_serif}</span>
+              {hero.headline_tail && (
+                <>
+                  <br />
+                  {hero.headline_tail}
+                </>
+              )}
             </h1>
             <p className="hero-sub">{hero.subhead}</p>
             <div className="hero-ctas">
               <a className="btn btn-primary btn-lg" href={hero.cta_primary_href}>
-                {hero.cta_primary_label}
+                <CloudflareIcon /> {hero.cta_primary_label}
               </a>
               <a
                 className="btn btn-ghost btn-lg"
@@ -34,6 +39,9 @@ export function Hero() {
                 rel="noreferrer"
               >
                 <GithubIcon /> {hero.cta_secondary_label}
+              </a>
+              <a className="stars" href={hero.cta_tertiary_href}>
+                {hero.cta_tertiary_label}
               </a>
             </div>
             <div className="hero-meta">

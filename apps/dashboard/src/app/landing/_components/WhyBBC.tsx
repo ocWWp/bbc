@@ -11,7 +11,7 @@ export function WhyBBC() {
               <span>why bbc</span>
             </div>
             <h2 className="section-title">
-              five layers, <span className="serif">each one a moat.</span>
+              five things <span className="serif">that are different.</span>
             </h2>
           </div>
           <p className="section-blurb">{moat.intro}</p>
