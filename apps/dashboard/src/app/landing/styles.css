@@ -1138,7 +1138,7 @@
 .bbc-landing-root .foot { padding: 56px 0 32px; }
 .bbc-landing-root .foot-top {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
   gap: 48px;
   padding-bottom: 36px;
   border-bottom: 1px solid var(--paper-rule);

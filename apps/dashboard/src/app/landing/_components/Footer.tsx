@@ -37,6 +37,12 @@ export function Footer() {
             <a href="https://github.com/ocWWp/bbc/tree/main/memory/decisions" target="_blank" rel="noreferrer">adrs</a>
             <a href="#">contributors</a>
           </div>
+          <div className="foot-col">
+            <h4>legal</h4>
+            <a href="/privacy">privacy</a>
+            <a href="/terms">terms</a>
+            <a href="/about/security">security</a>
+          </div>
         </div>
         <div className="foot-bottom">
           <div className="license">
