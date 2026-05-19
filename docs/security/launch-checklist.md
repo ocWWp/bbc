@@ -13,9 +13,9 @@ These items are external-account configuration the maintainer does outside the r
 
 ## Repo (GitHub)
 
-- [ ] **Socket** GitHub App installed on the BBC repo. Visit https://socket.dev/install, grant access to `ZethT/bbc`. Confirm a comment appears on the next PR that adds an npm dependency.
+- [ ] **Socket** GitHub App installed on the BBC repo. Visit https://socket.dev/install, grant access to `ocWWp/bbc`. Confirm a comment appears on the next PR that adds an npm dependency.
 - [ ] Semgrep workflow green on `main` after the first run. See `.github/workflows/semgrep.yml`.
-- [ ] OpenSSF Scorecard workflow green on `main` after the first run; check https://securityscorecards.dev/viewer/?uri=github.com/ZethT/bbc for a non-zero score.
+- [ ] OpenSSF Scorecard workflow green on `main` after the first run; check https://securityscorecards.dev/viewer/?uri=github.com/ocWWp/bbc for a non-zero score.
 - [ ] Dependabot enabled in repo settings (Security > Code security and analysis).
 - [ ] Branch protection on `main`: require PR review, require status checks (Semgrep + tests + type-check), require linear history.
 

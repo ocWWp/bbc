@@ -6,7 +6,7 @@ How BBC (the protocol + product) and a tenant's content stay separate but work t
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│   github.com/ZethT/bbc                            (public, AGPL-3.0)   │
+│   github.com/ocWWp/bbc                            (public, AGPL-3.0)   │
 │   ────────────────────────                                             │
 │   apps/dashboard           ← BBC dashboard UI (Next.js)                │
 │   apps/mcp-server          ← MCP bridge for agents                     │
