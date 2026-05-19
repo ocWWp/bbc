@@ -43,8 +43,8 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
+  --primary:               var(--btn-primary-bg);
+  --primary-foreground:    var(--btn-primary-fg);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
@@ -83,6 +83,31 @@
   --paper: #fbf9f3;
   --paper-accent: #c14a1b;        /* warm orange — syntax keyword */
   --paper-accent-soft: #f3d9c8;
+
+  /* ============================================================
+     v1.8 BUTTON SYSTEM — single source of truth.
+     Primary auto-inverts in dark mode via the --paper-ink / --paper
+     flip already defined in the .dark block below.
+     ============================================================ */
+  --btn-primary-bg:        var(--paper-ink);
+  --btn-primary-fg:        var(--paper);
+  --btn-primary-hover-bg:  var(--paper-ink-2);
+  --btn-primary-border:    transparent;
+  --btn-focus-ring:        color-mix(in oklab, var(--paper-ink), transparent 50%);
+
+  --btn-secondary-bg:      transparent;
+  --btn-secondary-fg:      var(--paper-ink);
+  --btn-secondary-border:  var(--paper-rule-2);
+  --btn-secondary-hover-bg: color-mix(in oklab, var(--paper-ink), transparent 95%);
+  --btn-secondary-hover-border: var(--paper-ink);
+
+  --btn-ghost-bg:          transparent;
+  --btn-ghost-fg:          var(--paper-muted);
+  --btn-ghost-hover-bg:    color-mix(in oklab, var(--paper-ink), transparent 92%);
+  --btn-ghost-hover-fg:    var(--paper-ink);
+
+  --btn-disabled-opacity:  0.4;
+
   --paper-code-bg: #14130f;
   --paper-code-ink: #e8e4d8;
   --paper-ok: #2d6a3e;
@@ -137,8 +162,8 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
+  --primary:               var(--btn-primary-bg);
+  --primary-foreground:    var(--btn-primary-fg);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
@@ -170,6 +195,12 @@
   --paper: #14130f;
   --paper-accent: #ef7a3a;
   --paper-accent-soft: #3a2417;
+
+  /* v1.8 button system — hover wants brighter in dark, but
+     --paper-ink-2 in dark mode goes darker (#d8d3c2). Override
+     to nudge brighter on hover. Other --btn-* tokens auto-invert. */
+  --btn-primary-hover-bg:  #ffffff;
+
   --t-voice:          #e26aa3;
   --t-decision:       #6c98ef;
   --t-vendor:         #e0a14d;
@@ -301,21 +332,73 @@
   background: transparent;
   color: var(--paper-ink);
 }
+/* v1.8 button system — primary button via --btn-primary-* tokens.
+   Replaces the prior paper-accent orange hover mix with a monochrome
+   lift. See docs/plans/2026-05-19-v18-button-system-design.md. */
 .btn-primary,
 .btn.primary {
-  background: var(--paper-ink);
-  color: var(--paper-bg);
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
+  border: 1px solid var(--btn-primary-border);
 }
 .btn-primary:hover,
-.btn.primary:hover { background: color-mix(in oklab, var(--paper-ink), var(--paper-accent) 20%); }
+.btn.primary:hover {
+  background: var(--btn-primary-hover-bg);
+}
+.btn-primary:focus-visible,
+.btn.primary:focus-visible {
+  outline: 2px solid var(--btn-focus-ring);
+  outline-offset: 2px;
+}
+.btn-primary:disabled,
+.btn.primary:disabled,
+.btn-primary[aria-disabled="true"],
+.btn.primary[aria-disabled="true"] {
+  opacity: var(--btn-disabled-opacity);
+  cursor: not-allowed;
+}
 .btn-ghost,
 .btn.ghost {
-  background: transparent;
-  color: var(--paper-ink);
-  border-color: var(--paper-rule);
+  background: var(--btn-ghost-bg);
+  color: var(--btn-ghost-fg);
+  border: 1px solid transparent;
 }
 .btn-ghost:hover,
-.btn.ghost:hover { background: var(--paper-bg-2); }
+.btn.ghost:hover {
+  background: var(--btn-ghost-hover-bg);
+  color: var(--btn-ghost-hover-fg);
+}
+.btn-ghost:focus-visible,
+.btn.ghost:focus-visible {
+  outline: 2px solid var(--btn-focus-ring);
+  outline-offset: 2px;
+}
+.btn-ghost:disabled,
+.btn.ghost:disabled {
+  opacity: var(--btn-disabled-opacity);
+  cursor: not-allowed;
+}
+.btn-secondary,
+.btn.secondary {
+  background: var(--btn-secondary-bg);
+  color: var(--btn-secondary-fg);
+  border: 1px solid var(--btn-secondary-border);
+}
+.btn-secondary:hover,
+.btn.secondary:hover {
+  background: var(--btn-secondary-hover-bg);
+  border-color: var(--btn-secondary-hover-border);
+}
+.btn-secondary:focus-visible,
+.btn.secondary:focus-visible {
+  outline: 2px solid var(--btn-focus-ring);
+  outline-offset: 2px;
+}
+.btn-secondary:disabled,
+.btn.secondary:disabled {
+  opacity: var(--btn-disabled-opacity);
+  cursor: not-allowed;
+}
 .btn.warn {
   background: var(--paper-warn);
   color: var(--paper-bg);
@@ -324,7 +407,57 @@
 .btn-lg { height: 40px; padding: 0 16px; font-size: 14px; border-radius: 8px; }
 .btn-icon { width: 14px; height: 14px; flex-shrink: 0; }
 .btn:disabled,
-.btn[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
+.btn[aria-disabled="true"] { opacity: var(--btn-disabled-opacity); cursor: not-allowed; }
+
+/* ============================================================
+   Citation chip — per-type semantic color.
+   Each chip inherits the color of the memory type it references
+   via the --t-<type> tokens. data-type drives the binding.
+   ============================================================ */
+.citation-chip[data-type="voice"]            { --chip-tint: var(--t-voice); }
+.citation-chip[data-type="decision"]         { --chip-tint: var(--t-decision); }
+.citation-chip[data-type="vendor"]           { --chip-tint: var(--t-vendor); }
+.citation-chip[data-type="team"]             { --chip-tint: var(--t-team); }
+.citation-chip[data-type="product"]          { --chip-tint: var(--t-product); }
+.citation-chip[data-type="glossary"]         { --chip-tint: var(--t-glossary); }
+.citation-chip[data-type="skill"]            { --chip-tint: var(--t-skill); }
+.citation-chip[data-type="source_artifact"]  { --chip-tint: var(--t-source_artifact); }
+.citation-chip[data-type="note"]             { --chip-tint: var(--t-note); }
+
+.citation-chip {
+  --chip-tint: var(--paper-muted);
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in oklab, var(--chip-tint), transparent 70%);
+  background: color-mix(in oklab, var(--chip-tint), transparent 92%);
+  color: color-mix(in oklab, var(--chip-tint), var(--paper-ink) 20%);
+  font-size: 12px;
+  line-height: 1;
+  text-decoration: none;
+  transition: background 120ms ease, border-color 120ms ease;
+  overflow: hidden;
+}
+.citation-chip:hover {
+  background: color-mix(in oklab, var(--chip-tint), transparent 85%);
+  border-color: color-mix(in oklab, var(--chip-tint), transparent 50%);
+}
+.citation-chip-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--chip-tint);
+  flex-shrink: 0;
+}
+.citation-chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* ---------- pills (small status / count chips) ---------- */
 .pill {
@@ -568,7 +701,7 @@
 }
 .app-workspace .ws-dot {
   width: 6px; height: 6px; border-radius: 50%;
-  background: var(--t-decision);
+  background: var(--paper-muted);
 }
 .app-workspace .ws-name { color: var(--paper-ink); font-weight: 500; }
 .app-workspace .ws-caret { color: var(--paper-muted-2); font-size: 9px; margin-left: 2px; }
@@ -4808,9 +4941,6 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   --home-ink-muted: #6b6657;
   --home-rule: #e5dfd1;
   --home-rule-strong: #d2cab5;
-  /* Acid yellow for primary CTAs. Reads on both light + dark. */
-  --home-accent: #e0ff54;
-  --home-accent-ink: #15140f;
   /* Dotted grid: 18px cell, ~6% black dots. */
   --home-grid-color: rgba(21, 20, 15, 0.07);
   --home-grid-size: 18px;
@@ -4942,18 +5072,24 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   color: var(--home-ink-muted);
 }
 
-/* Primary CTA: acid yellow. The stop button stays neutral. */
+/* Primary CTA — monochrome via --btn-primary-* tokens.
+   See docs/plans/2026-05-19-v18-button-system-design.md. */
 .home-pilot .home-send {
-  background: var(--home-accent);
-  color: var(--home-accent-ink);
-  border: 1px solid color-mix(in oklab, var(--home-accent), black 15%);
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
+  border: 1px solid var(--btn-primary-border);
   font-weight: 600;
+  transition: background 120ms ease;
 }
 .home-pilot .home-send:hover {
-  background: color-mix(in oklab, var(--home-accent), white 8%);
+  background: var(--btn-primary-hover-bg);
+}
+.home-pilot .home-send:focus-visible {
+  outline: 2px solid var(--btn-focus-ring);
+  outline-offset: 2px;
 }
 .home-pilot .home-send:disabled {
-  opacity: 0.5;
+  opacity: var(--btn-disabled-opacity);
   cursor: not-allowed;
 }
 .home-pilot .home-stop {
@@ -4982,8 +5118,9 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Primary new-chat button. Acid yellow on warm bg; the only
-   colored chip in the rail. */
+/* Secondary outline — sits in the rail under the chat list.
+   Was primary lime; demoted in v1.8 so Send stays the one primary
+   on /home. The chat-history rail is navigation, not a CTA. */
 .home-pilot .session-rail-new-chat {
   display: inline-flex;
   align-items: center;
@@ -4993,27 +5130,24 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   height: 36px;
   padding: 0 12px;
   border-radius: 8px;
-  background: var(--home-accent);
-  color: var(--home-accent-ink);
-  border: 1px solid var(--home-rule-strong);
+  background: var(--btn-secondary-bg);
+  color: var(--btn-secondary-fg);
+  border: 1px solid var(--btn-secondary-border);
   font-size: 14px;
   font-weight: 500;
   line-height: 1;
   text-decoration: none;
-  transition: background 120ms ease, transform 80ms ease;
+  transition: background 120ms ease, border-color 120ms ease, transform 80ms ease;
 }
 .home-pilot .session-rail-new-chat:hover {
-  background: color-mix(in oklab, var(--home-accent) 92%, black);
+  background: var(--btn-secondary-hover-bg);
+  border-color: var(--btn-secondary-hover-border);
 }
-/* :active scale handled here as a CSS fallback; framer-motion
-   whileTap was intentionally skipped because <Link> isn't a
-   motion component and wrapping it would add a layout node for
-   no real animation gain. PR-B review marked this as acceptable. */
 .home-pilot .session-rail-new-chat:active {
   transform: scale(0.985);
 }
 .home-pilot .session-rail-new-chat:focus-visible {
-  outline: 2px solid var(--home-ink);
+  outline: 2px solid var(--btn-focus-ring);
   outline-offset: 2px;
 }
 
@@ -5050,7 +5184,7 @@ mark.mark-skill { --mark-color: var(--t-skill); }
 .home-pilot .session-row[data-current="true"] {
   background: var(--home-card);
   border-color: var(--home-rule-strong);
-  box-shadow: inset 2px 0 0 var(--home-accent);
+  box-shadow: inset 2px 0 0 var(--paper-ink);
 }
 .home-pilot .session-row:focus-within {
   outline: 2px solid var(--home-ink);

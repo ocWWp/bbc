@@ -20,19 +20,21 @@ export function turnToVm(t: HomeTurn): TurnViewModel {
       payload: c.payload,
     }));
   // Back-compat: pre-F5 rows persist citations as string[] (just ids);
-  // F5+ rows persist as Array<{id, title?}>. Accept either shape; rows
-  // that arrived as bare strings get title=null and the chip falls back
-  // to the short-uuid label.
+  // F5+ rows persist as Array<{id, title?}>; v1.8+ rows additionally
+  // carry `type` so the chip can render with per-type color. Accept all
+  // three shapes — older rows get title=null/type=null and the chip
+  // falls back to the short-uuid label + neutral tint.
   const citations: CitationRef[] = Array.isArray(content.citations)
     ? (content.citations as unknown[])
         .map((x): CitationRef | null => {
-          if (typeof x === "string") return { id: x, title: null };
+          if (typeof x === "string") return { id: x, title: null, type: null };
           if (x && typeof x === "object") {
             const obj = x as Record<string, unknown>;
             const id = typeof obj.id === "string" ? obj.id : null;
             if (!id) return null;
             const title = typeof obj.title === "string" ? obj.title : null;
-            return { id, title };
+            const type = typeof obj.type === "string" ? obj.type : null;
+            return { id, title, type };
           }
           return null;
         })

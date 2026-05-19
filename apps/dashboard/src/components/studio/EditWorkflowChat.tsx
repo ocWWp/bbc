@@ -233,7 +233,7 @@ function ComposingView({
       ) : null}
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>{message.length}/1000 · ⌘↵ to propose</span>
-        <Button variant="studio" size="sm" onClick={onSubmit} disabled={message.trim().length < 4}>
+        <Button variant="default" size="sm" onClick={onSubmit} disabled={message.trim().length < 4}>
           Propose change
         </Button>
       </div>
@@ -279,7 +279,7 @@ function ReviewingView({
         <Button variant="ghost" size="sm" onClick={onCancel}>
           Rewrite
         </Button>
-        <Button variant="studio" size="sm" onClick={onSave}>
+        <Button variant="default" size="sm" onClick={onSave}>
           Save for this workflow
         </Button>
       </div>
@@ -306,7 +306,7 @@ function SavedView({
         </div>
       </div>
       <div className="flex items-center justify-end">
-        <Button variant="studio" size="sm" onClick={onClose}>
+        <Button variant="default" size="sm" onClick={onClose}>
           Done
         </Button>
       </div>
