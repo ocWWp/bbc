@@ -99,6 +99,7 @@
   --btn-secondary-fg:      var(--paper-ink);
   --btn-secondary-border:  var(--paper-rule-2);
   --btn-secondary-hover-bg: color-mix(in oklab, var(--paper-ink), transparent 95%);
+  --btn-secondary-hover-border: var(--paper-ink);
 
   --btn-ghost-bg:          transparent;
   --btn-ghost-fg:          var(--paper-muted);
@@ -386,7 +387,7 @@
 .btn-secondary:hover,
 .btn.secondary:hover {
   background: var(--btn-secondary-hover-bg);
-  border-color: var(--paper-ink);
+  border-color: var(--btn-secondary-hover-border);
 }
 .btn-secondary:focus-visible,
 .btn.secondary:focus-visible {
@@ -406,7 +407,7 @@
 .btn-lg { height: 40px; padding: 0 16px; font-size: 14px; border-radius: 8px; }
 .btn-icon { width: 14px; height: 14px; flex-shrink: 0; }
 .btn:disabled,
-.btn[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
+.btn[aria-disabled="true"] { opacity: var(--btn-disabled-opacity); cursor: not-allowed; }
 
 /* ---------- pills (small status / count chips) ---------- */
 .pill {
