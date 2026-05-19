@@ -5071,8 +5071,9 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Primary new-chat button. Acid yellow on warm bg; the only
-   colored chip in the rail. */
+/* Secondary outline — sits in the rail under the chat list.
+   Was primary lime; demoted in v1.8 so Send stays the one primary
+   on /home. The chat-history rail is navigation, not a CTA. */
 .home-pilot .session-rail-new-chat {
   display: inline-flex;
   align-items: center;
@@ -5082,27 +5083,24 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   height: 36px;
   padding: 0 12px;
   border-radius: 8px;
-  background: var(--home-accent);
-  color: var(--home-accent-ink);
-  border: 1px solid var(--home-rule-strong);
+  background: var(--btn-secondary-bg);
+  color: var(--btn-secondary-fg);
+  border: 1px solid var(--btn-secondary-border);
   font-size: 14px;
   font-weight: 500;
   line-height: 1;
   text-decoration: none;
-  transition: background 120ms ease, transform 80ms ease;
+  transition: background 120ms ease, border-color 120ms ease, transform 80ms ease;
 }
 .home-pilot .session-rail-new-chat:hover {
-  background: color-mix(in oklab, var(--home-accent) 92%, black);
+  background: var(--btn-secondary-hover-bg);
+  border-color: var(--btn-secondary-hover-border);
 }
-/* :active scale handled here as a CSS fallback; framer-motion
-   whileTap was intentionally skipped because <Link> isn't a
-   motion component and wrapping it would add a layout node for
-   no real animation gain. PR-B review marked this as acceptable. */
 .home-pilot .session-rail-new-chat:active {
   transform: scale(0.985);
 }
 .home-pilot .session-rail-new-chat:focus-visible {
-  outline: 2px solid var(--home-ink);
+  outline: 2px solid var(--btn-focus-ring);
   outline-offset: 2px;
 }
 
