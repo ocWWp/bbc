@@ -701,7 +701,7 @@
 }
 .app-workspace .ws-dot {
   width: 6px; height: 6px; border-radius: 50%;
-  background: var(--t-decision);
+  background: var(--paper-muted);
 }
 .app-workspace .ws-name { color: var(--paper-ink); font-weight: 500; }
 .app-workspace .ws-caret { color: var(--paper-muted-2); font-size: 9px; margin-left: 2px; }
