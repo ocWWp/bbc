@@ -5,6 +5,15 @@ import Link from "next/link";
 export type CitationChipProps = {
   memoryId: string;
   label?: string;
+  /**
+   * Memory type (decision, voice, vendor, team, product, glossary, skill,
+   * source_artifact, note). When set, exposed as `data-type` so the
+   * `.citation-chip[data-type="..."]` rule in globals.css binds the
+   * matching `--t-<type>` token to `--chip-tint`. Historical citations
+   * persisted before v1.8 don't carry type — those chips render in the
+   * neutral `--paper-muted` fallback.
+   */
+  type?: string | null;
 };
 
 const MAX_LABEL_CHARS = 40;
@@ -12,21 +21,25 @@ const MAX_LABEL_CHARS = 40;
 /**
  * Renders a citation chip linking to /memory/<id>. Title comes through
  * from the citation SSE event when known (F5); when unknown, falls back
- * to a short id-prefix so the chip remains identifiable.
+ * to a short id-prefix so the chip remains identifiable. Per-type color
+ * is driven by `data-type` + the CSS rule block in globals.css; visual
+ * style lives entirely in the `.citation-chip` rule, not inline classes.
  */
-export function CitationChip({ memoryId, label }: CitationChipProps) {
+export function CitationChip({ memoryId, label, type }: CitationChipProps) {
   const raw = label?.trim() || `memory · ${memoryId.slice(0, 6)}`;
   const display =
     raw.length > MAX_LABEL_CHARS ? `${raw.slice(0, MAX_LABEL_CHARS - 1)}…` : raw;
+  const typeAttr = type && type.trim() ? { "data-type": type } : {};
   return (
     <Link
       href={`/memory/${memoryId}`}
-      className="inline-flex max-w-full items-center gap-1 truncate rounded-full border border-border bg-muted/40 px-2.5 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+      className="citation-chip"
+      {...typeAttr}
       data-testid={`citation-chip-${memoryId}`}
       title={raw}
     >
-      <span aria-hidden className="inline-block size-1.5 shrink-0 rounded-full bg-foreground/40" />
-      <span className="truncate">{display}</span>
+      <span aria-hidden className="citation-chip-dot" />
+      <span className="citation-chip-label">{display}</span>
     </Link>
   );
 }

@@ -408,7 +408,11 @@ function handleSseFrame(
             typeof parsed.title === "string" && parsed.title.trim().length > 0
               ? parsed.title.trim()
               : null;
-          return { ...t, citations: [...t.citations, { id, title }] };
+          const type =
+            typeof parsed.type === "string" && parsed.type.trim().length > 0
+              ? parsed.type.trim()
+              : null;
+          return { ...t, citations: [...t.citations, { id, title, type }] };
         }
         case "turn-end": {
           const status = typeof parsed.status === "string" ? parsed.status : "completed";

@@ -130,6 +130,7 @@ vi.mock("@/lib/home/real-context", () => ({
   ),
   retrievedMemoryIdsOf: vi.fn(() => []),
   memoryTitlesOf: vi.fn(() => ({}) as Record<string, string>),
+  memoryTypesOf: vi.fn(() => ({}) as Record<string, string>),
 }));
 vi.mock("@/lib/home/real-classify", () => ({
   makeRealClassify: vi.fn(() => async () => ({ intent: "unclear" })),

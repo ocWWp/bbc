@@ -11,6 +11,13 @@ export type CitationRef = {
   id: string;
   /** Memory row title at the time of citation; null if unknown. */
   title?: string | null;
+  /**
+   * Memory type (decision, voice, vendor, team, …) at the time of citation;
+   * null when the source can't supply it (e.g. historical turns persisted
+   * before v1.8). Drives per-type color on the rendered chip — null
+   * chips fall back to the neutral `--paper-muted` tint.
+   */
+  type?: string | null;
 };
 
 export type TurnViewModel = {
@@ -97,7 +104,12 @@ export function TurnView({ turn }: { turn: TurnViewModel }) {
         {turn.citations.length > 0 ? (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {turn.citations.map((c) => (
-              <CitationChip key={c.id} memoryId={c.id} label={c.title ?? undefined} />
+              <CitationChip
+                key={c.id}
+                memoryId={c.id}
+                label={c.title ?? undefined}
+                type={c.type ?? undefined}
+              />
             ))}
           </div>
         ) : null}
@@ -116,8 +128,11 @@ const MEM_ID_RE = /^\[mem:([0-9a-f-]{32,36})\]$/i;
 function renderProse(text: string, citations: CitationRef[]): ReactNode {
   if (!text.includes("[mem:")) return text;
   const titles = new Map<string, string>();
+  const types = new Map<string, string>();
   for (const c of citations) {
-    if (c.title) titles.set(c.id.toLowerCase(), c.title);
+    const key = c.id.toLowerCase();
+    if (c.title) titles.set(key, c.title);
+    if (c.type) types.set(key, c.type);
   }
   const parts = text.split(MEM_MARKER_RE);
   return parts.map((part, i) => {
@@ -125,14 +140,17 @@ function renderProse(text: string, citations: CitationRef[]): ReactNode {
     if (!m) return <Fragment key={i}>{part}</Fragment>;
     const id = m[1]!.toLowerCase();
     const title = titles.get(id) ?? `mem · ${id.slice(0, 6)}`;
+    const type = types.get(id);
     return (
       <Link
         key={i}
         href={`/memory/${id}`}
-        className="mx-0.5 inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-1.5 py-0 align-baseline text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+        className="citation-chip mx-0.5 align-baseline"
+        {...(type ? { "data-type": type } : {})}
         data-testid={`inline-citation-${id}`}
       >
-        {title}
+        <span aria-hidden className="citation-chip-dot" />
+        <span className="citation-chip-label">{title}</span>
       </Link>
     );
   });
