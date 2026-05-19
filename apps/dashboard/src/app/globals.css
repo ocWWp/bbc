@@ -331,21 +331,73 @@
   background: transparent;
   color: var(--paper-ink);
 }
+/* v1.8 button system — primary button via --btn-primary-* tokens.
+   Replaces the prior paper-accent orange hover mix with a monochrome
+   lift. See docs/plans/2026-05-19-v18-button-system-design.md. */
 .btn-primary,
 .btn.primary {
-  background: var(--paper-ink);
-  color: var(--paper-bg);
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
+  border: 1px solid var(--btn-primary-border);
 }
 .btn-primary:hover,
-.btn.primary:hover { background: color-mix(in oklab, var(--paper-ink), var(--paper-accent) 20%); }
+.btn.primary:hover {
+  background: var(--btn-primary-hover-bg);
+}
+.btn-primary:focus-visible,
+.btn.primary:focus-visible {
+  outline: 2px solid var(--btn-focus-ring);
+  outline-offset: 2px;
+}
+.btn-primary:disabled,
+.btn.primary:disabled,
+.btn-primary[aria-disabled="true"],
+.btn.primary[aria-disabled="true"] {
+  opacity: var(--btn-disabled-opacity);
+  cursor: not-allowed;
+}
 .btn-ghost,
 .btn.ghost {
-  background: transparent;
-  color: var(--paper-ink);
-  border-color: var(--paper-rule);
+  background: var(--btn-ghost-bg);
+  color: var(--btn-ghost-fg);
+  border: 1px solid transparent;
 }
 .btn-ghost:hover,
-.btn.ghost:hover { background: var(--paper-bg-2); }
+.btn.ghost:hover {
+  background: var(--btn-ghost-hover-bg);
+  color: var(--btn-ghost-hover-fg);
+}
+.btn-ghost:focus-visible,
+.btn.ghost:focus-visible {
+  outline: 2px solid var(--btn-focus-ring);
+  outline-offset: 2px;
+}
+.btn-ghost:disabled,
+.btn.ghost:disabled {
+  opacity: var(--btn-disabled-opacity);
+  cursor: not-allowed;
+}
+.btn-secondary,
+.btn.secondary {
+  background: var(--btn-secondary-bg);
+  color: var(--btn-secondary-fg);
+  border: 1px solid var(--btn-secondary-border);
+}
+.btn-secondary:hover,
+.btn.secondary:hover {
+  background: var(--btn-secondary-hover-bg);
+  border-color: var(--paper-ink);
+}
+.btn-secondary:focus-visible,
+.btn.secondary:focus-visible {
+  outline: 2px solid var(--btn-focus-ring);
+  outline-offset: 2px;
+}
+.btn-secondary:disabled,
+.btn.secondary:disabled {
+  opacity: var(--btn-disabled-opacity);
+  cursor: not-allowed;
+}
 .btn.warn {
   background: var(--paper-warn);
   color: var(--paper-bg);
