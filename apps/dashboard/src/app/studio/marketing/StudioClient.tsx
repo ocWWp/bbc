@@ -361,7 +361,7 @@ function TaskEntry({
           {task.length}/500 · ⌘↵ to send
         </div>
         <Button
-          variant="studio"
+          variant="default"
           size="default"
           onClick={onSubmit}
           disabled={disabled || task.trim().length < 8}
@@ -519,7 +519,7 @@ function ConfigureStage({
 
       <div className="flex items-center justify-end">
         <Button
-          variant="studio"
+          variant="default"
           size="lg"
           onClick={() => onRun(values)}
           disabled={!allRequiredFilled || disabled}
@@ -658,7 +658,7 @@ function ReviewStage({
         </div>
         <div className="flex items-center gap-2">
           {reviewed ? (
-            <Button variant="studio" size="default" onClick={onStartOver}>
+            <Button variant="default" size="default" onClick={onStartOver}>
               New task
             </Button>
           ) : (
@@ -666,7 +666,7 @@ function ReviewStage({
               <Button variant="ghost" size="default" onClick={onReject} disabled={disabled}>
                 Reject
               </Button>
-              <Button variant="studio" size="default" onClick={onAccept} disabled={disabled}>
+              <Button variant="default" size="default" onClick={onAccept} disabled={disabled}>
                 Approve
               </Button>
             </>

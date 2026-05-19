@@ -40,7 +40,7 @@ export function CookieBanner() {
         </p>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => decide("reject")}>Reject</Button>
-          <Button variant="brain" size="sm" onClick={() => decide("accept")}>Accept</Button>
+          <Button variant="default" size="sm" onClick={() => decide("accept")}>Accept</Button>
         </div>
       </div>
     </div>

@@ -123,7 +123,7 @@ export default function KeysClient({ initialKeys }: Props) {
             />
           </label>
           <Button
-            variant="studio"
+            variant="default"
             size="default"
             onClick={handleAdd}
             disabled={isPending || secret.length < 8}
