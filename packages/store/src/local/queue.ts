@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { exec, execFile } from "node:child_process";
+import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type {
   FileProposalInput,
@@ -13,15 +13,9 @@ import type {
 } from "../interfaces";
 import { parseFrontmatter, fmString, fmObject } from "./frontmatter";
 
-const execp = promisify(exec);
 const execFileP = promisify(execFile);
 const PROPOSAL_ID_RE = /^prop_[\w:.-]+$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/** POSIX-safe single-quote escape for shelling out arguments. */
-function shq(s: string): string {
-  return `'${s.replace(/'/g, `'\\''`)}'`;
-}
 
 export class LocalQueueStore implements QueueStore {
   constructor(private readonly bbcRoot: string) {}
@@ -154,8 +148,10 @@ export class LocalQueueStore implements QueueStore {
   }
 
   /**
-   * File-mode acceptProposal: shells out to scripts/accept.sh. Single-tenant
-   * by construction; the host's bbc/ directory is the only state.
+   * File-mode acceptProposal: shells out to scripts/accept.sh via execFile so
+   * arguments are passed as a single argv slot each (no shell parsing). Inputs
+   * (proposalId, actor) are regex-validated upstream; this just avoids the
+   * shell-quoting concern entirely, matching the fileProposal pattern.
    */
   async acceptProposal(proposalId: string, actor: string): Promise<WriteResult> {
     if (!PROPOSAL_ID_RE.test(proposalId)) {
@@ -163,8 +159,9 @@ export class LocalQueueStore implements QueueStore {
     }
     const script = path.join(this.bbcRoot, "scripts", "accept.sh");
     try {
-      const { stdout, stderr } = await execp(
-        `bash ${shq(script)} ${shq(proposalId)} --actor ${shq(actor)}`,
+      const { stdout, stderr } = await execFileP(
+        "bash",
+        [script, proposalId, "--actor", actor],
         { cwd: this.bbcRoot, timeout: 30000 },
       );
       return { ok: true, output: [stdout, stderr].filter(Boolean).join("\n") };
@@ -186,8 +183,9 @@ export class LocalQueueStore implements QueueStore {
     }
     const script = path.join(this.bbcRoot, "scripts", "reject.sh");
     try {
-      const { stdout, stderr } = await execp(
-        `bash ${shq(script)} ${shq(proposalId)} --reason ${shq(reason)} --actor ${shq(actor)}`,
+      const { stdout, stderr } = await execFileP(
+        "bash",
+        [script, proposalId, "--reason", reason, "--actor", actor],
         { cwd: this.bbcRoot, timeout: 30000 },
       );
       return { ok: true, output: [stdout, stderr].filter(Boolean).join("\n") };
