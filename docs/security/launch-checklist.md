@@ -11,6 +11,12 @@ These items are external-account configuration the maintainer does outside the r
 - [ ] Bot Fight Mode (or Super Bot Fight Mode) toggled on.
 - [ ] Verified the OWASP rule trips on the SQLi probe and the rate-limit trips on the 120-request loop. See `cloudflare-waf.md#how-to-verify`.
 
+## App env (OAuth)
+
+- [ ] `BBC_OAUTH_PROVIDERS`, `BBC_OAUTH_STATE_SECRET`, `BBC_GOOGLE_OAUTH_CLIENT_ID`, `BBC_GOOGLE_OAUTH_CLIENT_SECRET`, `BBC_PUBLIC_URL` all set via `wrangler secret put`. Verified with `wrangler secret list`. See `prod-oauth-setup.md`.
+- [ ] Sign-in-with-Google smoked end-to-end on the deployed domain (consent → `/home`).
+- [ ] `/library` Gmail install smoked end-to-end (consent → `external_accounts` row written → card shows connected).
+
 ## Repo (GitHub)
 
 - [ ] **Socket** GitHub App installed on the BBC repo. Visit https://socket.dev/install, grant access to `ocWWp/bbc`. Confirm a comment appears on the next PR that adds an npm dependency.
