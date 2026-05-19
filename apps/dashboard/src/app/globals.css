@@ -43,8 +43,8 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
+  --primary:               var(--btn-primary-bg);
+  --primary-foreground:    var(--btn-primary-fg);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
@@ -83,6 +83,30 @@
   --paper: #fbf9f3;
   --paper-accent: #c14a1b;        /* warm orange — syntax keyword */
   --paper-accent-soft: #f3d9c8;
+
+  /* ============================================================
+     v1.8 BUTTON SYSTEM — single source of truth.
+     Primary auto-inverts in dark mode via the --paper-ink / --paper
+     flip already defined in the .dark block below.
+     ============================================================ */
+  --btn-primary-bg:        var(--paper-ink);
+  --btn-primary-fg:        var(--paper);
+  --btn-primary-hover-bg:  var(--paper-ink-2);
+  --btn-primary-border:    transparent;
+  --btn-focus-ring:        color-mix(in oklab, var(--paper-ink), transparent 50%);
+
+  --btn-secondary-bg:      transparent;
+  --btn-secondary-fg:      var(--paper-ink);
+  --btn-secondary-border:  var(--paper-rule-2);
+  --btn-secondary-hover-bg: color-mix(in oklab, var(--paper-ink), transparent 95%);
+
+  --btn-ghost-bg:          transparent;
+  --btn-ghost-fg:          var(--paper-muted);
+  --btn-ghost-hover-bg:    color-mix(in oklab, var(--paper-ink), transparent 92%);
+  --btn-ghost-hover-fg:    var(--paper-ink);
+
+  --btn-disabled-opacity:  0.4;
+
   --paper-code-bg: #14130f;
   --paper-code-ink: #e8e4d8;
   --paper-ok: #2d6a3e;
@@ -137,8 +161,8 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
+  --primary:               var(--btn-primary-bg);
+  --primary-foreground:    var(--btn-primary-fg);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
@@ -170,6 +194,12 @@
   --paper: #14130f;
   --paper-accent: #ef7a3a;
   --paper-accent-soft: #3a2417;
+
+  /* v1.8 button system — hover wants brighter in dark, but
+     --paper-ink-2 in dark mode goes darker (#d8d3c2). Override
+     to nudge brighter on hover. Other --btn-* tokens auto-invert. */
+  --btn-primary-hover-bg:  #ffffff;
+
   --t-voice:          #e26aa3;
   --t-decision:       #6c98ef;
   --t-vendor:         #e0a14d;
