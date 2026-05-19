@@ -14,14 +14,18 @@ export async function middleware(request: NextRequest) {
     nextUrl.pathname.startsWith("/api/v1") ||   // REST brain API: same Bearer api-key auth
     nextUrl.pathname.startsWith("/api/spike-v16") ||  // v1.6 M1.2 SSE spike: no auth so we can curl it; deleted after M2
     nextUrl.pathname.startsWith("/invite") ||  // invitation landing pages must be reachable without a session
-    nextUrl.pathname.startsWith("/landing");   // public marketing page
+    nextUrl.pathname.startsWith("/landing") || // public marketing page
+    nextUrl.pathname.startsWith("/about") ||   // public trust-model disclosure (/about/security et al.)
+    nextUrl.pathname === "/privacy" ||         // legal — linked from /auth/signin footer
+    nextUrl.pathname === "/terms";             // legal — linked from /auth/signin footer
 
   const { response, user } = await updateSession(request);
 
   if (isAuthRoute) return response;
 
-  // Dev escape hatch: when Supabase env vars aren't set, skip the auth redirect
-  // so Phase G's public chrome (theme, /terms, /privacy, cookie banner) is browsable.
+  // Supabase-not-configured escape hatch retained below in case a self-hoster
+  // is browsing without env wired up. Public legal/disclosure pages are now
+  // gated only by the allowlist above — they don't depend on this branch.
   const supabaseConfigured = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL);
 
   if (!user && supabaseConfigured) {
