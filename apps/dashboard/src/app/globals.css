@@ -5603,3 +5603,22 @@ mark.mark-skill { --mark-color: var(--t-skill); }
   }
   .ops-snap-row > .ops-snap-link { justify-self: end; }
 }
+
+/* ------------------------------------------------------------------ */
+/* prefers-reduced-motion                                              */
+/* Users who request reduced motion via OS settings (System            */
+/* Preferences → Accessibility → Display → Reduce motion on macOS,     */
+/* equivalent on Windows/iOS/Android) get near-instant transitions     */
+/* and one-shot animations. Framer Motion is handled separately via    */
+/* the <MotionConfig reducedMotion="user"> in ChatHome.tsx.            */
+/* ------------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
