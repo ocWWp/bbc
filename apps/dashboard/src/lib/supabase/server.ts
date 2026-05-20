@@ -22,7 +22,7 @@ export async function getSupabaseServerClient() {
         getAll() {
           return cookieStore.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet, _headers) {
           try {
             for (const { name, value, options } of cookiesToSet) {
               cookieStore.set(name, value, options);
@@ -31,6 +31,10 @@ export async function getSupabaseServerClient() {
             // Called from a Server Component — cookie writes are forbidden there.
             // The middleware refresh path handles session-cookie rotation, so this is safe to swallow.
           }
+          // _headers (Cache-Control: private, no-store et al. from @supabase/ssr ≥0.10)
+          // cannot be applied here — Server Components have no response handle, and
+          // route handlers build their own NextResponse downstream. The middleware
+          // setAll covers the same request's response, which is sufficient.
         },
       },
     },
