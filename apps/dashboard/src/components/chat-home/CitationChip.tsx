@@ -14,6 +14,11 @@ export type CitationChipProps = {
    * neutral `--paper-muted` fallback.
    */
   type?: string | null;
+  /**
+   * When true, render with inline-flow spacing (`mx-0.5 align-baseline`)
+   * for use inside prose paragraphs. Default false (block chip).
+   */
+  inline?: boolean;
 };
 
 const MAX_LABEL_CHARS = 40;
@@ -25,17 +30,19 @@ const MAX_LABEL_CHARS = 40;
  * is driven by `data-type` + the CSS rule block in globals.css; visual
  * style lives entirely in the `.citation-chip` rule, not inline classes.
  */
-export function CitationChip({ memoryId, label, type }: CitationChipProps) {
+export function CitationChip({ memoryId, label, type, inline = false }: CitationChipProps) {
   const raw = label?.trim() || `memory · ${memoryId.slice(0, 6)}`;
   const display =
     raw.length > MAX_LABEL_CHARS ? `${raw.slice(0, MAX_LABEL_CHARS - 1)}…` : raw;
   const typeAttr = type && type.trim() ? { "data-type": type } : {};
+  const className = inline ? "citation-chip mx-0.5 align-baseline" : "citation-chip";
+  const testIdPrefix = inline ? "inline-citation" : "citation-chip";
   return (
     <Link
       href={`/memory/${memoryId}`}
-      className="citation-chip"
+      className={className}
       {...typeAttr}
-      data-testid={`citation-chip-${memoryId}`}
+      data-testid={`${testIdPrefix}-${memoryId}`}
       title={raw}
     >
       <span aria-hidden className="citation-chip-dot" />
