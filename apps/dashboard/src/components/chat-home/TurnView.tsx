@@ -1,7 +1,6 @@
 "use client";
 
 import { Fragment, useMemo, type ReactNode } from "react";
-import Link from "next/link";
 import { motion } from "framer-motion";
 
 import { ActionCard } from "./ActionCard";
@@ -139,19 +138,14 @@ function renderProse(text: string, citations: CitationRef[]): ReactNode {
     const m = part.match(MEM_ID_RE);
     if (!m) return <Fragment key={i}>{part}</Fragment>;
     const id = m[1]!.toLowerCase();
-    const title = titles.get(id) ?? `mem · ${id.slice(0, 6)}`;
-    const type = types.get(id);
     return (
-      <Link
+      <CitationChip
         key={i}
-        href={`/memory/${id}`}
-        className="citation-chip mx-0.5 align-baseline"
-        {...(type ? { "data-type": type } : {})}
-        data-testid={`inline-citation-${id}`}
-      >
-        <span aria-hidden className="citation-chip-dot" />
-        <span className="citation-chip-label">{title}</span>
-      </Link>
+        memoryId={id}
+        label={titles.get(id)}
+        type={types.get(id)}
+        inline
+      />
     );
   });
 }

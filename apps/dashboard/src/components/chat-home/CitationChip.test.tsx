@@ -43,4 +43,14 @@ describe("CitationChip", () => {
     const { container } = render(<CitationChip memoryId="abcdef1234" />);
     expect(container.textContent).toContain("memory · abcdef");
   });
+
+  it("uses the inline-citation test id and inline classes when inline=true", () => {
+    const { container } = render(
+      <CitationChip memoryId="abc-123" label="x" type="voice" inline />,
+    );
+    expect(container.querySelector('[data-testid="inline-citation-abc-123"]')).not.toBeNull();
+    const anchor = container.querySelector("a")!;
+    expect(anchor.className).toContain("mx-0.5");
+    expect(anchor.className).toContain("align-baseline");
+  });
 });
