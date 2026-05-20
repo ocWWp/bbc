@@ -245,6 +245,88 @@ describe("homeTurn", () => {
     expect(c.data.title).toBe("Fresh from memory_fetch");
   });
 
+  it("includes type on citation events when memoryTypes dep is set (v1.8)", async () => {
+    const events: any[] = [];
+    const deps = {
+      ...happyDeps(),
+      invokeLlm: vi.fn().mockResolvedValue({
+        text: "Voice is plain [mem:m0042].",
+        toolCalls: [],
+        tokens: 100,
+      }),
+      retrievedMemoryIds: ["m0042"],
+      memoryTypes: { m0042: "decision" },
+    };
+    await homeTurn(
+      {
+        tenantId: "t1",
+        actorId: "u1",
+        role: "admin",
+        userInput: "explain voice",
+        recent: [],
+      },
+      deps,
+      (e) => events.push(e),
+    );
+    const c = events.find((e) => e.event === "citation");
+    expect(c.data.type).toBe("decision");
+  });
+
+  it("prefers tool-discovered type (extraGroundedTypes) over static map (v1.8)", async () => {
+    const events: any[] = [];
+    const deps = {
+      ...happyDeps(),
+      invokeLlm: vi.fn().mockResolvedValue({
+        text: "See [mem:m0099].",
+        toolCalls: [],
+        tokens: 100,
+        extraGroundedIds: ["m0099"],
+        extraGroundedTypes: { m0099: "voice" },
+      }),
+      retrievedMemoryIds: [],
+      memoryTypes: { m0099: "note" },
+    };
+    await homeTurn(
+      {
+        tenantId: "t1",
+        actorId: "u1",
+        role: "admin",
+        userInput: "x",
+        recent: [],
+      },
+      deps,
+      (e) => events.push(e),
+    );
+    const c = events.find((e) => e.event === "citation");
+    expect(c.data.type).toBe("voice");
+  });
+
+  it("emits type=null on citation events when no type info available", async () => {
+    const events: any[] = [];
+    const deps = {
+      ...happyDeps(),
+      invokeLlm: vi.fn().mockResolvedValue({
+        text: "Plain [mem:m0042].",
+        toolCalls: [],
+        tokens: 100,
+      }),
+      retrievedMemoryIds: ["m0042"],
+    };
+    await homeTurn(
+      {
+        tenantId: "t1",
+        actorId: "u1",
+        role: "admin",
+        userInput: "x",
+        recent: [],
+      },
+      deps,
+      (e) => events.push(e),
+    );
+    const c = events.find((e) => e.event === "citation");
+    expect(c.data.type).toBe(null);
+  });
+
   it("forwards live text deltas via onTextDelta to SSE text-delta events", async () => {
     const events: any[] = [];
     const deps = {

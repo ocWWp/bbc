@@ -147,6 +147,7 @@ export function makeRealInvokeLlm(
     const toolCalls: LlmToolCall[] = [];
     const extraIds = new Set<string>();
     const extraTitles: Record<string, string> = {};
+    const extraTypes: Record<string, string> = {};
     let totalTokens = 0;
 
     for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
@@ -180,6 +181,7 @@ export function makeRealInvokeLlm(
           tokens: totalTokens,
           extraGroundedIds: Array.from(extraIds),
           extraGroundedTitles: extraTitles,
+          extraGroundedTypes: extraTypes,
         };
       }
 
@@ -195,7 +197,13 @@ export function makeRealInvokeLlm(
         const exec = await executor(block.name, block.input);
         if (exec.ok) {
           toolCalls.push({ name: block.name, input: block.input, output: exec.result });
-          collectIdsFromToolResult(block.name, exec.result, extraIds, extraTitles);
+          collectIdsFromToolResult(
+            block.name,
+            exec.result,
+            extraIds,
+            extraTitles,
+            extraTypes,
+          );
           toolResults.push({
             type: "tool_result",
             tool_use_id: block.id,
@@ -223,6 +231,8 @@ export function makeRealInvokeLlm(
       toolCalls,
       tokens: totalTokens,
       extraGroundedIds: Array.from(extraIds),
+      extraGroundedTitles: extraTitles,
+      extraGroundedTypes: extraTypes,
     };
   };
 }
@@ -238,6 +248,7 @@ function collectIdsFromToolResult(
   result: unknown,
   into: Set<string>,
   titles: Record<string, string>,
+  types: Record<string, string>,
 ): void {
   if (!result || typeof result !== "object") return;
   if (name === "memory_search") {
@@ -249,6 +260,8 @@ function collectIdsFromToolResult(
         into.add(id);
         const t = (h as { title?: unknown }).title;
         if (typeof t === "string" && t.trim()) titles[id] = t.trim();
+        const ty = (h as { type?: unknown }).type;
+        if (typeof ty === "string" && ty.trim()) types[id] = ty.trim();
       }
     }
     return;
@@ -259,5 +272,7 @@ function collectIdsFromToolResult(
     into.add(id);
     const t = (result as { title?: unknown }).title;
     if (typeof t === "string" && t.trim()) titles[id] = t.trim();
+    const ty = (result as { type?: unknown }).type;
+    if (typeof ty === "string" && ty.trim()) types[id] = ty.trim();
   }
 }

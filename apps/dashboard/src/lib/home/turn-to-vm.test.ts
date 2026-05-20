@@ -38,10 +38,12 @@ describe("turnToVm", () => {
           text: "Open dashboard.",
           toolCalls: [{ name: "route_match", payload: { route: "/dash" } }],
           // Mixed shapes accepted: pre-F5 rows persist as string[], F5+
-          // rows persist as Array<{id, title?}>. Both should hydrate.
+          // rows persist as Array<{id, title?}>, v1.8+ rows additionally
+          // carry `type`. All three should hydrate.
           citations: [
             "mem-1",
             { id: "mem-2", title: "Voice and tone decision" },
+            { id: "mem-3", title: "Auth provider", type: "decision" },
           ],
         },
       }),
@@ -50,8 +52,9 @@ describe("turnToVm", () => {
       { name: "route_match", payload: { route: "/dash" } },
     ]);
     expect(vm.citations).toEqual([
-      { id: "mem-1", title: null },
-      { id: "mem-2", title: "Voice and tone decision" },
+      { id: "mem-1", title: null, type: null },
+      { id: "mem-2", title: "Voice and tone decision", type: null },
+      { id: "mem-3", title: "Auth provider", type: "decision" },
     ]);
   });
 

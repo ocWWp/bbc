@@ -26,6 +26,7 @@ import {
 import { makeRealClassify } from "@/lib/home/real-classify";
 import {
   memoryTitlesOf,
+  memoryTypesOf,
   retrieveHomeContext,
   makeBuildContextFromRetrieval,
   retrievedMemoryIdsOf,
@@ -219,7 +220,11 @@ async function postImpl(req: NextRequest) {
   const collected = {
     text: "",
     toolCalls: [] as Array<{ name: string; payload: unknown }>,
-    citations: [] as Array<{ id: string; title?: string | null }>,
+    citations: [] as Array<{
+      id: string;
+      title?: string | null;
+      type?: string | null;
+    }>,
     status: "completed" as "completed" | "aborted" | "failed",
     errorMsg: undefined as string | undefined,
   };
@@ -266,7 +271,11 @@ async function postImpl(req: NextRequest) {
           collected.toolCalls.push({ name: e.data.kind, payload: e.data.payload });
         }
         if (e.event === "citation") {
-          collected.citations.push({ id: e.data.memoryId, title: e.data.title ?? null });
+          collected.citations.push({
+            id: e.data.memoryId,
+            title: e.data.title ?? null,
+            type: e.data.type ?? null,
+          });
         }
         if (e.event === "turn-end") {
           // Intercept turn-end: capture status/error but do NOT forward to
@@ -354,6 +363,7 @@ async function postImpl(req: NextRequest) {
           invokeLlm: makeRealInvokeLlm(anthropicClient, executor),
           retrievedMemoryIds: retrievedMemoryIdsOf(retrieved),
           memoryTitles: memoryTitlesOf(retrieved),
+          memoryTypes: memoryTypesOf(retrieved),
         };
 
         await homeTurn(

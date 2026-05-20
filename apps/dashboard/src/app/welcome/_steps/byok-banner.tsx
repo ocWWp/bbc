@@ -65,7 +65,7 @@ export function ByokBanner({ isHostedDemo }: Props) {
           </div>
         </div>
         <Button
-          variant={open ? "ghost" : "studio"}
+          variant={open ? "ghost" : "default"}
           size="sm"
           onClick={() => setOpen((v) => !v)}
         >
@@ -86,7 +86,7 @@ export function ByokBanner({ isHostedDemo }: Props) {
             maxLength={2000}
           />
           <Button
-            variant="studio"
+            variant="default"
             size="default"
             onClick={handleSave}
             disabled={isPending || secret.length < 8}

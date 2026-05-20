@@ -184,3 +184,20 @@ export function memoryTitlesOf(
   }
   return out;
 }
+
+/**
+ * Build the id → type map used to populate the optional `type` field
+ * on citation SSE events (v1.8+). Rows without a type are omitted; the
+ * orchestrator treats that as "no type" and emits null so the chip
+ * falls back to the neutral tint.
+ */
+export function memoryTypesOf(
+  retrieval: HomeRetrieval,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const r of retrieval.rows) {
+    const t = (r.type ?? "").trim();
+    if (t) out[r.id] = t;
+  }
+  return out;
+}

@@ -52,6 +52,13 @@ export type LlmResult = {
    * show its raw uuid even when the search result included a title.
    */
   extraGroundedTitles?: Readonly<Record<string, string>>;
+  /**
+   * Optional. Types for memory IDs the LLM saw via tool calls — keyed
+   * by id. Merged with the static `memoryTypes` dep so the citation
+   * chip can render with per-type color (v1.8+). Without this, a
+   * tool-discovered chip falls back to the neutral tint.
+   */
+  extraGroundedTypes?: Readonly<Record<string, string>>;
 };
 
 export type BuildContextFn = (input: {
@@ -118,6 +125,14 @@ export type HomeTurnDeps = {
    * titles too via LlmResult.extraGroundedTitles.
    */
   memoryTitles?: Readonly<Record<string, string>>;
+  /**
+   * Types for the retrieved memory IDs, keyed by id (v1.8+). Used to
+   * populate the optional `type` on citation SSE events so the chip can
+   * render with per-type color (decision = blue, voice = pink, etc.).
+   * Tool-discovered rows can supply types too via
+   * LlmResult.extraGroundedTypes.
+   */
+  memoryTypes?: Readonly<Record<string, string>>;
 };
 
 export type SseEvent =
@@ -134,7 +149,7 @@ export type SseEvent =
     }
   | {
       event: "citation";
-      data: { memoryId: string; title?: string | null };
+      data: { memoryId: string; title?: string | null; type?: string | null };
     }
   /**
    * Emitted by the route as the very first SSE event when a brand-new
@@ -278,17 +293,27 @@ export async function homeTurn(
       });
     }
 
-    // Merge static + tool-discovered title maps. Tool-discovered titles
-    // win on conflict because they reflect a fresh memory_fetch read.
+    // Merge static + tool-discovered title/type maps. Tool-discovered
+    // values win on conflict because they reflect a fresh memory_fetch
+    // read.
     const titleMap: Record<string, string> = {
       ...(deps.memoryTitles ?? {}),
       ...(llm.extraGroundedTitles ?? {}),
     };
+    const typeMap: Record<string, string> = {
+      ...(deps.memoryTypes ?? {}),
+      ...(llm.extraGroundedTypes ?? {}),
+    };
     for (const id of grounded.citations) {
       const title = titleMap[id];
+      const type = typeMap[id];
       emit({
         event: "citation",
-        data: { memoryId: id, title: title ?? null },
+        data: {
+          memoryId: id,
+          title: title ?? null,
+          type: type ?? null,
+        },
       });
     }
 
