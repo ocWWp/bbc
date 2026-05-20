@@ -27,13 +27,19 @@ export async function updateSession(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet, headers) {
           for (const { name, value } of cookiesToSet) {
             request.cookies.set(name, value);
           }
           supabaseResponse = NextResponse.next({ request });
           for (const { name, value, options } of cookiesToSet) {
             supabaseResponse.cookies.set(name, value, options);
+          }
+          // @supabase/ssr ≥0.10 passes Cache-Control: private, no-store et al.
+          // alongside auth cookies — apply them so a CDN can't cache the
+          // response and serve one user's session to another.
+          for (const [name, value] of Object.entries(headers)) {
+            supabaseResponse.headers.set(name, value);
           }
         },
       },
